@@ -775,7 +775,7 @@ export const listPublicFeed = async () => {
 	return {
 		generated_at: new Date().toISOString(),
 		schema_version: "2026-05-14",
-		source: "clankers-list",
+		source: "oss-guard",
 		users: dashboard.riskProfiles
 			.filter((profile) => profile.status !== "allow")
 			.map((profile) => ({

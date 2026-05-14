@@ -68,8 +68,8 @@ function InstallRoute() {
 						<Github className="size-4 text-primary" />
 						GitHub App setup
 					</div>
-					<h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
-						Finish Clankers List installation
+					<h1 className="font-semibold text-2xl md:text-3xl">
+						Finish OSS Guard installation
 					</h1>
 				</header>
 

@@ -14,8 +14,9 @@ export const Route = createRootRoute({
 				rel: "stylesheet",
 			},
 			{
-				href: "/favicon.ico",
+				href: "/oss-guard-mark.svg",
 				rel: "icon",
+				type: "image/svg+xml",
 			},
 		],
 		meta: [
@@ -25,11 +26,11 @@ export const Route = createRootRoute({
 				name: "viewport",
 			},
 			{
-				title: "Clankers List",
+				title: "OSS Guard",
 			},
 			{
 				content:
-					"Shared OSS abuse intelligence for GitHub maintainers, suspicious PR reports, and public bot risk feeds.",
+					"Shared OSS Guard intelligence for GitHub maintainers, suspicious PR reports, and public bot risk feeds.",
 				name: "description",
 			},
 		],

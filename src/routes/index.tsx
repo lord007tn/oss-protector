@@ -1,15 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	Activity,
+	ArrowRight,
 	Bot,
 	Braces,
+	CheckCircle2,
+	Code2,
 	Crown,
 	ExternalLink,
+	FileJson,
 	Flag,
 	Github,
 	GitPullRequest,
 	ListFilter,
 	Medal,
+	MousePointerClick,
 	Search,
 	ShieldCheck,
 	Trophy,
@@ -74,6 +79,9 @@ const appUrl =
 const githubAppSlug = import.meta.env.VITE_GITHUB_APP_SLUG ?? "clankers-list";
 const githubAppInstallUrl = `https://github.com/apps/${githubAppSlug}/installations/new`;
 const webhookUrl = `${appUrl}/api/github/webhook`;
+const productName = "OSS Guard";
+const primaryCommand = "/ossguard report bot reason: fake bounty";
+const githubMentionCommand = `@${githubAppSlug}[bot] report bot reason: fake bounty`;
 
 const statusChartConfig = {
 	accounts: {
@@ -166,7 +174,7 @@ function Home() {
 	return (
 		<main className="dark min-h-screen bg-background text-foreground">
 			<div className="mx-auto grid w-full max-w-[1440px] gap-5 px-4 py-4 md:px-6 lg:px-8">
-				<AppHeader appInstallUrl={githubAppInstallUrl} />
+				<AppHeader appInstallUrl={githubAppInstallUrl} dashboard={dashboard} />
 
 				<section className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
 					<MetricCard
@@ -331,7 +339,9 @@ function Home() {
 					<Card className="rounded-lg">
 						<CardHeader>
 							<CardTitle>Integration state</CardTitle>
-							<CardDescription>Production feed and GitHub App</CardDescription>
+							<CardDescription>
+								{productName} feed and GitHub App
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="grid gap-3">
 							<StatRow
@@ -353,7 +363,7 @@ function Home() {
 							<div className="flex flex-wrap gap-2">
 								<a className={buttonVariants()} href={githubAppInstallUrl}>
 									<Github className="size-4" />
-									Install GitHub App
+									Install {productName}
 								</a>
 								<a
 									className={buttonVariants({ variant: "outline" })}
@@ -469,7 +479,7 @@ function Home() {
 									<EmptyState
 										icon={ListFilter}
 										title="No maintainer reports yet"
-										description="/clankers report bot reason: fake bounty"
+										description={primaryCommand}
 									/>
 								)}
 							</CardContent>
@@ -480,15 +490,16 @@ function Home() {
 						<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
 							<Card className="rounded-lg">
 								<CardHeader>
-									<CardTitle>Shared GitHub App</CardTitle>
+									<CardTitle>Install the shared app</CardTitle>
 									<CardDescription>
-										One app installed by maintainers on selected repositories
+										Repository owners install {productName} once and choose the
+										repositories to watch
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="grid gap-3">
 									<a className={buttonVariants()} href={githubAppInstallUrl}>
 										<Github className="size-4" />
-										Install GitHub App
+										Install {productName}
 									</a>
 									<div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
 										<div className="flex items-center justify-between gap-3">
@@ -510,15 +521,15 @@ function Home() {
 								<CardHeader>
 									<CardTitle>Maintainer command</CardTitle>
 									<CardDescription>
-										Commands convert PR context into scored reports
+										Commands convert PR context into scored OSS Guard reports
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="grid gap-3">
 									<code className="block rounded-lg border bg-muted/30 p-3 text-sm">
-										/clankers report bot reason: fake bounty
+										{primaryCommand}
 									</code>
 									<code className="block rounded-lg border bg-muted/30 p-3 text-sm">
-										@clankers-list[bot] report bot reason: fake bounty
+										{githubMentionCommand}
 									</code>
 									<div className="grid grid-cols-2 gap-2">
 										<StatPill
@@ -548,39 +559,149 @@ function Home() {
 	);
 }
 
-function AppHeader({ appInstallUrl }: { appInstallUrl: string }) {
+function AppHeader({
+	appInstallUrl,
+	dashboard,
+}: {
+	appInstallUrl: string;
+	dashboard: GuardDashboard;
+}) {
 	return (
-		<header className="grid min-w-0 gap-4 rounded-lg border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-			<div className="min-w-0">
-				<div className="flex flex-wrap items-center gap-2 text-muted-foreground text-sm">
-					<ShieldCheck className="size-4 text-primary" />
-					<span>OSS abuse intelligence</span>
-					<Badge variant="outline">GitHub PR guard</Badge>
+		<header className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,520px)]">
+			<section className="grid content-between gap-5 rounded-lg border bg-card p-5">
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-3">
+						<BrandMark />
+						<div>
+							<p className="font-semibold text-lg">{productName}</p>
+							<p className="text-muted-foreground text-sm">
+								Shared defense for open-source maintainers
+							</p>
+						</div>
+						<Badge className="ml-0 lg:ml-auto" variant="outline">
+							Public GitHub App
+						</Badge>
+					</div>
+					<h1 className="mt-6 max-w-3xl font-semibold text-3xl leading-tight md:text-5xl">
+						Install once. Flag suspicious PRs from the conversation.
+					</h1>
+					<p className="mt-4 max-w-2xl text-muted-foreground text-sm leading-6 md:text-base">
+						{productName} listens to PR and issue comments, scores the report
+						with repository context, and publishes a shared JSON feed other OSS
+						projects can consume.
+					</p>
 				</div>
-				<h1 className="mt-2 font-semibold text-3xl tracking-tight">
-					Clankers List
-				</h1>
-				<p className="mt-2 max-w-3xl text-muted-foreground text-sm leading-6">
-					A shared blocklist and scoring console for suspicious open-source PR
-					activity.
-				</p>
-			</div>
-			<div className="flex flex-wrap gap-2">
-				<a className={buttonVariants()} href={appInstallUrl}>
-					<Github className="size-4" />
-					Install GitHub App
-				</a>
-				<a
-					className={buttonVariants({ variant: "outline" })}
-					href="/api/feed.json"
-					rel="noreferrer"
-					target="_blank"
-				>
-					<ExternalLink className="size-4" />
-					JSON feed
-				</a>
-			</div>
+
+				<div className="grid gap-4">
+					<div className="flex flex-wrap gap-2">
+						<a className={buttonVariants()} href={appInstallUrl}>
+							<Github className="size-4" />
+							Install {productName}
+							<ArrowRight className="size-4" />
+						</a>
+						<a
+							className={buttonVariants({ variant: "outline" })}
+							href="/api/feed.json"
+							rel="noreferrer"
+							target="_blank"
+						>
+							<FileJson className="size-4" />
+							JSON feed
+						</a>
+					</div>
+					<div className="grid gap-2 rounded-lg border bg-muted/25 p-3">
+						<CommandLine icon={Code2} value={primaryCommand} />
+						<CommandLine icon={Github} value={githubMentionCommand} />
+					</div>
+				</div>
+			</section>
+
+			<section className="grid overflow-hidden rounded-lg border bg-card">
+				<div className="relative min-h-[260px] overflow-hidden border-b">
+					<img
+						alt="OSS Guard product visual"
+						className="h-full min-h-[260px] w-full object-cover"
+						src="/oss-guard-hero.png"
+					/>
+				</div>
+				<div className="grid gap-3 p-4">
+					<div className="grid gap-3 sm:grid-cols-3">
+						<WorkflowStep
+							description="Authorize selected repositories with the shared GitHub App."
+							icon={MousePointerClick}
+							label="Install"
+						/>
+						<WorkflowStep
+							description="Comment in a PR or issue thread when a maintainer sees abuse."
+							icon={Flag}
+							label="Call out"
+						/>
+						<WorkflowStep
+							description="Use the scored feed to review, watch, or block accounts."
+							icon={CheckCircle2}
+							label="Consume"
+						/>
+					</div>
+					<div className="grid gap-2 rounded-lg border bg-muted/25 p-3 text-sm">
+						<StatRow
+							icon={UsersRound}
+							label="Tracked accounts"
+							value={dashboard.stats.trackedUsers}
+						/>
+						<StatRow
+							icon={Github}
+							label="Installed repositories"
+							value={dashboard.stats.activeRepositories}
+						/>
+					</div>
+				</div>
+			</section>
 		</header>
+	);
+}
+
+function BrandMark() {
+	return (
+		<div className="grid size-12 shrink-0 place-items-center rounded-lg border border-primary/35 bg-primary/10 text-primary">
+			<ShieldCheck className="size-7" />
+		</div>
+	);
+}
+
+function CommandLine({
+	icon: Icon,
+	value,
+}: {
+	icon: typeof Bot;
+	value: string;
+}) {
+	return (
+		<div className="flex min-w-0 items-center gap-2 rounded-md border bg-background/40 px-3 py-2">
+			<Icon className="size-4 shrink-0 text-primary" />
+			<code className="min-w-0 break-all text-sm">{value}</code>
+		</div>
+	);
+}
+
+function WorkflowStep({
+	description,
+	icon: Icon,
+	label,
+}: {
+	description: string;
+	icon: typeof Bot;
+	label: string;
+}) {
+	return (
+		<div className="grid gap-2 rounded-lg border bg-muted/25 p-3">
+			<div className="flex items-center gap-2">
+				<span className="grid size-8 place-items-center rounded-md bg-primary/10 text-primary">
+					<Icon className="size-4" />
+				</span>
+				<p className="font-medium text-sm">{label}</p>
+			</div>
+			<p className="text-muted-foreground text-xs leading-5">{description}</p>
+		</div>
 	);
 }
 
