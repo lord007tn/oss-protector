@@ -68,7 +68,12 @@ type StatusFilter = (typeof statusFilters)[number];
 
 const statusFilters = ["all", "watch", "review", "block"] as const;
 const podiumRanks = [0, 1, 2] as const;
-const githubAppCreateBaseUrl = "https://github.com/settings/apps/new";
+const appUrl =
+	import.meta.env.VITE_APP_URL ??
+	"https://clankers-list.raedbahri90.workers.dev";
+const githubAppSlug = import.meta.env.VITE_GITHUB_APP_SLUG ?? "clankers-list";
+const githubAppInstallUrl = `https://github.com/apps/${githubAppSlug}/installations/new`;
+const webhookUrl = `${appUrl}/api/github/webhook`;
 
 const statusChartConfig = {
 	accounts: {
@@ -81,55 +86,6 @@ const reasonChartConfig = {
 		label: "Signals",
 	},
 } satisfies ChartConfig;
-
-const buildGithubAppManifest = (appUrl: string) => ({
-	callback_urls: [`${appUrl}/install`],
-	default_events: [
-		"issue_comment",
-		"pull_request",
-		"pull_request_review_comment",
-	],
-	default_permissions: {
-		contents: "read",
-		issues: "write",
-		pull_requests: "write",
-	},
-	description:
-		"Shared OSS abuse intelligence for suspicious GitHub pull requests and maintainer reports.",
-	hook_attributes: {
-		active: true,
-		url: `${appUrl}/api/github/webhook`,
-	},
-	name: "Clankers List",
-	public: true,
-	redirect_url: `${appUrl}/install`,
-	setup_on_update: true,
-	setup_url: `${appUrl}/install`,
-	url: appUrl,
-});
-
-const buildGithubAppSetupUrl = (appUrl: string) => {
-	const url = new URL(githubAppCreateBaseUrl);
-	url.searchParams.set("name", "Clankers List");
-	url.searchParams.set(
-		"description",
-		"Shared OSS abuse intelligence for suspicious GitHub pull requests and maintainer reports.",
-	);
-	url.searchParams.set("url", appUrl);
-	url.searchParams.append("callback_urls[]", `${appUrl}/install`);
-	url.searchParams.set("setup_url", `${appUrl}/install`);
-	url.searchParams.set("setup_on_update", "true");
-	url.searchParams.set("public", "true");
-	url.searchParams.set("contents", "read");
-	url.searchParams.set("issues", "write");
-	url.searchParams.set("pull_requests", "write");
-	url.searchParams.set("webhook_active", "true");
-	url.searchParams.set("webhook_url", `${appUrl}/api/github/webhook`);
-	url.searchParams.append("events[]", "issue_comment");
-	url.searchParams.append("events[]", "pull_request");
-	url.searchParams.append("events[]", "pull_request_review_comment");
-	return url.toString();
-};
 
 function Home() {
 	const initialData = Route.useLoaderData();
@@ -204,14 +160,10 @@ function Home() {
 			}));
 	}, [dashboard.riskProfiles]);
 
-	const appUrl = import.meta.env.VITE_APP_URL ?? "http://localhost:3000";
-	const appManifest = buildGithubAppManifest(appUrl);
-	const appSetupUrl = buildGithubAppSetupUrl(appUrl);
-
 	return (
 		<main className="dark min-h-screen bg-background text-foreground">
 			<div className="mx-auto grid w-full max-w-[1440px] gap-5 px-4 py-4 md:px-6 lg:px-8">
-				<AppHeader appSetupUrl={appSetupUrl} />
+				<AppHeader appInstallUrl={githubAppInstallUrl} />
 
 				<section className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
 					<MetricCard
@@ -396,9 +348,9 @@ function Home() {
 							/>
 							<Separator />
 							<div className="flex flex-wrap gap-2">
-								<a className={buttonVariants()} href={appSetupUrl}>
+								<a className={buttonVariants()} href={githubAppInstallUrl}>
 									<Github className="size-4" />
-									Register App
+									Install GitHub App
 								</a>
 								<a
 									className={buttonVariants({ variant: "outline" })}
@@ -525,22 +477,30 @@ function Home() {
 						<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
 							<Card className="rounded-lg">
 								<CardHeader>
-									<CardTitle>GitHub App manifest</CardTitle>
+									<CardTitle>Shared GitHub App</CardTitle>
 									<CardDescription>
-										/api/github/webhook receives installation, PR, and comment
-										events
+										One app installed by maintainers on selected repositories
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="grid gap-3">
-									<a className={buttonVariants()} href={appSetupUrl}>
+									<a className={buttonVariants()} href={githubAppInstallUrl}>
 										<Github className="size-4" />
-										Register App
+										Install GitHub App
 									</a>
-									<ScrollArea className="h-[310px] rounded-lg border bg-muted/30">
-										<code className="block p-3 text-xs">
-											{JSON.stringify(appManifest, null, 2)}
-										</code>
-									</ScrollArea>
+									<div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+										<div className="flex items-center justify-between gap-3">
+											<span className="text-muted-foreground">App slug</span>
+											<code>{githubAppSlug}</code>
+										</div>
+										<div className="flex items-center justify-between gap-3">
+											<span className="text-muted-foreground">Webhook</span>
+											<code className="truncate">{webhookUrl}</code>
+										</div>
+										<div className="flex items-center justify-between gap-3">
+											<span className="text-muted-foreground">Events</span>
+											<code>comments, PRs</code>
+										</div>
+									</div>
 								</CardContent>
 							</Card>
 							<Card className="rounded-lg">
@@ -582,7 +542,7 @@ function Home() {
 	);
 }
 
-function AppHeader({ appSetupUrl }: { appSetupUrl: string }) {
+function AppHeader({ appInstallUrl }: { appInstallUrl: string }) {
 	return (
 		<header className="grid min-w-0 gap-4 rounded-lg border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
 			<div className="min-w-0">
@@ -600,9 +560,9 @@ function AppHeader({ appSetupUrl }: { appSetupUrl: string }) {
 				</p>
 			</div>
 			<div className="flex flex-wrap gap-2">
-				<a className={buttonVariants()} href={appSetupUrl}>
+				<a className={buttonVariants()} href={appInstallUrl}>
 					<Github className="size-4" />
-					Register App
+					Install GitHub App
 				</a>
 				<a
 					className={buttonVariants({ variant: "outline" })}
