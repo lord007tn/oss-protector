@@ -1,11 +1,11 @@
-# Clankers List
+# OSS Guard
 
 Shared OSS abuse intelligence for suspicious GitHub pull request activity.
 
 The app is a TanStack Start + Cloudflare Workers product with:
 
 - Shared GitHub App installation and webhook ingestion.
-- Comment commands such as `/clankers report bot reason: fake bounty`.
+- Comment commands such as `/ossguard report bot reason: fake bounty`.
 - PR, issue comment, and PR review comment signals.
 - OpenRouter validation for maintainer reports and PR risk analysis, with deterministic fallback scoring when no API key is configured.
 - Drizzle ORM beta schema on Cloudflare D1.
@@ -66,7 +66,7 @@ The seed imports `https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/ma
 
 ## GitHub App
 
-Clankers List is one shared GitHub App. OSS maintainers should not create their own apps; they install the shared app on selected repositories:
+OSS Guard is one shared GitHub App. OSS maintainers should not create their own apps; they install the shared app on selected repositories:
 
 ```text
 https://github.com/apps/clankers-list/installations/new
@@ -106,15 +106,17 @@ The default model chain tries free OpenRouter models first, then falls back to c
 Maintainers can flag the PR author from PR conversations:
 
 ```text
-/clankers report spam
+/ossguard report spam
+/oss-guard report bot reason: fake bounty
+@oss-guard this is a bot
 @clankers-list[bot] report bot reason: fake bounty
-@clankers-list this is a bot
 @this-product this is a bot
 ```
 
-GitHub renders the app identity as `clankers-list[bot]`. The shorter `@clankers-list`
-command is still accepted by Clankers List, but it may not autocomplete or render as
-a highlighted GitHub mention.
+GitHub currently renders the installed app identity as `clankers-list[bot]`
+until the GitHub App slug is renamed in GitHub. OSS Guard accepts both
+`/ossguard` and `@oss-guard` aliases so the product name can move ahead without
+breaking existing installations.
 
 Only strong evidence is promoted automatically. Weak or non-maintainer reports stay in review states.
 

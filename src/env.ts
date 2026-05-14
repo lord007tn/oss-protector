@@ -44,7 +44,7 @@ export const env = createEnv({
 	},
 	runtimeEnv: runtimeEnv(),
 	server: {
-		APP_NAME: z.string().default("Clankers List"),
+		APP_NAME: z.string().default("OSS Guard"),
 		ALLOW_UNSIGNED_GITHUB_WEBHOOKS: z.string().optional(),
 		CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
 		CLOUDFLARE_D1_DATABASE_ID: z.string().optional(),

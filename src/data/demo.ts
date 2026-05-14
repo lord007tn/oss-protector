@@ -64,7 +64,7 @@ export const demoDashboard = {
 			score: 86,
 			status: "block",
 			summary:
-				"Imported from the current Clankers leaderboard and reinforced by a maintainer report.",
+				"Imported from the public bounty-hunter feed and reinforced by a maintainer report.",
 			validatedReportCount: 1,
 		},
 		{
@@ -82,7 +82,7 @@ export const demoDashboard = {
 			repositoryCount: 1,
 			score: 68,
 			status: "review",
-			summary: "Imported from the public Clankers leaderboard.",
+			summary: "Imported from the public bounty-hunter feed.",
 			validatedReportCount: 0,
 		},
 	],
