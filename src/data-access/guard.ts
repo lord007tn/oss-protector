@@ -366,21 +366,38 @@ export const createBotReport = async (input: CreateBotReportInput) => {
 		})
 		.returning();
 
-	await recordSignal({
-		metadata: {
-			aiVerdict: input.aiVerdict ?? null,
-			reporterAssociation: input.reporterAssociation,
-			reporterLogin: input.reporterLogin,
-		},
-		pullRequestId: input.pullRequestId ?? null,
-		reportId: created.id,
-		repositoryId: input.repositoryId ?? null,
-		signalType: "maintainer_report",
-		source: "github_comment_command",
-		sourceUrl: input.sourceUrl,
-		targetUserId: input.targetUserId,
-		weight: input.reporterIsMaintainer ? 35 : 8,
-	});
+	const reportSignalWeight =
+		input.status === "validated"
+			? input.reporterIsMaintainer
+				? 35
+				: 12
+			: input.status === "needs_review"
+				? input.reporterIsMaintainer
+					? 14
+					: 4
+				: input.status === "pending"
+					? input.reporterIsMaintainer
+						? 6
+						: 2
+					: 0;
+	if (reportSignalWeight > 0) {
+		await recordSignal({
+			metadata: {
+				aiVerdict: input.aiVerdict ?? null,
+				reporterAssociation: input.reporterAssociation,
+				reporterLogin: input.reporterLogin,
+				status: input.status,
+			},
+			pullRequestId: input.pullRequestId ?? null,
+			reportId: created.id,
+			repositoryId: input.repositoryId ?? null,
+			signalType: "maintainer_report",
+			source: "github_comment_command",
+			sourceUrl: input.sourceUrl,
+			targetUserId: input.targetUserId,
+			weight: reportSignalWeight,
+		});
+	}
 	await recalculateRiskProfile(input.targetUserId);
 
 	return created;
@@ -529,7 +546,21 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 	}
 
 	const reportScore = reports.reduce((sum, report) => {
-		const base = report.reporterIsMaintainer ? 28 : 6;
+		if (report.status === "dismissed") {
+			return sum;
+		}
+		const base =
+			report.status === "validated"
+				? report.reporterIsMaintainer
+					? 28
+					: 6
+				: report.status === "needs_review"
+					? report.reporterIsMaintainer
+						? 12
+						: 3
+					: report.reporterIsMaintainer
+						? 6
+						: 1;
 		const aiBoost =
 			report.aiVerdict === "likely_abuse"
 				? 14
