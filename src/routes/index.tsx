@@ -46,7 +46,8 @@ export const Route = createFileRoute("/")({
 });
 
 const statusFilters = ["all", "watch", "review", "block"] as const;
-const githubManifestCreateUrl = "https://github.com/settings/apps/new";
+const githubManifestCreateUrl =
+	"https://github.com/settings/apps/new?state=clankers-list";
 
 const buildGithubAppManifest = (appUrl: string) => ({
 	callback_urls: [`${appUrl}/install`],
@@ -60,7 +61,6 @@ const buildGithubAppManifest = (appUrl: string) => ({
 	default_permissions: {
 		contents: "read",
 		issues: "write",
-		metadata: "read",
 		pull_requests: "write",
 	},
 	description:
@@ -106,6 +106,14 @@ function Home() {
 			return haystack.includes(normalizedQuery);
 		});
 	}, [dashboard.riskProfiles, query, statusFilter]);
+	const topRiskProfiles = useMemo(
+		() => dashboard.riskProfiles.slice(0, 3),
+		[dashboard.riskProfiles],
+	);
+	const topCatchers = useMemo(
+		() => dashboard.catchers.slice(0, 3),
+		[dashboard.catchers],
+	);
 
 	const appUrl = import.meta.env.VITE_APP_URL ?? "http://localhost:3000";
 	const appManifest = buildGithubAppManifest(appUrl);
@@ -349,9 +357,64 @@ function Home() {
 					</TabsContent>
 
 					<TabsContent className="grid gap-4" value="catchers">
-						<div className="grid gap-3 md:grid-cols-3">
-							{dashboard.catchers.map((catcher, index) => (
-								<Card className="rounded-lg" key={catcher.login}>
+						<section className="grid gap-3">
+							<div className="flex items-center justify-between gap-3">
+								<div>
+									<h2 className="font-semibold text-lg">
+										Most bots called out
+									</h2>
+									<p className="text-muted-foreground text-sm">
+										Highest risk accounts across imports and maintainer
+										reports.
+									</p>
+								</div>
+								<Bot className="size-5 text-muted-foreground" />
+							</div>
+							<div className="grid gap-3 md:grid-cols-3">
+								{topRiskProfiles.map((profile, index) => (
+									<Card className="rounded-lg" key={profile.login}>
+										<CardHeader>
+											<CardTitle className="flex items-center gap-2">
+												<span className="grid size-7 place-items-center rounded-md bg-primary/10 text-primary text-sm">
+													#{index + 1}
+												</span>
+												@{profile.login}
+											</CardTitle>
+											<CardDescription>
+												{profile.summary ?? "Shared OSS risk signal"}
+											</CardDescription>
+										</CardHeader>
+										<CardContent>
+											<div className="flex items-end justify-between gap-3">
+												<div>
+													<p className="font-semibold text-3xl">
+														{profile.score}
+													</p>
+													<p className="text-muted-foreground text-xs">
+														risk score
+													</p>
+												</div>
+												<StatusBadge status={profile.status} />
+											</div>
+										</CardContent>
+									</Card>
+								))}
+							</div>
+						</section>
+
+						<section className="grid gap-3">
+							<div className="flex items-center justify-between gap-3">
+								<div>
+									<h2 className="font-semibold text-lg">Best guards</h2>
+									<p className="text-muted-foreground text-sm">
+										Maintainers with the strongest validated reporting score.
+									</p>
+								</div>
+								<Trophy className="size-5 text-muted-foreground" />
+							</div>
+							<div className="grid gap-3 md:grid-cols-3">
+								{topCatchers.map((catcher, index) => (
+									<Card className="rounded-lg" key={catcher.login}>
 									<CardHeader>
 										<CardTitle className="flex items-center gap-2">
 											<span className="grid size-7 place-items-center rounded-md bg-primary/10 text-primary text-sm">
@@ -379,7 +442,22 @@ function Home() {
 									</CardContent>
 								</Card>
 							))}
-						</div>
+								{topCatchers.length === 0 ? (
+									<Card className="rounded-lg border-dashed md:col-span-3">
+										<CardContent className="flex items-center justify-between gap-4 p-5">
+											<div>
+												<p className="font-medium">No guard reports yet</p>
+												<p className="text-muted-foreground text-sm">
+													Install the GitHub App and mention @clankers-list in
+													a PR or issue comment to start the leaderboard.
+												</p>
+											</div>
+											<ShieldCheck className="size-8 text-muted-foreground" />
+										</CardContent>
+									</Card>
+								) : null}
+							</div>
+						</section>
 					</TabsContent>
 
 					<TabsContent className="grid gap-4" value="integrations">
