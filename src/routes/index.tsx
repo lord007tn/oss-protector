@@ -68,8 +68,7 @@ type StatusFilter = (typeof statusFilters)[number];
 
 const statusFilters = ["all", "watch", "review", "block"] as const;
 const podiumRanks = [0, 1, 2] as const;
-const githubManifestCreateUrl =
-	"https://github.com/settings/apps/new?state=clankers-list";
+const githubAppCreateBaseUrl = "https://github.com/settings/apps/new";
 
 const statusChartConfig = {
 	accounts: {
@@ -86,8 +85,6 @@ const reasonChartConfig = {
 const buildGithubAppManifest = (appUrl: string) => ({
 	callback_urls: [`${appUrl}/install`],
 	default_events: [
-		"installation",
-		"installation_repositories",
 		"issue_comment",
 		"pull_request",
 		"pull_request_review_comment",
@@ -110,6 +107,29 @@ const buildGithubAppManifest = (appUrl: string) => ({
 	setup_url: `${appUrl}/install`,
 	url: appUrl,
 });
+
+const buildGithubAppSetupUrl = (appUrl: string) => {
+	const url = new URL(githubAppCreateBaseUrl);
+	url.searchParams.set("name", "Clankers List");
+	url.searchParams.set(
+		"description",
+		"Shared OSS abuse intelligence for suspicious GitHub pull requests and maintainer reports.",
+	);
+	url.searchParams.set("url", appUrl);
+	url.searchParams.append("callback_urls[]", `${appUrl}/install`);
+	url.searchParams.set("setup_url", `${appUrl}/install`);
+	url.searchParams.set("setup_on_update", "true");
+	url.searchParams.set("public", "true");
+	url.searchParams.set("contents", "read");
+	url.searchParams.set("issues", "write");
+	url.searchParams.set("pull_requests", "write");
+	url.searchParams.set("webhook_active", "true");
+	url.searchParams.set("webhook_url", `${appUrl}/api/github/webhook`);
+	url.searchParams.append("events[]", "issue_comment");
+	url.searchParams.append("events[]", "pull_request");
+	url.searchParams.append("events[]", "pull_request_review_comment");
+	return url.toString();
+};
 
 function Home() {
 	const initialData = Route.useLoaderData();
@@ -186,12 +206,12 @@ function Home() {
 
 	const appUrl = import.meta.env.VITE_APP_URL ?? "http://localhost:3000";
 	const appManifest = buildGithubAppManifest(appUrl);
-	const manifest = JSON.stringify(appManifest);
+	const appSetupUrl = buildGithubAppSetupUrl(appUrl);
 
 	return (
 		<main className="dark min-h-screen bg-background text-foreground">
 			<div className="mx-auto grid w-full max-w-[1440px] gap-5 px-4 py-4 md:px-6 lg:px-8">
-				<AppHeader appManifest={manifest} />
+				<AppHeader appSetupUrl={appSetupUrl} />
 
 				<section className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
 					<MetricCard
@@ -376,13 +396,10 @@ function Home() {
 							/>
 							<Separator />
 							<div className="flex flex-wrap gap-2">
-								<form action={githubManifestCreateUrl} method="post">
-									<input name="manifest" type="hidden" value={manifest} />
-									<Button type="submit">
-										<Github className="size-4" />
-										Register App
-									</Button>
-								</form>
+								<a className={buttonVariants()} href={appSetupUrl}>
+									<Github className="size-4" />
+									Register App
+								</a>
 								<a
 									className={buttonVariants({ variant: "outline" })}
 									href="/api/feed.json"
@@ -515,13 +532,10 @@ function Home() {
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="grid gap-3">
-									<form action={githubManifestCreateUrl} method="post">
-										<input name="manifest" type="hidden" value={manifest} />
-										<Button type="submit">
-											<Github className="size-4" />
-											Register from manifest
-										</Button>
-									</form>
+									<a className={buttonVariants()} href={appSetupUrl}>
+										<Github className="size-4" />
+										Register App
+									</a>
 									<ScrollArea className="h-[310px] rounded-lg border bg-muted/30">
 										<code className="block p-3 text-xs">
 											{JSON.stringify(appManifest, null, 2)}
@@ -568,7 +582,7 @@ function Home() {
 	);
 }
 
-function AppHeader({ appManifest }: { appManifest: string }) {
+function AppHeader({ appSetupUrl }: { appSetupUrl: string }) {
 	return (
 		<header className="grid min-w-0 gap-4 rounded-lg border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
 			<div className="min-w-0">
@@ -586,13 +600,10 @@ function AppHeader({ appManifest }: { appManifest: string }) {
 				</p>
 			</div>
 			<div className="flex flex-wrap gap-2">
-				<form action={githubManifestCreateUrl} method="post">
-					<input name="manifest" type="hidden" value={appManifest} />
-					<Button type="submit">
-						<Github className="size-4" />
-						Register App
-					</Button>
-				</form>
+				<a className={buttonVariants()} href={appSetupUrl}>
+					<Github className="size-4" />
+					Register App
+				</a>
 				<a
 					className={buttonVariants({ variant: "outline" })}
 					href="/api/feed.json"
