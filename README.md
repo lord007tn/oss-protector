@@ -4,7 +4,7 @@ Shared OSS abuse intelligence for suspicious GitHub pull request activity.
 
 The app is a TanStack Start + Cloudflare Workers product with:
 
-- GitHub App manifest registration and webhook ingestion.
+- Shared GitHub App installation and webhook ingestion.
 - Comment commands such as `@clankers-list report bot reason: fake bounty`.
 - PR, issue comment, and PR review comment signals.
 - OpenRouter validation for maintainer reports and PR risk analysis, with deterministic fallback scoring when no API key is configured.
@@ -66,9 +66,22 @@ The seed imports `https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/ma
 
 ## GitHub App
 
-Start the app and use the dashboard `Register App` button. GitHub redirects back to `/install?code=...`.
+Clankers List is one shared GitHub App. OSS maintainers should not create their own apps; they install the shared app on selected repositories:
 
-On the install page, exchange the manifest code and save the returned values:
+```text
+https://github.com/apps/clankers-list/installations/new
+```
+
+The GitHub App settings should use:
+
+```text
+Webhook URL: https://clankers-list.raedbahri90.workers.dev/api/github/webhook
+Repository permissions: Contents read, Issues write, Pull requests write
+Subscribed events: Issue comment, Pull request, Pull request review comment
+Visibility: Public
+```
+
+Store the app values in Cloudflare:
 
 ```bash
 GITHUB_APP_ID=...
@@ -87,12 +100,6 @@ wrangler secret put OPENROUTER_API_KEY
 ```
 
 The default model chain tries free OpenRouter models first, then falls back to cheap GLM/GPT nano models only when the free providers are unavailable or rate-limited.
-
-Webhook URL:
-
-```text
-https://<deployment-host>/api/github/webhook
-```
 
 ## Commands
 
