@@ -1,0 +1,101 @@
+export const demoDashboard = {
+	catchers: [
+		{
+			login: "maintainer-one",
+			reports: 8,
+			validatedReports: 6,
+			score: 92,
+		},
+		{
+			login: "repo-guardian",
+			reports: 5,
+			validatedReports: 4,
+			score: 65,
+		},
+		{
+			login: "security-reviewer",
+			reports: 3,
+			validatedReports: 2,
+			score: 38,
+		},
+	],
+	imports: [
+		{
+			importedAt: Math.floor(Date.now() / 1000),
+			itemCount: 79,
+			sourceName: "UnsafeLabs/Bounty-Hunters clankers.json",
+			sourceUrl:
+				"https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json",
+			status: "demo",
+		},
+	],
+	reports: [
+		{
+			aiRationale:
+				"Maintainer report references fake bounty activity and repeated low-context pull requests.",
+			aiVerdict: "likely_abuse",
+			confidence: 82,
+			createdAt: Math.floor(Date.now() / 1000) - 3600,
+			id: "demo-report-1",
+			reasonCode: "fake_bounty",
+			reasonText: "Repeated fake bounty PRs",
+			reporterAssociation: "OWNER",
+			reporterIsMaintainer: true,
+			reporterLogin: "maintainer-one",
+			sourceUrl: "https://github.com/owner/repo/pull/42#issuecomment-demo",
+			status: "validated",
+			targetLogin: "jynbil1",
+		},
+	],
+	riskProfiles: [
+		{
+			avatarUrl: "https://github.com/jynbil1.png",
+			confidence: 86,
+			commitCount: 0,
+			githubUserId: "demo-1",
+			htmlUrl: "https://github.com/jynbil1",
+			importedSource: "clankers",
+			lastSeenAt: Math.floor(Date.now() / 1000) - 1200,
+			login: "jynbil1",
+			prCount: 56,
+			reasonCodes: ["external_blocklist", "fake_bounty"],
+			reportCount: 1,
+			repositoryCount: 1,
+			score: 86,
+			status: "block",
+			summary:
+				"Imported from the current Clankers leaderboard and reinforced by a maintainer report.",
+			validatedReportCount: 1,
+		},
+		{
+			avatarUrl: "https://github.com/weilixiong.png",
+			confidence: 68,
+			commitCount: 0,
+			githubUserId: "demo-2",
+			htmlUrl: "https://github.com/weilixiong",
+			importedSource: "clankers",
+			lastSeenAt: Math.floor(Date.now() / 1000) - 8400,
+			login: "weilixiong",
+			prCount: 32,
+			reasonCodes: ["external_blocklist"],
+			reportCount: 0,
+			repositoryCount: 1,
+			score: 68,
+			status: "review",
+			summary: "Imported from the public Clankers leaderboard.",
+			validatedReportCount: 0,
+		},
+	],
+	stats: {
+		activeRepositories: 0,
+		blockedUsers: 1,
+		importedUsers: 79,
+		openReports: 1,
+		reviewUsers: 1,
+		signals: 2,
+		trackedPrs: 88,
+		trackedUsers: 2,
+	},
+};
+
+export type DemoDashboard = typeof demoDashboard;
