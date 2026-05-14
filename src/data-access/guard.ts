@@ -573,20 +573,21 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 	const signalScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
 	const activityScore = Math.min(20, prs.length * 2);
 	const importedScore = existing[0]?.importedSource ? 48 : 0;
-	const score = boundedConfidence(
+	const computedScore = boundedConfidence(
 		Math.max(
 			existing[0]?.score ?? 0,
 			reportScore + signalScore + activityScore + importedScore,
 		),
 	);
-	const status: RiskStatus =
-		user.isKnownGithubBot || existing[0]?.status === "allow"
-			? "allow"
-			: score >= RISK_STATUS_WEIGHTS.block
-				? "block"
-				: score >= RISK_STATUS_WEIGHTS.review
-					? "review"
-					: "watch";
+	const isAllowed = user.isKnownGithubBot || existing[0]?.status === "allow";
+	const score = isAllowed ? 0 : computedScore;
+	const status: RiskStatus = isAllowed
+		? "allow"
+		: score >= RISK_STATUS_WEIGHTS.block
+			? "block"
+			: score >= RISK_STATUS_WEIGHTS.review
+				? "review"
+				: "watch";
 
 	const repositoryIds = new Set(
 		prs
