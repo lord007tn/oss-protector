@@ -17,8 +17,6 @@ export const githubAppManifest = () => {
 	return {
 		callback_urls: [`${appUrl}/install`],
 		default_events: [
-			"installation",
-			"installation_repositories",
 			"issue_comment",
 			"pull_request",
 			"pull_request_review_comment",
@@ -26,7 +24,6 @@ export const githubAppManifest = () => {
 		default_permissions: {
 			contents: "read",
 			issues: "write",
-			metadata: "read",
 			pull_requests: "write",
 		},
 		description:
@@ -48,9 +45,9 @@ export const githubManifestCreateUrl = () => {
 	const owner =
 		runtimeEnv().GITHUB_APP_CREATE_OWNER ?? env.GITHUB_APP_CREATE_OWNER;
 	if (!owner) {
-		return "https://github.com/settings/apps/new";
+		return "https://github.com/settings/apps/new?state=clankers-list";
 	}
-	return `https://github.com/organizations/${encodeURIComponent(owner)}/settings/apps/new`;
+	return `https://github.com/organizations/${encodeURIComponent(owner)}/settings/apps/new?state=clankers-list`;
 };
 
 export const convertGithubManifestCode = async (code: string) => {
