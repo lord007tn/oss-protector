@@ -5,7 +5,7 @@ Shared OSS abuse intelligence for suspicious GitHub pull request activity.
 The app is a TanStack Start + Cloudflare Workers product with:
 
 - Shared GitHub App installation and webhook ingestion.
-- Comment commands such as `@clankers-list report bot reason: fake bounty`.
+- Comment commands such as `/clankers report bot reason: fake bounty`.
 - PR, issue comment, and PR review comment signals.
 - OpenRouter validation for maintainer reports and PR risk analysis, with deterministic fallback scoring when no API key is configured.
 - Drizzle ORM beta schema on Cloudflare D1.
@@ -106,11 +106,15 @@ The default model chain tries free OpenRouter models first, then falls back to c
 Maintainers can flag the PR author from PR conversations:
 
 ```text
-@clankers-list report bot reason: fake bounty
+/clankers report spam
+@clankers-list[bot] report bot reason: fake bounty
 @clankers-list this is a bot
 @this-product this is a bot
-/clankers report spam
 ```
+
+GitHub renders the app identity as `clankers-list[bot]`. The shorter `@clankers-list`
+command is still accepted by Clankers List, but it may not autocomplete or render as
+a highlighted GitHub mention.
 
 Only strong evidence is promoted automatically. Weak or non-maintainer reports stay in review states.
 

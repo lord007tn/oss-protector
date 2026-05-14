@@ -12,6 +12,7 @@ import {
 	upsertRepository,
 } from "@/data-access/guard";
 import { runtimeEnv } from "@/env";
+import { createReportAcknowledgementComment } from "@/integrations/github/comments";
 import {
 	validatePullRequestWithOpenRouter,
 	validateReportWithOpenRouter,
@@ -146,7 +147,7 @@ export const verifyGithubSignature = async ({
 
 const parseCommand = (body: string) => {
 	const match = body.match(
-		/(?:@(?:clankers-list|ossguard|botguard|this-product)\b|\/(?:clankers|ossguard|botguard))(?<command>.*)/is,
+		/(?:^|\n)\s*(?:@(?:clankers-list(?:\[bot\])?|ossguard|botguard|this-product)(?=\s|:|,|\.|$)|\/(?:clankers|ossguard|botguard)(?=\s|$))(?<command>.*)/is,
 	);
 	if (!match?.groups?.command) {
 		return null;
@@ -188,6 +189,47 @@ const isMaintainerAssociation = (association?: string) =>
 	association === "OWNER" ||
 	association === "MEMBER" ||
 	association === "COLLABORATOR";
+
+const isOwnBotUser = (user?: GithubUserPayload) =>
+	user?.login === `${runtimeEnv().GITHUB_APP_SLUG ?? "clankers-list"}[bot]`;
+
+const acknowledgeReport = async ({
+	confidence,
+	installationId,
+	issueNumber,
+	reasonCode,
+	repositoryFullName,
+	sourceCommentId,
+	status,
+	targetLogin,
+	verdict,
+}: {
+	confidence: number;
+	installationId?: null | number;
+	issueNumber?: null | number;
+	reasonCode: ReasonCode;
+	repositoryFullName?: null | string;
+	sourceCommentId?: null | number | string;
+	status: "dismissed" | "needs_review" | "pending" | "validated";
+	targetLogin: string;
+	verdict?: null | string;
+}) => {
+	try {
+		await createReportAcknowledgementComment({
+			confidence,
+			installationId,
+			issueNumber,
+			reasonCode,
+			repositoryFullName,
+			sourceCommentId,
+			status,
+			targetLogin,
+			verdict,
+		});
+	} catch (caught) {
+		console.warn("Failed to create GitHub report acknowledgement", caught);
+	}
+};
 
 const upsertRepoFromPayload = async (
 	repository: GithubRepositoryPayload,
@@ -309,7 +351,8 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 		payload.action !== "created" ||
 		!payload.comment?.body ||
 		!payload.issue?.pull_request ||
-		!(payload.repository && payload.issue.user && payload.comment.user)
+		!(payload.repository && payload.issue.user && payload.comment.user) ||
+		isOwnBotUser(payload.comment.user)
 	) {
 		return;
 	}
@@ -383,6 +426,17 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 		status: validation.status,
 		targetUserId: targetUser.id,
 	});
+	await acknowledgeReport({
+		confidence: validation.confidence,
+		installationId: payload.installation?.id,
+		issueNumber: payload.issue.number,
+		reasonCode,
+		repositoryFullName: payload.repository.full_name,
+		sourceCommentId: payload.comment.id,
+		status: validation.status,
+		targetLogin: targetUser.login,
+		verdict: validation.verdict,
+	});
 };
 
 const handlePullRequestReviewComment = async (
@@ -391,7 +445,8 @@ const handlePullRequestReviewComment = async (
 	if (
 		payload.action !== "created" ||
 		!payload.comment?.body ||
-		!(payload.repository && payload.pull_request && payload.comment.user)
+		!(payload.repository && payload.pull_request && payload.comment.user) ||
+		isOwnBotUser(payload.comment.user)
 	) {
 		return;
 	}
@@ -483,6 +538,17 @@ const handlePullRequestReviewComment = async (
 		sourceUrl: payload.comment.html_url ?? payload.pull_request.html_url,
 		status: validation.status,
 		targetUserId: targetUser.id,
+	});
+	await acknowledgeReport({
+		confidence: validation.confidence,
+		installationId: payload.installation?.id,
+		issueNumber: payload.pull_request.number,
+		reasonCode,
+		repositoryFullName: payload.repository.full_name,
+		sourceCommentId: payload.comment.id,
+		status: validation.status,
+		targetLogin: targetUser.login,
+		verdict: validation.verdict,
 	});
 };
 
