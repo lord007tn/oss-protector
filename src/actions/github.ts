@@ -147,7 +147,7 @@ export const verifyGithubSignature = async ({
 
 const parseCommand = (body: string) => {
 	const match = body.match(
-		/(?:^|\n)\s*(?:@(?:clankers-list(?:\[bot\])?|ossguard|botguard|this-product)(?=\s|:|,|\.|$)|\/(?:clankers|ossguard|botguard)(?=\s|$))(?<command>.*)/is,
+		/(?:^|\n)\s*(?:@(?:clankers-list(?:\[bot\])?|oss-guard(?:\[bot\])?|ossguard|botguard|this-product)(?=\s|:|,|\.|$)|\/(?:clankers|ossguard|oss-guard|botguard)(?=\s|$))(?<command>.*)/is,
 	);
 	if (!match?.groups?.command) {
 		return null;
@@ -190,8 +190,16 @@ const isMaintainerAssociation = (association?: string) =>
 	association === "MEMBER" ||
 	association === "COLLABORATOR";
 
+const ownBotLogins = () =>
+	new Set([
+		`${runtimeEnv().GITHUB_APP_SLUG ?? "clankers-list"}[bot]`,
+		"clankers-list[bot]",
+		"oss-guard[bot]",
+		"ossguard[bot]",
+	]);
+
 const isOwnBotUser = (user?: GithubUserPayload) =>
-	user?.login === `${runtimeEnv().GITHUB_APP_SLUG ?? "clankers-list"}[bot]`;
+	!!user?.login && ownBotLogins().has(user.login);
 
 const acknowledgeReport = async ({
 	confidence,

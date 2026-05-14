@@ -97,10 +97,13 @@ const statusDescription = (status: ReportStatus) => {
 	return "This report was captured and is waiting for more signal.";
 };
 
+const botMention = () =>
+	`@${runtimeEnv().GITHUB_APP_SLUG ?? "clankers-list"}[bot]`;
+
 const acknowledgementBody = (input: ReportAcknowledgementInput) => {
-	const marker = `<!-- clankers-list:report:${input.sourceCommentId} -->`;
+	const marker = `<!-- oss-guard:report:${input.sourceCommentId} -->`;
 	return `${marker}
-Clankers List captured this report.
+OSS Guard captured this report.
 
 | Field | Value |
 | --- | --- |
@@ -112,7 +115,7 @@ Clankers List captured this report.
 
 ${statusDescription(input.status)}
 
-Use \`/clankers report bot reason: fake bounty\` or \`@clankers-list[bot] report bot reason: fake bounty\` for GitHub-highlighted bot commands.`;
+Use \`/ossguard report bot reason: fake bounty\` or \`${botMention()} report bot reason: fake bounty\` for GitHub-highlighted bot commands.`;
 };
 
 export const createReportAcknowledgementComment = async (
@@ -144,16 +147,22 @@ export const createReportAcknowledgementComment = async (
 	const authentication = await auth({ type: "installation" });
 	const octokit = new Octokit({
 		auth: authentication.token,
-		userAgent: "clankers-list",
+		userAgent: "oss-guard",
 	});
-	const marker = `<!-- clankers-list:report:${input.sourceCommentId} -->`;
+	const marker = `<!-- oss-guard:report:${input.sourceCommentId} -->`;
+	const legacyMarker = `<!-- clankers-list:report:${input.sourceCommentId} -->`;
 	const existingComments = await octokit.rest.issues.listComments({
 		issue_number: input.issueNumber,
 		owner,
 		per_page: 100,
 		repo,
 	});
-	if (existingComments.data.some((comment) => comment.body?.includes(marker))) {
+	if (
+		existingComments.data.some(
+			(comment) =>
+				comment.body?.includes(marker) || comment.body?.includes(legacyMarker),
+		)
+	) {
 		return { skipped: true };
 	}
 

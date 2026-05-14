@@ -27,7 +27,7 @@ export const githubAppManifest = () => {
 			pull_requests: "write",
 		},
 		description:
-			"Shared OSS abuse intelligence for suspicious GitHub pull requests and maintainer reports.",
+			"OSS Guard scores suspicious GitHub pull requests and maintainer bot reports for shared open-source defense.",
 		hook_attributes: {
 			active: true,
 			url: `${appUrl}/api/github/webhook`,
@@ -45,15 +45,15 @@ export const githubManifestCreateUrl = () => {
 	const owner =
 		runtimeEnv().GITHUB_APP_CREATE_OWNER ?? env.GITHUB_APP_CREATE_OWNER;
 	if (!owner) {
-		return "https://github.com/settings/apps/new?state=clankers-list";
+		return "https://github.com/settings/apps/new?state=oss-guard";
 	}
-	return `https://github.com/organizations/${encodeURIComponent(owner)}/settings/apps/new?state=clankers-list`;
+	return `https://github.com/organizations/${encodeURIComponent(owner)}/settings/apps/new?state=oss-guard`;
 };
 
 export const convertGithubManifestCode = async (code: string) => {
 	const headers = new Headers({
 		Accept: "application/vnd.github+json",
-		"User-Agent": "clankers-list",
+		"User-Agent": "oss-guard",
 		"X-GitHub-Api-Version": "2026-03-10",
 	});
 	const token = runtimeEnv().GITHUB_MANIFEST_TOKEN ?? env.GITHUB_MANIFEST_TOKEN;

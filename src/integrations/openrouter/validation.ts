@@ -141,7 +141,7 @@ const callOpenRouterJson = async <TResult>({
 						Authorization: `Bearer ${key}`,
 						"Content-Type": "application/json",
 						"HTTP-Referer": runtimeEnv().VITE_APP_URL ?? env.VITE_APP_URL,
-						"X-Title": "Clankers List",
+						"X-Title": "OSS Guard",
 					},
 					method: "POST",
 					signal: AbortSignal.timeout(OPENROUTER_MODEL_TIMEOUT_MS),
