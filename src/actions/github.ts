@@ -31,7 +31,7 @@ type GithubRepositoryPayload = {
 	html_url?: null | string;
 	id: number;
 	name: string;
-	owner: GithubUserPayload;
+	owner?: GithubUserPayload;
 	private?: boolean;
 };
 
@@ -88,6 +88,7 @@ export interface GithubWebhookRequest {
 	body: string;
 	deliveryId?: null | string;
 	eventName: string;
+	skipSignatureVerification?: boolean;
 	signature?: null | string;
 }
 
@@ -200,7 +201,7 @@ const upsertRepoFromPayload = async (
 		installationGithubId: installationId,
 		isPrivate: repository.private,
 		name: repository.name,
-		ownerLogin: repository.owner.login,
+		ownerLogin: repository.owner?.login ?? repository.full_name.split("/")[0],
 	});
 
 const upsertInstallationFromPayload = async (
@@ -282,7 +283,7 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			title: payload.pull_request.title,
 			url: payload.pull_request.html_url,
 		});
-		if (analysis.verdict === "likely_abuse" || analysis.confidence >= 65) {
+		if (analysis.verdict === "likely_abuse" && analysis.confidence >= 65) {
 			await recordSignal({
 				metadata: {
 					aiConfidence: analysis.confidence,
@@ -489,9 +490,12 @@ export const handleGithubWebhook = async ({
 	body,
 	deliveryId,
 	eventName,
+	skipSignatureVerification,
 	signature,
 }: GithubWebhookRequest) => {
-	const verified = await verifyGithubSignature({ body, signature });
+	const verified =
+		skipSignatureVerification ||
+		(await verifyGithubSignature({ body, signature }));
 	if (!verified) {
 		return new Response("Invalid GitHub webhook signature", { status: 401 });
 	}

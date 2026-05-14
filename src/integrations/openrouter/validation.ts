@@ -42,6 +42,7 @@ const DEFAULT_OPENROUTER_MODELS = [
 	"z-ai/glm-4.7-flash",
 	"openai/gpt-5-nano",
 ] as const;
+const OPENROUTER_MODEL_TIMEOUT_MS = 4500;
 
 const fallbackValidateReport = (
 	input: ReportValidationInput,
@@ -143,6 +144,7 @@ const callOpenRouterJson = async <TResult>({
 						"X-Title": "Clankers List",
 					},
 					method: "POST",
+					signal: AbortSignal.timeout(OPENROUTER_MODEL_TIMEOUT_MS),
 				},
 			);
 
@@ -248,7 +250,7 @@ export const validateReportWithOpenRouter = async (
 	}
 	const parsed = aiResponse.parsed;
 
-	const confidence =
+	const parsedConfidence =
 		typeof parsed.confidence === "number"
 			? normalizeConfidence(parsed.confidence)
 			: fallbackValidateReport(input).confidence;
@@ -258,6 +260,12 @@ export const validateReportWithOpenRouter = async (
 		parsed.verdict === "unclear"
 			? parsed.verdict
 			: "unclear";
+	const confidence =
+		verdict === "likely_abuse"
+			? parsedConfidence
+			: verdict === "unclear"
+				? Math.min(parsedConfidence, 60)
+				: Math.min(parsedConfidence, 35);
 	const parsedStatus =
 		parsed.status === "validated" ||
 		parsed.status === "dismissed" ||
@@ -268,12 +276,19 @@ export const validateReportWithOpenRouter = async (
 				? "validated"
 				: "needs_review";
 	const status =
-		parsedStatus === "pending" &&
-		verdict === "likely_abuse" &&
-		input.reporterIsMaintainer &&
-		confidence >= 72
-			? "validated"
-			: parsedStatus;
+		verdict === "not_enough_evidence"
+			? "dismissed"
+			: verdict === "unclear"
+				? parsedStatus === "pending"
+					? "pending"
+					: "needs_review"
+				: parsedStatus === "pending" &&
+						input.reporterIsMaintainer &&
+						confidence >= 72
+					? "validated"
+					: parsedStatus === "dismissed"
+						? "needs_review"
+						: parsedStatus;
 
 	return {
 		confidence,
@@ -307,7 +322,7 @@ export const validatePullRequestWithOpenRouter = async (
 	const parsed = aiResponse.parsed;
 
 	const fallback = fallbackAnalyzePullRequest(input);
-	const confidence =
+	const parsedConfidence =
 		typeof parsed.confidence === "number"
 			? normalizeConfidence(parsed.confidence)
 			: fallback.confidence;
@@ -317,6 +332,12 @@ export const validatePullRequestWithOpenRouter = async (
 		parsed.verdict === "unclear"
 			? parsed.verdict
 			: fallback.verdict;
+	const confidence =
+		verdict === "likely_abuse"
+			? parsedConfidence
+			: verdict === "unclear"
+				? Math.min(parsedConfidence, 60)
+				: Math.min(parsedConfidence, 35);
 	const reasonCode = REASON_CODES.includes(parsed.reasonCode as ReasonCode)
 		? (parsed.reasonCode as ReasonCode)
 		: fallback.reasonCode;
