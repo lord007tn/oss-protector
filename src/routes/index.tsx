@@ -117,7 +117,10 @@ function Home() {
 	}, [dashboard.riskProfiles, query, statusFilter]);
 
 	const topRiskProfiles = useMemo(
-		() => dashboard.riskProfiles.slice(0, 3),
+		() =>
+			dashboard.riskProfiles
+				.filter((profile) => profile.status !== "allow")
+				.slice(0, 3),
 		[dashboard.riskProfiles],
 	);
 	const topCatchers = useMemo(
@@ -466,7 +469,7 @@ function Home() {
 									<EmptyState
 										icon={ListFilter}
 										title="No maintainer reports yet"
-										description="@clankers-list report bot reason: fake bounty"
+										description="/clankers report bot reason: fake bounty"
 									/>
 								)}
 							</CardContent>
@@ -507,12 +510,15 @@ function Home() {
 								<CardHeader>
 									<CardTitle>Maintainer command</CardTitle>
 									<CardDescription>
-										Mentions convert PR context into scored reports
+										Commands convert PR context into scored reports
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="grid gap-3">
 									<code className="block rounded-lg border bg-muted/30 p-3 text-sm">
-										@clankers-list report bot reason: fake bounty
+										/clankers report bot reason: fake bounty
+									</code>
+									<code className="block rounded-lg border bg-muted/30 p-3 text-sm">
+										@clankers-list[bot] report bot reason: fake bounty
 									</code>
 									<div className="grid grid-cols-2 gap-2">
 										<StatPill
