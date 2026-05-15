@@ -31,6 +31,17 @@ export interface ReportAcknowledgementInput {
 	verdict?: null | string;
 }
 
+export interface CorrectionAcknowledgementInput {
+	correctedByLogin: string;
+	installationId?: null | number;
+	issueNumber?: null | number;
+	kind: "allow" | "confirm" | "dismiss";
+	note?: null | string;
+	repositoryFullName?: null | string;
+	sourceCommentId?: null | number | string;
+	targetLogin: string;
+}
+
 export interface PullRequestAnalysisCommentInput {
 	causes: string[];
 	confidence: number;
@@ -302,6 +313,99 @@ export const createPullRequestAnalysisComment = async (
 
 	await octokit.rest.issues.createComment({
 		body: pullRequestAnalysisBody(input),
+		issue_number: input.issueNumber,
+		owner: repository.owner,
+		repo: repository.repo,
+	});
+
+	return { skipped: false };
+};
+
+const CORRECTION_LABELS: Record<
+	CorrectionAcknowledgementInput["kind"],
+	{ effect: string; explanation: string; verb: string }
+> = {
+	allow: {
+		effect: "Allowlisted",
+		explanation:
+			"Future reports for this account will not affect the shared score until the allowlist is removed.",
+		verb: "allowed",
+	},
+	confirm: {
+		effect: "Validated",
+		explanation:
+			"The latest open report is promoted to validated and contributes to the shared score.",
+		verb: "confirmed",
+	},
+	dismiss: {
+		effect: "Dismissed",
+		explanation:
+			"All open and validated reports on this account were dismissed and a negative correction signal was recorded.",
+		verb: "dismissed",
+	},
+};
+
+const correctionAcknowledgementBody = (
+	input: CorrectionAcknowledgementInput
+) => {
+	const label = CORRECTION_LABELS[input.kind];
+	const marker = `<!-- oss-protector:correction:${input.sourceCommentId ?? "unknown"} -->`;
+	const note = input.note
+		? `\n\nMaintainer note: ${tableValue(input.note)}`
+		: "";
+	return `${marker}
+OSS Protector correction applied by maintainer @${input.correctedByLogin}.
+
+| Field | Value |
+| --- | --- |
+| Action | \`${input.kind}\` |
+| Target | @${input.targetLogin} |
+| Effect | ${label.effect} |
+
+${label.explanation}${note}
+
+If this was sent in error, the maintainer can run \`@oss-protector confirm\` to re-validate a recent report or \`@oss-protector dismiss\` again to add another negative signal.`;
+};
+
+export const createCorrectionAcknowledgementComment = async (
+	input: CorrectionAcknowledgementInput
+) => {
+	if (
+		!(
+			input.installationId &&
+			input.issueNumber &&
+			input.repositoryFullName &&
+			input.sourceCommentId
+		)
+	) {
+		return { skipped: true };
+	}
+
+	const repository = parseRepositoryFullName(input.repositoryFullName);
+	if (!repository) {
+		return { skipped: true };
+	}
+
+	const octokit = await createInstallationClient({
+		installationId: input.installationId,
+	});
+	if (!octokit) {
+		return { skipped: true };
+	}
+
+	const marker = `<!-- oss-protector:correction:${input.sourceCommentId} -->`;
+	const existingComments = await octokit.rest.issues.listComments({
+		issue_number: input.issueNumber,
+		owner: repository.owner,
+		per_page: 100,
+		repo: repository.repo,
+	});
+	if (existingComments.data.some((comment) => comment.body?.includes(marker))) {
+		return { skipped: true };
+	}
+
+	await octokit.rest.issues.createComment({
+		body: correctionAcknowledgementBody(input),
 		issue_number: input.issueNumber,
 		owner: repository.owner,
 		repo: repository.repo,

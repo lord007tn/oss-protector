@@ -146,6 +146,36 @@ dependency script abuse, obfuscation, or backdoor indicators.
 
 Only strong evidence is promoted automatically. Weak or non-maintainer reports stay in review states.
 
+## Maintainer commands
+
+Anyone can mention the bot to file a report:
+
+```text
+@oss-protector review this user
+@oss-protector flag this user reason: fake bounty
+@oss-protector recommend block reason: malicious code
+```
+
+Repo owners, organization members, and collaborators (GitHub
+`author_association` `OWNER`, `MEMBER`, or `COLLABORATOR`) can also correct
+the system from any PR comment:
+
+```text
+@oss-protector dismiss     # mark all open reports on this PR's author as dismissed and add a negative correction signal
+@oss-protector confirm     # validate the most recent open report and add a positive correction signal
+@oss-protector allow       # permanently allowlist the PR author (status = allow, score = 0)
+```
+
+The bot posts a confirmation comment for each correction. Non-maintainer
+comments using those verbs are ignored.
+
+## Rate limits
+
+Public read endpoints (`/api/clankers`, `/api/protectors`,
+`/api/risky-users.json`, `/api/feed.json`) are rate-limited per client IP via
+the Cloudflare Rate Limiting binding configured in `wrangler.json`. GitHub
+webhooks are not rate-limited.
+
 ## Verification
 
 ```bash
@@ -162,5 +192,6 @@ Create or update the D1 database ID in `wrangler.json`, then:
 pnpm run deploy
 ```
 
-Pushes to `main` deploy automatically through `.github/workflows/deploy.yml`
-when `CLOUDFLARE_API_TOKEN` is configured as a GitHub Actions secret.
+Deploys are wired through Cloudflare's Git integration on this Worker — every
+push to `main` triggers a Cloudflare-managed build and deploy. Run
+`pnpm run deploy` locally only for out-of-cycle hotfixes.

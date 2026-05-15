@@ -10,8 +10,8 @@ import {
 import { SectionHeading } from "@/components/landing/shared";
 import { SiteHeader } from "@/components/landing/site-header";
 import { JsonLd } from "@/components/seo/json-ld";
-import { filterProtectors } from "@/data-access/directory-filters";
 import { getDashboardFn } from "@/functions/dashboard";
+import { filterProtectors } from "@/helpers/directory-filters";
 import { useDashboard } from "@/hooks/api/dashboard/use-dashboard";
 
 const PAGE_SIZE = 25;

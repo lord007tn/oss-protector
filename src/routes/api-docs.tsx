@@ -117,44 +117,69 @@ function ApiDocsRoute() {
 		<main className="min-h-screen bg-background text-foreground">
 			<SiteHeader />
 			<div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-10 md:px-6">
-				<div className="max-w-3xl">
-					<Badge className="rounded-md" variant="outline">
+				<div className="max-w-2xl">
+					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
 						API
-					</Badge>
-					<h1 className="mt-3 text-balance font-semibold text-3xl md:text-4xl">
+					</span>
+					<h1 className="mt-2 text-balance font-semibold text-2xl tracking-tight md:text-3xl">
 						Use the clanker feed in your own tooling.
 					</h1>
-					<p className="mt-3 text-muted-foreground leading-7">
-						The API returns JSON and accepts filters through query params. Use
-						it for pre-merge checks, dashboards, or repository automation.
+					<p className="mt-2 text-muted-foreground text-sm leading-6 md:text-[15px]">
+						JSON endpoints with query-param filters. Use them for pre-merge
+						checks, dashboards, or repository automation.
 					</p>
 				</div>
 
-				<Card className="rounded-lg">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<MessageSquareWarning className="size-5 text-primary" />
-							GitHub review commands
-						</CardTitle>
-						<CardDescription>
-							Maintainers can mention the shared app in a pull request to create
-							a review signal. Submitted and needs-review reports are tracked,
-							but only validated or independently corroborated reports affect
-							shared scores.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<pre className="overflow-x-auto rounded-lg border bg-foreground p-4 text-background text-sm">
-							<code>
-								{[
-									"@oss-protector review this user",
-									"@oss-protector flag this user reason: fake bounty",
-									"@oss-protector recommend block reason: malicious code",
-								].join("\n")}
-							</code>
-						</pre>
-					</CardContent>
-				</Card>
+				<div className="grid gap-4 lg:grid-cols-2">
+					<Card className="rounded-md border-muted/60">
+						<CardHeader className="space-y-1 pb-3">
+							<CardTitle className="flex items-center gap-2 font-medium text-base">
+								<MessageSquareWarning className="size-4 text-muted-foreground" />
+								Report commands
+							</CardTitle>
+							<CardDescription className="text-xs leading-5">
+								Mention the app in a PR or issue comment to capture a review
+								signal. Submitted and needs-review reports are tracked, but only
+								validated or corroborated reports affect shared scores.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<pre className="overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+								<code>
+									{[
+										"@oss-protector review this user",
+										"@oss-protector flag this user reason: fake bounty",
+										"@oss-protector recommend block reason: malicious code",
+									].join("\n")}
+								</code>
+							</pre>
+						</CardContent>
+					</Card>
+					<Card className="rounded-md border-muted/60">
+						<CardHeader className="space-y-1 pb-3">
+							<CardTitle className="flex items-center gap-2 font-medium text-base">
+								<ShieldCheck className="size-4 text-muted-foreground" />
+								Maintainer corrections
+							</CardTitle>
+							<CardDescription className="text-xs leading-5">
+								Repo owners and members (author_association OWNER, MEMBER, or
+								COLLABORATOR) can correct the system from a PR comment. The bot
+								posts a confirmation comment for every correction.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<pre className="overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+								<code>
+									{[
+										"@oss-protector dismiss     # false positive: dismiss all open reports",
+										"@oss-protector confirm     # validate the latest open report",
+										"@oss-protector allow       # permanently allowlist the PR author",
+									].join("\n")}
+								</code>
+							</pre>
+						</CardContent>
+					</Card>
+				</div>
 
 				<div className="grid gap-6 lg:grid-cols-2">
 					<EndpointCard
@@ -203,23 +228,33 @@ function EndpointCard({
 	title: string;
 }) {
 	return (
-		<Card className="rounded-lg">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
+		<Card className="rounded-md border-muted/60">
+			<CardHeader className="space-y-1 pb-3">
+				<CardTitle className="flex items-center gap-2 font-medium text-base">
 					{icon}
-					{title}
+					<span className="font-mono text-[15px]">{title}</span>
 				</CardTitle>
-				<CardDescription>{description}</CardDescription>
+				<CardDescription className="text-xs leading-5">
+					{description}
+				</CardDescription>
 			</CardHeader>
-			<CardContent className="grid gap-4">
+			<CardContent className="grid gap-3">
 				<div className="grid gap-2">
-					<Badge variant="secondary">{method}</Badge>
-					<pre className="overflow-x-auto rounded-lg border bg-foreground p-4 text-background text-sm">
+					<Badge
+						className="w-fit rounded-sm font-mono text-[10px] uppercase tracking-wide"
+						variant="secondary"
+					>
+						{method}
+					</Badge>
+					<pre className="overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 						<code>{example}</code>
 					</pre>
 				</div>
 				<ParameterTable params={params} title={title} />
-				<a className={buttonVariants({ variant: "outline" })} href={href}>
+				<a
+					className={buttonVariants({ size: "sm", variant: "outline" })}
+					href={href}
+				>
 					<FileJson data-icon="inline-start" />
 					Open endpoint
 				</a>
