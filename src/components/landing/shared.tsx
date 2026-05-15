@@ -8,8 +8,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/components/ui/empty";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { RISK_STATUS_LABELS } from "@/constants/risk-statuses";
+import { cn } from "@/lib/utils";
 
 export function SectionHeading({
 	description,
@@ -107,33 +115,101 @@ export function EmptyState({
 	title: string;
 }) {
 	return (
-		<div className="grid min-h-40 place-items-center rounded-lg border border-dashed bg-muted/20 p-6 text-center">
-			<div>
-				<Icon className="mx-auto size-8 text-muted-foreground" />
-				<p className="mt-3 font-medium">{title}</p>
-				<p className="mt-1 max-w-md text-muted-foreground text-sm">
-					{description}
-				</p>
+		<Empty className="rounded-md border border-dashed bg-muted/15 py-8">
+			<EmptyHeader>
+				<EmptyMedia variant="icon">
+					<Icon />
+				</EmptyMedia>
+				<EmptyTitle>{title}</EmptyTitle>
+				<EmptyDescription>{description}</EmptyDescription>
+			</EmptyHeader>
+		</Empty>
+	);
+}
+
+const STATUS_DOT_CLASSES: Record<string, string> = {
+	allow: "bg-emerald-500",
+	block: "bg-destructive",
+	dismissed: "bg-muted-foreground/40",
+	high_risk: "bg-orange-500",
+	needs_review: "bg-amber-500",
+	pending: "bg-muted-foreground/60",
+	review: "bg-amber-500",
+	validated: "bg-emerald-500",
+	watch: "bg-sky-500",
+};
+
+const statusVariant = (
+	status: RiskStatus | string
+): "destructive" | "outline" | "secondary" => {
+	if (status === "block") {
+		return "destructive";
+	}
+	if (
+		status === "high_risk" ||
+		status === "review" ||
+		status === "needs_review"
+	) {
+		return "secondary";
+	}
+	return "outline";
+};
+
+const SCORE_TONE_CLASSES: Record<string, string> = {
+	allow: "bg-emerald-500",
+	block: "bg-destructive",
+	high_risk: "bg-orange-500",
+	review: "bg-amber-500",
+	watch: "bg-sky-500",
+};
+
+const scoreTone = (status: RiskStatus | string) =>
+	SCORE_TONE_CLASSES[status] ?? "bg-muted-foreground/60";
+
+export function ScoreMeter({
+	score,
+	status,
+}: {
+	score: number;
+	status: RiskStatus | string;
+}) {
+	const width = Math.max(2, Math.min(100, score));
+	return (
+		<div className="grid w-32 gap-1">
+			<div className="flex items-baseline justify-between gap-2">
+				<span className="font-mono text-foreground text-xs tabular-nums">
+					{score}
+				</span>
+				<span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+					/100
+				</span>
+			</div>
+			<div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+				<div
+					aria-hidden
+					className={cn("h-full rounded-full", scoreTone(status))}
+					style={{ width: `${width}%` }}
+				/>
 			</div>
 		</div>
 	);
 }
 
 export function StatusBadge({ status }: { status: RiskStatus | string }) {
-	let variant: "destructive" | "outline" | "secondary" = "outline";
-	if (status === "block") {
-		variant = "destructive";
-	} else if (
-		status === "high_risk" ||
-		status === "review" ||
-		status === "needs_review"
-	) {
-		variant = "secondary";
-	}
+	const variant = statusVariant(status);
 	const label =
 		status in RISK_STATUS_LABELS
 			? RISK_STATUS_LABELS[status as RiskStatus]
 			: String(status).replaceAll("_", " ");
+	const dotClass = STATUS_DOT_CLASSES[status] ?? "bg-muted-foreground/60";
 
-	return <Badge variant={variant}>{label}</Badge>;
+	return (
+		<Badge
+			className="gap-1.5 font-medium text-[11px] uppercase tracking-wide"
+			variant={variant}
+		>
+			<span aria-hidden className={cn("size-1.5 rounded-full", dotClass)} />
+			{label}
+		</Badge>
+	);
 }

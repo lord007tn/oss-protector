@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	FileJson,
+	Gauge,
 	MessageSquareWarning,
 	ShieldCheck,
 	UsersRound,
@@ -8,7 +9,9 @@ import {
 import type { ReactNode } from "react";
 
 import { publicAppUrl } from "@/components/landing/constants";
+import { Footer } from "@/components/landing/footer";
 import { SiteHeader } from "@/components/landing/site-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -116,7 +119,7 @@ function ApiDocsRoute() {
 	return (
 		<main className="min-h-screen bg-background text-foreground">
 			<SiteHeader />
-			<div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-10 md:px-6">
+			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<div className="max-w-2xl">
 					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
 						API
@@ -129,6 +132,19 @@ function ApiDocsRoute() {
 						checks, dashboards, or repository automation.
 					</p>
 				</div>
+
+				<Alert>
+					<Gauge />
+					<AlertTitle>Rate limits</AlertTitle>
+					<AlertDescription>
+						Public read endpoints (
+						<code className="font-mono text-[11px]">/api/clankers</code>,{" "}
+						<code className="font-mono text-[11px]">/api/protectors</code>,{" "}
+						<code className="font-mono text-[11px]">/api/risky-users.json</code>
+						) are throttled at <strong>60 requests per minute per IP</strong>.
+						Webhooks are not throttled.
+					</AlertDescription>
+				</Alert>
 
 				<div className="grid gap-4 lg:grid-cols-2">
 					<Card className="rounded-md border-muted/60">
@@ -181,12 +197,12 @@ function ApiDocsRoute() {
 					</Card>
 				</div>
 
-				<div className="grid gap-6 lg:grid-cols-2">
+				<div className="grid gap-4 lg:grid-cols-2">
 					<EndpointCard
 						description="Filterable list of accounts currently published for review."
 						example="/api/clankers?status=review&reason=external_blocklist&min_score=70&limit=10"
 						href="/api/clankers"
-						icon={<UsersRound className="size-5 text-primary" />}
+						icon={<UsersRound className="size-4 text-muted-foreground" />}
 						method="GET"
 						params={clankerParams}
 						title="/api/clankers"
@@ -195,13 +211,14 @@ function ApiDocsRoute() {
 						description="Filterable list of maintainers who submitted review signals."
 						example="/api/protectors?min_reports=1&min_score=10&limit=10"
 						href="/api/protectors"
-						icon={<ShieldCheck className="size-5 text-primary" />}
+						icon={<ShieldCheck className="size-4 text-muted-foreground" />}
 						method="GET"
 						params={protectorParams}
 						title="/api/protectors"
 					/>
 				</div>
 			</div>
+			<Footer />
 		</main>
 	);
 }

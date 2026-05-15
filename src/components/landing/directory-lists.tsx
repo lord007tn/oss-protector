@@ -14,7 +14,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import {
 	Table,
 	TableBody,
@@ -23,9 +22,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { reasonLabel } from "./analytics";
-import { EmptyState, StatusBadge } from "./shared";
+import { EmptyState, ScoreMeter, StatusBadge } from "./shared";
 import type { Protector, RiskProfile } from "./types";
 
 export function RiskProfilesCard({
@@ -46,18 +50,20 @@ export function RiskProfilesCard({
 				</CardTitle>
 				<CardDescription className="text-xs">{description}</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="p-0 pb-2">
 				{profiles.length > 0 ? (
 					<>
 						<MobileRiskList profiles={profiles} />
 						<DesktopRiskTable profiles={profiles} />
 					</>
 				) : (
-					<EmptyState
-						description="The directory is empty. Install the app on a repository or seed/import signal data to start publishing accounts."
-						icon={AlertTriangle}
-						title="No clankers listed"
-					/>
+					<div className="px-4 pb-4">
+						<EmptyState
+							description="No accounts match the current filters. Try clearing filters or installing the app on more repositories."
+							icon={AlertTriangle}
+							title="No clankers listed"
+						/>
+					</div>
 				)}
 			</CardContent>
 		</Card>
@@ -86,32 +92,43 @@ export function ProtectorsCard({
 			</CardHeader>
 			<CardContent>
 				{protectors.length > 0 ? (
-					<div className="grid gap-2">
+					<ul className="grid gap-1.5">
 						{protectors.map((protector, index) => (
-							<div
-								className="flex items-center justify-between gap-3 rounded-md border border-muted/60 bg-muted/20 px-3 py-2"
+							<li
+								className="flex items-center justify-between gap-3 rounded-md border border-muted/50 bg-muted/15 px-3 py-2 transition-colors hover:bg-muted/25"
 								key={protector.login}
 							>
 								<div className="min-w-0">
 									<p className="truncate font-medium text-sm">
-										<span className="text-muted-foreground tabular-nums">
+										<span className="font-mono text-muted-foreground text-xs tabular-nums">
 											{String(startIndex + index + 1).padStart(2, "0")}
 										</span>{" "}
 										· @{protector.login}
 									</p>
 									<p className="text-muted-foreground text-xs">
-										{protector.validatedReports} validated ·{" "}
-										{protector.needsReviewReports + protector.submittedReports}{" "}
-										under review · {protector.reports} total
+										<span className="tabular-nums">
+											{protector.validatedReports}
+										</span>{" "}
+										validated ·{" "}
+										<span className="tabular-nums">
+											{protector.needsReviewReports +
+												protector.submittedReports}
+										</span>{" "}
+										under review ·{" "}
+										<span className="tabular-nums">{protector.reports}</span>{" "}
+										total
 									</p>
 								</div>
-								<Badge className="tabular-nums" variant="secondary">
-									<CheckCircle2 className="size-3.5" />
+								<Badge
+									className="gap-1.5 font-mono text-[11px] tabular-nums"
+									variant="secondary"
+								>
+									<CheckCircle2 className="size-3 text-emerald-500" />
 									{protector.score}
 								</Badge>
-							</div>
+							</li>
 						))}
-					</div>
+					</ul>
 				) : (
 					<EmptyState
 						description="Maintainer review signals appear after reports are submitted from GitHub issues or pull requests."
@@ -126,34 +143,27 @@ export function ProtectorsCard({
 
 function MobileRiskList({ profiles }: { profiles: RiskProfile[] }) {
 	return (
-		<div className="grid gap-3 md:hidden">
+		<ul className="grid gap-2 px-4 md:hidden">
 			{profiles.map((profile) => (
-				<div className="rounded-lg border bg-muted/20 p-3" key={profile.login}>
+				<li
+					className="grid gap-2 rounded-md border border-muted/60 bg-muted/15 p-3"
+					key={profile.login}
+				>
 					<div className="flex items-start justify-between gap-3">
 						<AccountCell compact profile={profile} />
 						<StatusBadge status={profile.status} />
 					</div>
-					<div className="mt-3 grid gap-2">
-						<div className="flex items-center justify-between gap-3 text-sm">
-							<span className="text-muted-foreground">Score</span>
-							<span className="font-mono tabular-nums">
-								{profile.score} / {profile.confidence}%
-							</span>
-						</div>
-						<Progress
-							aria-label={`Risk confidence for @${profile.login}`}
-							className="h-2"
-							value={profile.confidence}
-						/>
-						<div className="flex items-center justify-between gap-3 text-sm">
-							<span className="text-muted-foreground">Signal</span>
-							<span>{profile.prCount.toLocaleString()} PRs observed</span>
-						</div>
-						<ReasonBadges reasons={profile.reasonCodes} />
+					<ScoreMeter score={profile.score} status={profile.status} />
+					<div className="flex items-center justify-between gap-3 text-xs">
+						<span className="text-muted-foreground">Signal</span>
+						<span className="tabular-nums">
+							{profile.prCount.toLocaleString()} PRs
+						</span>
 					</div>
-				</div>
+					<ReasonBadges reasons={profile.reasonCodes} />
+				</li>
 			))}
-		</div>
+		</ul>
 	);
 }
 
@@ -163,45 +173,61 @@ function DesktopRiskTable({ profiles }: { profiles: RiskProfile[] }) {
 			<Table aria-label="Clanker review feed">
 				<TableHeader>
 					<TableRow>
-						<TableHead>Account</TableHead>
-						<TableHead>Status</TableHead>
-						<TableHead>Score</TableHead>
-						<TableHead>Signal</TableHead>
-						<TableHead>Reason</TableHead>
+						<TableHead className="pl-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+							Account
+						</TableHead>
+						<TableHead className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+							Status
+						</TableHead>
+						<TableHead className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+							Score
+						</TableHead>
+						<TableHead className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+							Signal
+						</TableHead>
+						<TableHead className="pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+							Reason
+						</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{profiles.map((profile) => (
-						<TableRow key={profile.login}>
-							<TableCell>
+						<TableRow
+							className="transition-colors hover:bg-muted/25"
+							key={profile.login}
+						>
+							<TableCell className="pl-4">
 								<AccountCell profile={profile} />
 							</TableCell>
 							<TableCell>
 								<StatusBadge status={profile.status} />
 							</TableCell>
-							<TableCell className="min-w-36">
-								<div className="grid gap-1">
-									<div className="flex items-center justify-between gap-2">
-										<span className="font-mono text-sm tabular-nums">
-											{profile.score}
-										</span>
-										<span className="text-muted-foreground text-xs">
-											{profile.confidence}%
-										</span>
-									</div>
-									<Progress
-										aria-label={`Risk confidence for @${profile.login}`}
-										className="h-2"
-										value={profile.confidence}
+							<TableCell>
+								<Tooltip>
+									<TooltipTrigger
+										render={(props) => (
+											<div {...props}>
+												<ScoreMeter
+													score={profile.score}
+													status={profile.status}
+												/>
+											</div>
+										)}
 									/>
-								</div>
+									<TooltipContent>
+										<p className="text-xs">
+											Score is a 0-100 risk index. Higher = more concrete
+											evidence.
+										</p>
+									</TooltipContent>
+								</Tooltip>
 							</TableCell>
 							<TableCell>
-								<span className="text-muted-foreground text-sm">
-									{profile.prCount.toLocaleString()} PRs observed
+								<span className="text-muted-foreground text-sm tabular-nums">
+									{profile.prCount.toLocaleString()} PRs
 								</span>
 							</TableCell>
-							<TableCell>
+							<TableCell className="pr-4">
 								<ReasonBadges reasons={profile.reasonCodes} />
 							</TableCell>
 						</TableRow>
@@ -221,7 +247,7 @@ function AccountCell({
 }) {
 	return (
 		<div className="flex min-w-0 items-center gap-3 md:min-w-56">
-			<Avatar className="size-10">
+			<Avatar className="size-8">
 				{profile.avatarUrl ? (
 					<AvatarImage alt={profile.login} src={profile.avatarUrl} />
 				) : null}
@@ -231,17 +257,17 @@ function AccountCell({
 			</Avatar>
 			<div className="min-w-0">
 				<a
-					className="inline-flex max-w-40 items-center gap-1 truncate font-medium hover:underline md:max-w-52"
+					className="inline-flex max-w-40 items-center gap-1 truncate font-medium text-sm hover:underline md:max-w-52"
 					href={profile.htmlUrl ?? "#"}
 					rel="noopener noreferrer"
 					target="_blank"
 				>
 					@{profile.login}
-					<ExternalLink className="size-3 shrink-0" />
+					<ExternalLink className="size-3 shrink-0 text-muted-foreground" />
 				</a>
 				{compact ? null : (
-					<p className="text-muted-foreground text-xs">
-						{profile.importedSource ?? "GitHub webhook evidence"}
+					<p className="text-[11px] text-muted-foreground">
+						{profile.importedSource ?? "Live webhook signal"}
 					</p>
 				)}
 			</div>
@@ -252,17 +278,29 @@ function AccountCell({
 function ReasonBadges({ reasons }: { reasons: string[] }) {
 	if (reasons.length === 0) {
 		return (
-			<span className="text-muted-foreground text-sm">No reason stored</span>
+			<span className="text-muted-foreground text-xs">No reason stored</span>
 		);
 	}
 
 	return (
 		<div className="flex max-w-72 flex-wrap gap-1">
 			{reasons.slice(0, 2).map((reason) => (
-				<Badge key={reason} variant="outline">
+				<Badge
+					className="font-medium text-[11px]"
+					key={reason}
+					variant="outline"
+				>
 					{reasonLabel(reason)}
 				</Badge>
 			))}
+			{reasons.length > 2 ? (
+				<Badge
+					className="font-mono text-[11px] text-muted-foreground tabular-nums"
+					variant="outline"
+				>
+					+{reasons.length - 2}
+				</Badge>
+			) : null}
 		</div>
 	);
 }
