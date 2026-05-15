@@ -1,4 +1,4 @@
-import { ExternalLink, Sparkles } from "lucide-react";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -12,37 +12,37 @@ import {
 export function Credits() {
 	return (
 		<section className="border-b">
-			<div className="mx-auto w-full max-w-7xl px-4 py-8 md:px-6">
-				<Card className="rounded-lg">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Sparkles className="size-5 text-primary" />
+			<div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
+				<Card className="rounded-md border-muted/60">
+					<CardHeader className="space-y-1 pb-3">
+						<CardTitle className="flex items-center gap-2 font-medium text-base">
+							<Sparkles className="size-4 text-muted-foreground" />
 							Inspiration and first data layer
 						</CardTitle>
-						<CardDescription>
+						<CardDescription className="text-xs leading-5">
 							OSS Protector started from the Clankers Leaderboard idea and its
-							public bot blocklist data. Credit to @heyandras for publishing the
-							original leaderboard.
+							public bot blocklist data. Credit to @heyandras for the original
+							leaderboard.
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="flex flex-wrap gap-2">
+					<CardContent className="flex flex-wrap gap-2 pt-0">
 						<a
-							className={buttonVariants({ variant: "outline" })}
+							className={buttonVariants({ size: "sm", variant: "outline" })}
 							href="https://clankers-leaderboard.pages.dev/"
 							rel="noopener"
 							target="_blank"
 						>
 							Leaderboard
-							<ExternalLink data-icon="inline-end" />
+							<ArrowUpRight data-icon="inline-end" />
 						</a>
 						<a
-							className={buttonVariants({ variant: "ghost" })}
+							className={buttonVariants({ size: "sm", variant: "ghost" })}
 							href="https://x.com/heyandras"
 							rel="noopener"
 							target="_blank"
 						>
 							@heyandras
-							<ExternalLink data-icon="inline-end" />
+							<ArrowUpRight data-icon="inline-end" />
 						</a>
 					</CardContent>
 				</Card>

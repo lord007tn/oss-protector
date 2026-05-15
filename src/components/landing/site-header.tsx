@@ -19,41 +19,54 @@ export function SiteHeader() {
 	};
 
 	return (
-		<header className="sticky top-0 z-30 border-b bg-background/92 backdrop-blur-xl">
-			<div className="mx-auto flex min-h-16 w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
-				<a className="flex min-w-0 items-center gap-3" href="/">
+		<header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur-xl">
+			<div className="mx-auto flex min-h-14 w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 md:px-6">
+				<a className="flex min-w-0 items-center gap-2.5" href="/">
 					<img
 						alt="OSS Protector"
-						className="size-10 rounded-lg border bg-card object-cover"
-						height={40}
+						className="size-7 rounded-md border bg-card object-cover"
+						height={28}
 						src="/oss-protector-mark.svg"
-						width={40}
+						width={28}
 					/>
-					<span className="truncate font-semibold text-lg">{appName}</span>
+					<span className="truncate font-medium text-[15px] tracking-tight">
+						{appName}
+					</span>
 				</a>
-				<nav className="flex items-center gap-2">
-					<a className={buttonVariants({ variant: "ghost" })} href="/clankers">
+				<nav className="flex items-center gap-1">
+					<a
+						className={buttonVariants({ size: "sm", variant: "ghost" })}
+						href="/clankers"
+					>
 						Clankers
 					</a>
 					<a
-						className={buttonVariants({ variant: "ghost" })}
+						className={buttonVariants({ size: "sm", variant: "ghost" })}
 						href="/protectors"
 					>
 						Signals
 					</a>
 					<a
-						className={buttonVariants({ variant: "ghost" })}
+						className={buttonVariants({ size: "sm", variant: "ghost" })}
 						href={apiDocsPath}
 					>
 						<FileJson data-icon="inline-start" />
 						API
 					</a>
-					<a className={buttonVariants()} href={githubAppInstallUrl}>
+					<a
+						className={buttonVariants({ size: "sm" })}
+						href={githubAppInstallUrl}
+					>
 						<Github data-icon="inline-start" />
 						Install
 					</a>
 					{githubAuthEnabled ? (
-						<Button onClick={signInWithGithub} type="button" variant="outline">
+						<Button
+							onClick={signInWithGithub}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
 							<Github data-icon="inline-start" />
 							Sign in
 						</Button>

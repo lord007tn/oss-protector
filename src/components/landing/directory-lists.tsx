@@ -38,13 +38,13 @@ export function RiskProfilesCard({
 	title?: string;
 }) {
 	return (
-		<Card className="rounded-lg">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<AlertTriangle className="size-5 text-destructive" />
+		<Card className="rounded-md border-muted/60">
+			<CardHeader className="space-y-1 pb-3">
+				<CardTitle className="flex items-center gap-2 font-medium text-base">
+					<AlertTriangle className="size-4 text-destructive" />
 					{title}
 				</CardTitle>
-				<CardDescription>{description}</CardDescription>
+				<CardDescription className="text-xs">{description}</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{profiles.length > 0 ? (
@@ -76,25 +76,28 @@ export function ProtectorsCard({
 	title?: string;
 }) {
 	return (
-		<Card className="rounded-lg">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<UsersRound className="size-5 text-primary" />
+		<Card className="rounded-md border-muted/60">
+			<CardHeader className="space-y-1 pb-3">
+				<CardTitle className="flex items-center gap-2 font-medium text-base">
+					<UsersRound className="size-4 text-muted-foreground" />
 					{title}
 				</CardTitle>
-				<CardDescription>{description}</CardDescription>
+				<CardDescription className="text-xs">{description}</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{protectors.length > 0 ? (
-					<div className="grid gap-3">
+					<div className="grid gap-2">
 						{protectors.map((protector, index) => (
 							<div
-								className="flex items-center justify-between gap-3 rounded-lg border bg-muted/25 p-3"
+								className="flex items-center justify-between gap-3 rounded-md border border-muted/60 bg-muted/20 px-3 py-2"
 								key={protector.login}
 							>
 								<div className="min-w-0">
-									<p className="truncate font-medium">
-										{startIndex + index + 1}. @{protector.login}
+									<p className="truncate font-medium text-sm">
+										<span className="text-muted-foreground tabular-nums">
+											{String(startIndex + index + 1).padStart(2, "0")}
+										</span>{" "}
+										· @{protector.login}
 									</p>
 									<p className="text-muted-foreground text-xs">
 										{protector.validatedReports} validated ·{" "}
@@ -102,9 +105,9 @@ export function ProtectorsCard({
 										under review · {protector.reports} total
 									</p>
 								</div>
-								<Badge variant="secondary">
+								<Badge className="tabular-nums" variant="secondary">
 									<CheckCircle2 className="size-3.5" />
-									{protector.score} validated score
+									{protector.score}
 								</Badge>
 							</div>
 						))}

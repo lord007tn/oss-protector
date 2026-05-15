@@ -1,0 +1,309 @@
+import type { ReasonCode } from "@/constants/reason-codes";
+import {
+	REASON_CAUSES,
+	REASON_DESCRIPTIONS,
+	REASON_LABELS,
+} from "@/constants/reason-codes";
+import type { RiskStatus } from "@/constants/risk-statuses";
+import {
+	RISK_SCORE_BANDS,
+	RISK_STATUS_DESCRIPTIONS,
+	RISK_STATUS_LABELS,
+	riskStatusForScore,
+} from "@/constants/risk-statuses";
+import { fetchDirectoryDashboardRecords } from "@/data-access/directory";
+import { isMissingBindingError } from "@/db/errors";
+import {
+	type ClankerFilters,
+	filterClankers,
+	filterProtectors,
+	type ProtectorFilters,
+} from "@/helpers/directory-filters";
+import { parseJsonArray } from "@/lib/json";
+
+const CLANKER_LEADERBOARD_CREDIT = {
+	creator: "@heyandras",
+	creator_url: "https://x.com/heyandras",
+	inspiration_url: "https://clankers-leaderboard.pages.dev/",
+	note: "Initial inspiration and first clanker data layer.",
+} as const;
+
+type DashboardRecords = Awaited<
+	ReturnType<typeof fetchDirectoryDashboardRecords>
+>;
+type DashboardReport = DashboardRecords["reports"][number];
+
+const riskStatusDetails = (status: RiskStatus) => ({
+	description: RISK_STATUS_DESCRIPTIONS[status],
+	label: RISK_STATUS_LABELS[status],
+	status,
+});
+
+const reasonDetails = (reasons: ReasonCode[]) =>
+	reasons.map((reason) => ({
+		causes: REASON_CAUSES[reason],
+		code: reason,
+		description: REASON_DESCRIPTIONS[reason],
+		label: REASON_LABELS[reason],
+	}));
+
+const scoreDetails = (score: number) => ({
+	bands: RISK_SCORE_BANDS.map((band) => ({
+		label: RISK_STATUS_LABELS[band.status],
+		max: band.max,
+		min: band.min,
+		status: band.status,
+	})),
+	method:
+		"Score combines validated maintainer reports, independently corroborated PR signals, repeated observations, and imported source matches. Submitted reports are tracked but do not affect public score until validated.",
+	value: score,
+});
+
+const emptyDashboard = () => ({
+	protectors: [],
+	imports: [],
+	reports: [],
+	riskProfiles: [],
+	stats: {
+		activeRepositories: 0,
+		blockedUsers: 0,
+		highRiskUsers: 0,
+		importedUsers: 0,
+		openReports: 0,
+		reviewUsers: 0,
+		signals: 0,
+		trackedPrs: 0,
+		trackedUsers: 0,
+	},
+});
+
+const protectorScoreForReport = (report: DashboardReport) => {
+	if (report.status !== "validated") {
+		return 0;
+	}
+	return report.reporterIsMaintainer ? 20 : 8;
+};
+
+const buildProtectors = (reports: DashboardRecords["reports"]) => {
+	const protectorMap = new Map<
+		string,
+		{
+			dismissedReports: number;
+			login: string;
+			needsReviewReports: number;
+			reports: number;
+			score: number;
+			submittedReports: number;
+			validatedReports: number;
+		}
+	>();
+
+	for (const report of reports) {
+		const current = protectorMap.get(report.reporterLogin) ?? {
+			dismissedReports: 0,
+			login: report.reporterLogin,
+			needsReviewReports: 0,
+			reports: 0,
+			score: 0,
+			submittedReports: 0,
+			validatedReports: 0,
+		};
+		current.reports += 1;
+		current.score += protectorScoreForReport(report);
+		if (report.status === "validated") {
+			current.validatedReports += 1;
+		} else if (report.status === "needs_review") {
+			current.needsReviewReports += 1;
+		} else if (report.status === "dismissed") {
+			current.dismissedReports += 1;
+		} else {
+			current.submittedReports += 1;
+		}
+		protectorMap.set(report.reporterLogin, current);
+	}
+
+	return [...protectorMap.values()].sort(
+		(a, b) =>
+			b.score - a.score ||
+			b.validatedReports - a.validatedReports ||
+			b.reports - a.reports
+	);
+};
+
+const buildDirectoryDashboard = ({
+	imports,
+	profiles,
+	pullRequests,
+	reports,
+	repositories,
+	signals,
+}: DashboardRecords) => {
+	const riskProfiles = profiles.map((profile) => {
+		const status = riskStatusForScore({
+			isAllowed: profile.status === "allow",
+			score: profile.score,
+		});
+		return {
+			avatarUrl: profile.targetUser.avatarUrl,
+			confidence: profile.confidence,
+			commitCount: profile.commitCount,
+			githubUserId: profile.targetUser.githubUserId,
+			htmlUrl: profile.targetUser.htmlUrl,
+			importedSource: profile.importedSource,
+			lastSeenAt: profile.lastSeenAt,
+			login: profile.targetUser.login,
+			prCount: profile.prCount,
+			reasonCodes: parseJsonArray<ReasonCode>(profile.reasonCodesJson),
+			reportCount: profile.reportCount,
+			repositoryCount: profile.repositoryCount,
+			score: profile.score,
+			status,
+			summary: profile.summary,
+			validatedReportCount: profile.validatedReportCount,
+		};
+	});
+
+	return {
+		protectors: buildProtectors(reports),
+		imports: imports.map((item) => ({
+			importedAt: item.importedAt,
+			itemCount: item.itemCount,
+			sourceName: item.sourceName,
+			sourceUrl: item.sourceUrl,
+			status: item.status,
+		})),
+		reports: reports.map((report) => ({
+			aiRationale: report.aiRationale,
+			aiVerdict: report.aiVerdict,
+			confidence: report.confidence,
+			createdAt: report.createdAt,
+			id: report.id,
+			reasonCode: report.reasonCode,
+			reasonText: report.reasonText,
+			reporterAssociation: report.reporterAssociation,
+			reporterIsMaintainer: report.reporterIsMaintainer,
+			reporterLogin: report.reporterLogin,
+			sourceUrl: report.sourceUrl,
+			status: report.status,
+			targetLogin: report.targetUser.login,
+		})),
+		riskProfiles,
+		stats: {
+			activeRepositories: repositories.filter((repo) => repo.isActive).length,
+			blockedUsers: riskProfiles.filter((profile) => profile.status === "block")
+				.length,
+			highRiskUsers: riskProfiles.filter(
+				(profile) => profile.status === "high_risk"
+			).length,
+			importedUsers: profiles.filter((profile) => profile.importedSource)
+				.length,
+			openReports: reports.filter(
+				(report) =>
+					report.status === "pending" || report.status === "needs_review"
+			).length,
+			reviewUsers: profiles.filter((profile) => profile.status === "review")
+				.length,
+			signals: signals.length,
+			trackedPrs: pullRequests.length,
+			trackedUsers: profiles.length,
+		},
+	};
+};
+
+const publicUser = (profile: DirectoryDashboard["riskProfiles"][number]) => ({
+	confidence: profile.confidence / 100,
+	evidence_summary: profile.summary,
+	github_user_id: profile.githubUserId,
+	last_seen: new Date(profile.lastSeenAt * 1000).toISOString(),
+	login: profile.login,
+	platform: "github",
+	reason_details: reasonDetails(profile.reasonCodes),
+	reasons: profile.reasonCodes,
+	status: profile.status,
+	status_detail: riskStatusDetails(profile.status),
+	url: profile.htmlUrl,
+});
+
+const publicProtector = (
+	protector: DirectoryDashboard["protectors"][number]
+) => ({
+	dismissed_reports: protector.dismissedReports,
+	login: protector.login,
+	needs_review_reports: protector.needsReviewReports,
+	reports: protector.reports,
+	review_signal_count: protector.reports,
+	score: protector.score,
+	submitted_reports: protector.submittedReports,
+	validated_reports: protector.validatedReports,
+});
+
+export const listDirectoryDashboard = async () => {
+	try {
+		return buildDirectoryDashboard(await fetchDirectoryDashboardRecords());
+	} catch (caught) {
+		if (isMissingBindingError(caught)) {
+			return emptyDashboard();
+		}
+		throw caught;
+	}
+};
+
+export type DirectoryDashboard = Awaited<
+	ReturnType<typeof listDirectoryDashboard>
+>;
+
+export const listPublicFeed = async () => {
+	const dashboard = await listDirectoryDashboard();
+	const riskyUsers = dashboard.riskProfiles
+		.filter((profile) => profile.status !== "allow")
+		.map(publicUser);
+
+	return {
+		credits: CLANKER_LEADERBOARD_CREDIT,
+		directory_url: "https://oss-protector.raedbahri90.workers.dev",
+		generated_at: new Date().toISOString(),
+		protectors: dashboard.protectors.map(publicProtector),
+		risky_users: riskyUsers,
+		schema_version: "2026-05-15",
+		source: "oss-protector",
+		users: riskyUsers,
+	};
+};
+
+export const listClankersApi = async (filters: ClankerFilters) => {
+	const dashboard = await listDirectoryDashboard();
+	const clankers = filterClankers(dashboard.riskProfiles, filters);
+
+	return {
+		clankers: clankers.map((profile) => ({
+			...publicUser(profile),
+			score: profile.score,
+			score_detail: scoreDetails(profile.score),
+		})),
+		count: clankers.length,
+		credits: CLANKER_LEADERBOARD_CREDIT,
+		filters,
+		generated_at: new Date().toISOString(),
+		schema_version: "2026-05-15",
+		source: "oss-protector",
+		total_available: dashboard.riskProfiles.filter(
+			(profile) => profile.status !== "allow"
+		).length,
+	};
+};
+
+export const listProtectorsApi = async (filters: ProtectorFilters) => {
+	const dashboard = await listDirectoryDashboard();
+	const protectors = filterProtectors(dashboard.protectors, filters);
+
+	return {
+		count: protectors.length,
+		credits: CLANKER_LEADERBOARD_CREDIT,
+		filters,
+		generated_at: new Date().toISOString(),
+		protectors: protectors.map(publicProtector),
+		schema_version: "2026-05-15",
+		source: "oss-protector",
+		total_available: dashboard.protectors.length,
+	};
+};

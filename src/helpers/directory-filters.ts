@@ -1,8 +1,8 @@
+import type { DirectoryDashboard } from "@/actions/directory";
 import type { ReasonCode } from "@/constants/reason-codes";
 import { REASON_CODES } from "@/constants/reason-codes";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { RISK_STATUSES } from "@/constants/risk-statuses";
-import type { DirectoryDashboard } from "@/data-access/directory";
 
 export type ClankerStatusFilter = Exclude<RiskStatus, "allow"> | "all";
 

@@ -6,7 +6,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false
+    }
   },
   "vars": {
     "APP_NAME": "OSS Protector",
@@ -22,5 +29,15 @@
       "database_id": "b25f6b21-a01c-4371-bb8e-2620245b4525",
       "migrations_dir": "drizzle"
     }
-  ]
+  ],
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "PUBLIC_RL",
+        "type": "ratelimit",
+        "namespace_id": "1001",
+        "simple": { "limit": 60, "period": 60 }
+      }
+    ]
+  }
 }

@@ -11,6 +11,5 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
-.codex-dev-server.*.log
-.codex-wrangler-dev.*.log
+.codex-*.log
 .playwright-mcp
