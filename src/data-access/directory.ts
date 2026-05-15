@@ -142,7 +142,7 @@ const scoreDetails = (score: number) => ({
 		status: band.status,
 	})),
 	method:
-		"Score combines maintainer reports, repeated observations, PR activity, AI review signals, and imported source matches. It is a review aid, not a final accusation.",
+		"Score combines validated maintainer reports, independently corroborated PR signals, repeated observations, and imported source matches. Submitted reports are tracked but do not affect public score until validated.",
 	value: score,
 });
 
@@ -406,12 +406,6 @@ const reportSignalWeight = ({
 	if (status === "validated") {
 		return reporterIsMaintainer ? 35 : 12;
 	}
-	if (status === "needs_review") {
-		return reporterIsMaintainer ? 14 : 4;
-	}
-	if (status === "pending") {
-		return reporterIsMaintainer ? 6 : 2;
-	}
 	return 0;
 };
 
@@ -485,10 +479,7 @@ const reportBaseScore = ({
 	if (status === "validated") {
 		return reporterIsMaintainer ? 28 : 6;
 	}
-	if (status === "needs_review") {
-		return reporterIsMaintainer ? 12 : 3;
-	}
-	return reporterIsMaintainer ? 6 : 1;
+	return 0;
 };
 
 const reportAiBoost = (verdict: null | string) => {
@@ -506,13 +497,10 @@ const scoreReport = (report: {
 	reporterIsMaintainer: boolean;
 	status: string;
 }) => {
-	if (report.status === "dismissed") {
+	if (report.status !== "validated") {
 		return 0;
 	}
-	const statusBoost = report.status === "validated" ? 12 : 0;
-	return (
-		reportBaseScore(report) + reportAiBoost(report.aiVerdict) + statusBoost
-	);
+	return reportBaseScore(report) + reportAiBoost(report.aiVerdict) + 12;
 };
 
 const riskSummary = ({
@@ -674,18 +662,27 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		reasonCodes.add(report.reasonCode);
 	}
 
+	const validatedReportIds = new Set(
+		reports
+			.filter((report) => report.status === "validated")
+			.map((report) => report.id)
+	);
 	const reportScore = reports.reduce(
 		(sum, report) => sum + scoreReport(report),
 		0
 	);
-	const signalScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
+	const signalScore = signals.reduce((sum, signal) => {
+		if (signal.signalType !== "maintainer_report") {
+			return sum + signal.weight;
+		}
+		return signal.reportId && validatedReportIds.has(signal.reportId)
+			? sum + signal.weight
+			: sum;
+	}, 0);
 	const activityScore = Math.min(20, prs.length * 2);
 	const importedScore = existing[0]?.importedSource ? 48 : 0;
 	const computedScore = boundedConfidence(
-		Math.max(
-			existing[0]?.score ?? 0,
-			reportScore + signalScore + activityScore + importedScore
-		)
+		reportScore + signalScore + activityScore + importedScore
 	);
 	const isAllowed = user.isKnownGithubBot || existing[0]?.status === "allow";
 	const score = isAllowed ? 0 : computedScore;
@@ -806,28 +803,46 @@ export const listDirectoryDashboard = async () => {
 		const catcherMap = new Map<
 			string,
 			{
+				dismissedReports: number;
 				login: string;
+				needsReviewReports: number;
 				reports: number;
 				score: number;
+				submittedReports: number;
 				validatedReports: number;
 			}
 		>();
 		for (const report of reports) {
 			const current = catcherMap.get(report.reporterLogin) ?? {
+				dismissedReports: 0,
 				login: report.reporterLogin,
+				needsReviewReports: 0,
 				reports: 0,
 				score: 0,
+				submittedReports: 0,
 				validatedReports: 0,
 			};
 			current.reports += 1;
-			current.validatedReports += report.status === "validated" ? 1 : 0;
-			current.score += report.reporterIsMaintainer ? 12 : 4;
-			current.score += report.status === "validated" ? 10 : 0;
+			if (report.status === "validated") {
+				current.validatedReports += 1;
+				current.score += report.reporterIsMaintainer ? 20 : 8;
+			} else if (report.status === "needs_review") {
+				current.needsReviewReports += 1;
+			} else if (report.status === "dismissed") {
+				current.dismissedReports += 1;
+			} else {
+				current.submittedReports += 1;
+			}
 			catcherMap.set(report.reporterLogin, current);
 		}
 
 		return {
-			protectors: [...catcherMap.values()].sort((a, b) => b.score - a.score),
+			protectors: [...catcherMap.values()].sort(
+				(a, b) =>
+					b.score - a.score ||
+					b.validatedReports - a.validatedReports ||
+					b.reports - a.reports
+			),
 			imports: imports.map((item) => ({
 				importedAt: item.importedAt,
 				itemCount: item.itemCount,
@@ -902,9 +917,13 @@ export const listPublicFeed = async () => {
 		directory_url: "https://oss-protector.raedbahri90.workers.dev",
 		generated_at: new Date().toISOString(),
 		protectors: dashboard.protectors.map((protector) => ({
+			dismissed_reports: protector.dismissedReports,
 			login: protector.login,
+			needs_review_reports: protector.needsReviewReports,
 			reports: protector.reports,
+			review_signal_count: protector.reports,
 			score: protector.score,
+			submitted_reports: protector.submittedReports,
 			validated_reports: protector.validatedReports,
 		})),
 		risky_users: riskyUsers,
@@ -956,9 +975,13 @@ export const listProtectorsApi = async (filters: ProtectorFilters) => {
 		filters,
 		generated_at: new Date().toISOString(),
 		protectors: protectors.map((protector) => ({
+			dismissed_reports: protector.dismissedReports,
 			login: protector.login,
+			needs_review_reports: protector.needsReviewReports,
 			reports: protector.reports,
+			review_signal_count: protector.reports,
 			score: protector.score,
+			submitted_reports: protector.submittedReports,
 			validated_reports: protector.validatedReports,
 		})),
 		schema_version: "2026-05-15",
