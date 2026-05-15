@@ -1,26 +1,4 @@
 {
-  "name": "oss-guard",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite dev --port 3000",
-    "build": "vite build",
-    "build:prod": "cross-env VITE_APP_URL=https://clankers-list.raedbahri90.workers.dev vite build",
-    "preview": "vite preview",
-    "deploy": "pnpm run build:prod && wrangler deploy",
-    "cf-typegen": "wrangler types",
-		"test": "vitest run",
-		"typecheck": "tsc --noEmit",
-		"db:generate": "drizzle-kit generate",
-		"db:migrate": "wrangler d1 migrations apply clankers-list-db --remote",
-		"db:migrate:local": "wrangler d1 migrations apply clankers-list-db --local",
-		"db:push": "drizzle-kit push",
-		"db:seed": "tsx ./src/db/seed.ts --local",
-		"db:seed:remote": "tsx ./src/db/seed.ts --remote",
-    "format": "biome format",
-    "lint": "biome lint",
-    "check": "biome check"
-  },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@octokit/auth-app": "^8.2.0",
@@ -37,6 +15,8 @@
     "@tanstack/react-router-ssr-query": "latest",
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "^1.132.0",
+    "better-auth": "^1.6.11",
+    "better-auth-cloudflare": "^0.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -54,7 +34,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.5",
+    "@biomejs/biome": "2.4.15",
     "@cloudflare/workers-types": "^4.20260511.1",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
@@ -67,19 +47,68 @@
     "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
     "drizzle-kit": "1.0.0-beta.24",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-you-might-not-need-an-effect": "^0.10.1",
+    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
+    "knip": "^6.13.1",
+    "lint-staged": "^17.0.4",
     "nitro": "3.0.260429-beta",
+    "oxfmt": "^0.49.0",
+    "oxlint": "^1.64.0",
+    "oxlint-tsgolint": "^0.22.1",
+    "react-doctor": "^0.1.6",
+    "react-scan": "^0.5.6",
     "shadcn": "^4.7.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
+    "ultracite": "7.7.0",
     "vite": "^8.0.0",
     "vitest": "^4.1.5",
     "wrangler": "^4.90.1"
   },
+  "name": "oss-protector",
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "build:prod": "cross-env VITE_APP_URL=https://oss-protector.raedbahri90.workers.dev vite build",
+    "preview": "vite preview",
+    "deploy": "pnpm run build:prod && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply clankers-list-db --remote",
+    "db:migrate:local": "wrangler d1 migrations apply clankers-list-db --local",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx ./src/db/seed.ts --local",
+    "db:seed:remote": "tsx ./src/db/seed.ts --remote",
+    "format": "biome format",
+    "lint": "biome lint",
+    "check": "ultracite check",
+    "scan": "react-scan http://localhost:3000",
+    "doctor": "react-doctor --yes --offline --full --fail-on error .",
+    "knip": "knip",
+    "ultracite": "ultracite check",
+    "ultracite:fix": "ultracite fix",
+    "oxlint": "oxlint -c oxlint.config.mjs --tsconfig tsconfig.json .",
+    "oxlint:perf": "oxlint -c oxlint.config.mjs --tsconfig tsconfig.json -W perf -W suspicious .",
+    "oxfmt": "oxfmt -c oxfmt.config.mjs --write \"src/**/*.{ts,tsx}\" \"*.ts\"",
+    "toolchain": "pnpm check && pnpm oxlint && pnpm knip && pnpm doctor",
+    "fix": "ultracite fix",
+    "prepare": "husky"
+  },
+  "type": "module",
+  "private": true,
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
       "lightningcss"
+    ]
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+      "pnpm dlx ultracite fix"
     ]
   }
 }

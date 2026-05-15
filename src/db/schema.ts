@@ -43,7 +43,7 @@ export const GithubUser = sqliteTable(
 	(table) => [
 		index("github_users_login_idx").on(table.login),
 		index("github_users_last_seen_idx").on(table.lastSeenAt),
-	],
+	]
 );
 
 export const Installation = sqliteTable(
@@ -65,7 +65,7 @@ export const Installation = sqliteTable(
 			.notNull()
 			.default(unixNow),
 	},
-	(table) => [index("installations_account_login_idx").on(table.accountLogin)],
+	(table) => [index("installations_account_login_idx").on(table.accountLogin)]
 );
 
 export const Repository = sqliteTable(
@@ -97,7 +97,7 @@ export const Repository = sqliteTable(
 	(table) => [
 		index("repositories_installation_idx").on(table.installationId),
 		index("repositories_owner_idx").on(table.ownerLogin),
-	],
+	]
 );
 
 export const PullRequest = sqliteTable(
@@ -146,11 +146,11 @@ export const PullRequest = sqliteTable(
 	(table) => [
 		uniqueIndex("pull_requests_repo_number_idx").on(
 			table.repositoryId,
-			table.number,
+			table.number
 		),
 		index("pull_requests_author_idx").on(table.authorUserId),
 		index("pull_requests_last_seen_idx").on(table.lastSeenAt),
-	],
+	]
 );
 
 export const BotReport = sqliteTable(
@@ -202,7 +202,7 @@ export const BotReport = sqliteTable(
 		index("bot_reports_target_idx").on(table.targetUserId),
 		index("bot_reports_reporter_idx").on(table.reporterLogin),
 		index("bot_reports_status_idx").on(table.status),
-	],
+	]
 );
 
 export const BotSignal = sqliteTable(
@@ -235,7 +235,7 @@ export const BotSignal = sqliteTable(
 	(table) => [
 		index("bot_signals_target_idx").on(table.targetUserId),
 		index("bot_signals_observed_idx").on(table.observedAt),
-	],
+	]
 );
 
 export const RiskProfile = sqliteTable(
@@ -281,7 +281,7 @@ export const RiskProfile = sqliteTable(
 	(table) => [
 		index("risk_profiles_status_idx").on(table.status),
 		index("risk_profiles_score_idx").on(table.score),
-	],
+	]
 );
 
 export const SourceImport = sqliteTable("SourceImport", {
@@ -319,7 +319,7 @@ export const AppEvent = sqliteTable(
 	(table) => [
 		index("app_events_event_idx").on(table.eventName),
 		index("app_events_processed_idx").on(table.processedAt),
-	],
+	]
 );
 
 export const appSchema = {

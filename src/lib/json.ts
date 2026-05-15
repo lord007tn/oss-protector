@@ -11,7 +11,7 @@ export const parseJsonArray = <T>(value: string | null | undefined): T[] => {
 };
 
 export const parseJsonObject = <T extends Record<string, unknown>>(
-	value: string | null | undefined,
+	value: string | null | undefined
 ): Partial<T> => {
 	if (!value) {
 		return {};

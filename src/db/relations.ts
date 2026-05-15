@@ -1,5 +1,6 @@
 import { defineRelations } from "drizzle-orm";
 // Drizzle's beta relation helper consumes the schema namespace.
+// biome-ignore lint/performance/noNamespaceImport: Drizzle's beta relation helper consumes the schema namespace.
 import * as schema from "./schema";
 
 export const relations = defineRelations(
@@ -118,5 +119,5 @@ export const relations = defineRelations(
 				to: GithubUser.id,
 			}),
 		},
-	}),
+	})
 );

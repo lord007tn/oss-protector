@@ -1,0 +1,47 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/actions/**/*.ts",
+    "src/functions/**/*.ts",
+    "src/router.tsx",
+    "src/routes/**/*.tsx",
+    "src/server.ts"
+  ],
+  "project": ["*.ts", "src/**/*.{ts,tsx}"],
+  "ignoreFiles": [
+    "src/components/ui/chart.tsx",
+    "src/components/ui/dropdown-menu.tsx",
+    "src/components/ui/input.tsx",
+    "src/components/ui/scroll-area.tsx",
+    "src/components/ui/select.tsx",
+    "src/components/ui/separator.tsx",
+    "src/components/ui/skeleton.tsx",
+    "src/components/ui/tabs.tsx",
+    "src/data/demo.ts",
+    "src/hooks/api/feed/use-public-feed.ts"
+  ],
+  "ignoreIssues": {
+    "src/components/ui/**": ["exports", "types"],
+    "src/data-access/directory.ts": ["exports", "types"],
+    "src/db/index.ts": ["exports", "types"],
+    "src/env.ts": ["exports", "types"],
+    "src/hooks/api/dashboard/use-dashboard.ts": ["exports", "types"],
+    "src/lib/json.ts": ["exports", "types"],
+    "src/lib/time.ts": ["exports", "types"]
+  },
+  "ignoreDependencies": [
+    "@octokit/webhooks",
+    "@tailwindcss/typography",
+    "@tanstack/react-router-ssr-query",
+    "@tanstack/router-plugin",
+    "@testing-library/dom",
+    "@testing-library/react",
+    "jose",
+    "next-themes",
+    "recharts",
+    "shadcn",
+    "sonner",
+    "tailwindcss",
+    "tw-animate-css"
+  ]
+}

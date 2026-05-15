@@ -12,7 +12,7 @@ export function RootProvider({ children }: { children: ReactNode }) {
 						retry: 1,
 					},
 				},
-			}),
+			})
 	);
 
 	return (

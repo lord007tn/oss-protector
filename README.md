@@ -1,16 +1,16 @@
-# OSS Guard
+# OSS Protector
 
 Shared OSS abuse intelligence for suspicious GitHub pull request activity.
 
 The app is a TanStack Start + Cloudflare Workers product with:
 
 - Shared GitHub App installation and webhook ingestion.
-- Comment commands such as `/ossguard report bot reason: fake bounty`.
+- Automatic PR analysis comments that inspect pull request metadata, changed files, and patch snippets.
 - PR, issue comment, and PR review comment signals.
 - OpenRouter validation for maintainer reports and PR risk analysis, with deterministic fallback scoring when no API key is configured.
 - Drizzle ORM beta schema on Cloudflare D1.
-- Public JSON feed at `/api/feed.json`.
-- Dashboard filters, maintainer reports, imported profiles, and catcher leaderboard.
+- Public JSON feed at `/api/risky-users.json` with a `/api/feed.json` compatibility alias.
+- Public directory for risky accounts, report reasons, and maintainers who submit reports.
 
 ## Stack
 
@@ -28,17 +28,34 @@ pnpm install
 pnpm dev
 ```
 
-Local dev renders demo data when the Cloudflare D1 binding is not present.
+`pnpm dev` runs the Vite app. Use the Cloudflare worker preview when you need
+real D1 bindings locally:
+
+```bash
+pnpm build
+pnpm exec wrangler dev --local --port 8787
+```
 
 Copy `.env.example` to `.env` and fill values as they become available:
 
 ```bash
 VITE_APP_URL=http://localhost:3000
+VITE_ENABLE_GITHUB_AUTH=false
 CLOUDFLARE_D1_DATABASE_NAME=clankers-list-db
 OPENROUTER_API_KEY=
-OPENROUTER_MODEL=qwen/qwen3-next-80b-a3b-instruct:free
-OPENROUTER_FALLBACK_MODELS=openai/gpt-oss-120b:free,deepseek/deepseek-v4-flash:free,z-ai/glm-4.7-flash,openai/gpt-5-nano
 ```
+
+## Public Feed
+
+Projects can consume the directory with:
+
+```bash
+curl https://oss-protector.raedbahri90.workers.dev/api/risky-users.json
+```
+
+The response includes `risky_users` for accounts to review or ban and
+`protectors` for maintainers who submitted reports. `/api/feed.json` returns the
+same payload for older clients.
 
 ## Database
 
@@ -63,19 +80,22 @@ pnpm run db:seed:remote
 ```
 
 The seed imports `https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json`.
+The first layer of the idea and initial clanker data is credited to the
+[Clankers Leaderboard](https://clankers-leaderboard.pages.dev/) published by
+[@heyandras](https://x.com/heyandras).
 
 ## GitHub App
 
-OSS Guard is one shared GitHub App. OSS maintainers should not create their own apps; they install the shared app on selected repositories:
+OSS Protector is one shared GitHub App. OSS maintainers should not create their own apps; they install the shared app on selected repositories:
 
 ```text
-https://github.com/apps/clankers-list/installations/new
+https://github.com/apps/oss-protector/installations/new
 ```
 
 The GitHub App settings should use:
 
 ```text
-Webhook URL: https://clankers-list.raedbahri90.workers.dev/api/github/webhook
+Webhook URL: https://oss-protector.raedbahri90.workers.dev/api/github/webhook
 Repository permissions: Contents read, Issues write, Pull requests write
 Subscribed events: Issue comment, Pull request, Pull request review comment
 Visibility: Public
@@ -88,6 +108,10 @@ GITHUB_APP_ID=...
 GITHUB_APP_SLUG=...
 GITHUB_WEBHOOK_SECRET=...
 GITHUB_APP_PRIVATE_KEY=...
+BETTER_AUTH_SECRET=...
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+VITE_ENABLE_GITHUB_AUTH=true
 ```
 
 For Cloudflare production, store secrets with Wrangler:
@@ -96,27 +120,29 @@ For Cloudflare production, store secrets with Wrangler:
 wrangler secret put GITHUB_WEBHOOK_SECRET
 wrangler secret put GITHUB_APP_PRIVATE_KEY
 wrangler secret put GITHUB_APP_ID
+wrangler secret put BETTER_AUTH_SECRET
+wrangler secret put GITHUB_CLIENT_SECRET
 wrangler secret put OPENROUTER_API_KEY
 ```
 
-The default model chain tries free OpenRouter models first, then falls back to cheap GLM/GPT nano models only when the free providers are unavailable or rate-limited.
+Better Auth handles GitHub user sign-in at `/api/auth/*` when
+`BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` are
+configured. The GitHub App webhook and installation-token flow still uses
+`@octokit/auth-app`, because Better Auth does not replace GitHub App
+installation authentication.
 
-## Commands
+The internal OpenRouter model chain only uses model IDs that end in `:free`.
 
-Maintainers can flag the PR author from PR conversations:
+## Automatic PR Analysis
 
-```text
-/ossguard report spam
-/oss-guard report bot reason: fake bounty
-@oss-guard this is a bot
-@clankers-list[bot] report bot reason: fake bounty
-@this-product this is a bot
-```
+OSS Protector participates automatically when a pull request is opened,
+reopened, marked ready for review, or updated. It fetches the changed file list
+and patch snippets, analyzes the PR for suspicious OSS abuse patterns, then posts
+an assessment directly on the PR.
 
-GitHub currently renders the installed app identity as `clankers-list[bot]`
-until the GitHub App slug is renamed in GitHub. OSS Guard accepts both
-`/ossguard` and `@oss-guard` aliases so the product name can move ahead without
-breaking existing installations.
+The automatic assessment can flag patterns such as fake bounty farming, duplicate
+low-effort PRs, spam, low-quality AI filler, credential phishing, malicious code,
+dependency script abuse, obfuscation, or backdoor indicators.
 
 Only strong evidence is promoted automatically. Weak or non-maintainer reports stay in review states.
 
@@ -133,6 +159,8 @@ pnpm build
 Create or update the D1 database ID in `wrangler.json`, then:
 
 ```bash
-pnpm run build:prod
-wrangler deploy
+pnpm run deploy
 ```
+
+Pushes to `main` deploy automatically through `.github/workflows/deploy.yml`
+when `CLOUDFLARE_API_TOKEN` is configured as a GitHub Actions secret.

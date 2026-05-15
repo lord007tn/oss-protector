@@ -1,9 +1,19 @@
 import { and, eq } from "drizzle-orm";
+
 import type { ReasonCode } from "@/constants/reason-codes";
+import {
+	REASON_CAUSES,
+	REASON_DESCRIPTIONS,
+	REASON_LABELS,
+} from "@/constants/reason-codes";
 import type { ReportStatus } from "@/constants/report-statuses";
 import type { RiskStatus } from "@/constants/risk-statuses";
-import { RISK_STATUS_WEIGHTS } from "@/constants/risk-statuses";
-import { demoDashboard } from "@/data/demo";
+import {
+	RISK_SCORE_BANDS,
+	RISK_STATUS_DESCRIPTIONS,
+	RISK_STATUS_LABELS,
+	riskStatusForScore,
+} from "@/constants/risk-statuses";
 import { database } from "@/db";
 import {
 	AppEvent,
@@ -21,6 +31,13 @@ import {
 } from "@/db/schema";
 import { parseJsonArray } from "@/lib/json";
 import { toUnixSeconds, unixNow } from "@/lib/time";
+
+import {
+	type ClankerFilters,
+	filterClankers,
+	filterProtectors,
+	type ProtectorFilters,
+} from "./directory-filters";
 
 export interface GithubAccountInput {
 	avatarUrl?: null | string;
@@ -67,7 +84,7 @@ export interface GithubPullRequestInput {
 	title: string;
 }
 
-export interface CreateBotReportInput {
+export interface CreateRiskReportInput {
 	aiRationale?: null | string;
 	aiVerdict?: null | string;
 	commandText: string;
@@ -96,9 +113,61 @@ const asTextId = (value: number | string) => String(value);
 
 const json = (value: unknown) => JSON.stringify(value);
 
+const CLANKER_LEADERBOARD_CREDIT = {
+	creator: "@heyandras",
+	creator_url: "https://x.com/heyandras",
+	inspiration_url: "https://clankers-leaderboard.pages.dev/",
+	note: "Initial inspiration and first clanker data layer.",
+} as const;
+
+const riskStatusDetails = (status: RiskStatus) => ({
+	description: RISK_STATUS_DESCRIPTIONS[status],
+	label: RISK_STATUS_LABELS[status],
+	status,
+});
+
+const reasonDetails = (reasons: ReasonCode[]) =>
+	reasons.map((reason) => ({
+		causes: REASON_CAUSES[reason],
+		code: reason,
+		description: REASON_DESCRIPTIONS[reason],
+		label: REASON_LABELS[reason],
+	}));
+
+const scoreDetails = (score: number) => ({
+	bands: RISK_SCORE_BANDS.map((band) => ({
+		label: RISK_STATUS_LABELS[band.status],
+		max: band.max,
+		min: band.min,
+		status: band.status,
+	})),
+	method:
+		"Score combines maintainer reports, repeated observations, PR activity, AI review signals, and imported source matches. It is a review aid, not a final accusation.",
+	value: score,
+});
+
 const isMissingBindingError = (caught: unknown) =>
 	caught instanceof Error &&
-	caught.message.includes("Missing Cloudflare D1 binding");
+	(caught.message.includes("Missing Cloudflare D1 binding") ||
+		caught.message.includes("no such table"));
+
+const emptyDashboard = () => ({
+	protectors: [],
+	imports: [],
+	reports: [],
+	riskProfiles: [],
+	stats: {
+		activeRepositories: 0,
+		blockedUsers: 0,
+		highRiskUsers: 0,
+		importedUsers: 0,
+		openReports: 0,
+		reviewUsers: 0,
+		signals: 0,
+		trackedPrs: 0,
+		trackedUsers: 0,
+	},
+});
 
 export const upsertGithubUser = async (input: GithubAccountInput) => {
 	const now = unixNow();
@@ -169,7 +238,7 @@ export const upsertInstallation = async (input: GithubInstallationInput) => {
 };
 
 const findInstallationByGithubId = async (
-	githubInstallationId?: null | string,
+	githubInstallationId?: null | string
 ) => {
 	if (!githubInstallationId) {
 		return null;
@@ -185,7 +254,7 @@ const findInstallationByGithubId = async (
 export const upsertRepository = async (input: GithubRepositoryInput) => {
 	const now = unixNow();
 	const installation = await findInstallationByGithubId(
-		input.installationGithubId ? asTextId(input.installationGithubId) : null,
+		input.installationGithubId ? asTextId(input.installationGithubId) : null
 	);
 	const [created] = await database
 		.insert(Repository)
@@ -220,7 +289,7 @@ export const upsertRepository = async (input: GithubRepositoryInput) => {
 };
 
 export const markRepositoryInactive = async (
-	githubRepositoryId: number | string,
+	githubRepositoryId: number | string
 ) => {
 	const [updated] = await database
 		.update(Repository)
@@ -330,7 +399,23 @@ export const recordSignal = async (input: {
 	return created;
 };
 
-export const createBotReport = async (input: CreateBotReportInput) => {
+const reportSignalWeight = ({
+	reporterIsMaintainer,
+	status,
+}: Pick<CreateRiskReportInput, "reporterIsMaintainer" | "status">) => {
+	if (status === "validated") {
+		return reporterIsMaintainer ? 35 : 12;
+	}
+	if (status === "needs_review") {
+		return reporterIsMaintainer ? 14 : 4;
+	}
+	if (status === "pending") {
+		return reporterIsMaintainer ? 6 : 2;
+	}
+	return 0;
+};
+
+export const createRiskReport = async (input: CreateRiskReportInput) => {
 	const now = unixNow();
 	const values = {
 		aiRationale: input.aiRationale ?? null,
@@ -366,21 +451,8 @@ export const createBotReport = async (input: CreateBotReportInput) => {
 		})
 		.returning();
 
-	const reportSignalWeight =
-		input.status === "validated"
-			? input.reporterIsMaintainer
-				? 35
-				: 12
-			: input.status === "needs_review"
-				? input.reporterIsMaintainer
-					? 14
-					: 4
-				: input.status === "pending"
-					? input.reporterIsMaintainer
-						? 6
-						: 2
-					: 0;
-	if (reportSignalWeight > 0) {
+	const signalWeight = reportSignalWeight(input);
+	if (signalWeight > 0) {
 		await recordSignal({
 			metadata: {
 				aiVerdict: input.aiVerdict ?? null,
@@ -395,12 +467,70 @@ export const createBotReport = async (input: CreateBotReportInput) => {
 			source: "github_comment_command",
 			sourceUrl: input.sourceUrl,
 			targetUserId: input.targetUserId,
-			weight: reportSignalWeight,
+			weight: signalWeight,
 		});
 	}
 	await recalculateRiskProfile(input.targetUserId);
 
 	return created;
+};
+
+const reportBaseScore = ({
+	reporterIsMaintainer,
+	status,
+}: {
+	reporterIsMaintainer: boolean;
+	status: string;
+}) => {
+	if (status === "validated") {
+		return reporterIsMaintainer ? 28 : 6;
+	}
+	if (status === "needs_review") {
+		return reporterIsMaintainer ? 12 : 3;
+	}
+	return reporterIsMaintainer ? 6 : 1;
+};
+
+const reportAiBoost = (verdict: null | string) => {
+	if (verdict === "likely_abuse") {
+		return 14;
+	}
+	if (verdict === "unclear") {
+		return 4;
+	}
+	return 0;
+};
+
+const scoreReport = (report: {
+	aiVerdict: null | string;
+	reporterIsMaintainer: boolean;
+	status: string;
+}) => {
+	if (report.status === "dismissed") {
+		return 0;
+	}
+	const statusBoost = report.status === "validated" ? 12 : 0;
+	return (
+		reportBaseScore(report) + reportAiBoost(report.aiVerdict) + statusBoost
+	);
+};
+
+const riskSummary = ({
+	existingSummary,
+	reporterCount,
+	status,
+}: {
+	existingSummary?: null | string;
+	reporterCount: number;
+	status: RiskStatus;
+}) => {
+	if (status === "allow") {
+		return "Known GitHub bot account; kept on the allow list.";
+	}
+	if (reporterCount > 0) {
+		return `Reported by ${reporterCount} maintainer account(s).`;
+	}
+	return existingSummary ?? "Observed through shared OSS abuse signals.";
 };
 
 export const importExternalRiskUser = async (input: {
@@ -420,8 +550,7 @@ export const importExternalRiskUser = async (input: {
 	const firstSeenAt = toUnixSeconds(input.firstSeenAt) ?? unixNow();
 	const lastSeenAt = toUnixSeconds(input.lastSeenAt) ?? firstSeenAt;
 	const score = Math.min(84, 40 + Math.max(0, input.totalPrs ?? 0));
-	const status: RiskStatus =
-		score >= RISK_STATUS_WEIGHTS.review ? "review" : "watch";
+	const status = riskStatusForScore({ isAllowed: false, score });
 
 	await database
 		.insert(RiskProfile)
@@ -539,75 +668,46 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		.limit(1);
 
 	const reasonCodes = new Set<ReasonCode>(
-		parseJsonArray<ReasonCode>(existing[0]?.reasonCodesJson),
+		parseJsonArray<ReasonCode>(existing[0]?.reasonCodesJson)
 	);
 	for (const report of reports) {
 		reasonCodes.add(report.reasonCode);
 	}
 
-	const reportScore = reports.reduce((sum, report) => {
-		if (report.status === "dismissed") {
-			return sum;
-		}
-		const base =
-			report.status === "validated"
-				? report.reporterIsMaintainer
-					? 28
-					: 6
-				: report.status === "needs_review"
-					? report.reporterIsMaintainer
-						? 12
-						: 3
-					: report.reporterIsMaintainer
-						? 6
-						: 1;
-		const aiBoost =
-			report.aiVerdict === "likely_abuse"
-				? 14
-				: report.aiVerdict === "unclear"
-					? 4
-					: 0;
-		const statusBoost = report.status === "validated" ? 12 : 0;
-		return sum + base + aiBoost + statusBoost;
-	}, 0);
+	const reportScore = reports.reduce(
+		(sum, report) => sum + scoreReport(report),
+		0
+	);
 	const signalScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
 	const activityScore = Math.min(20, prs.length * 2);
 	const importedScore = existing[0]?.importedSource ? 48 : 0;
 	const computedScore = boundedConfidence(
 		Math.max(
 			existing[0]?.score ?? 0,
-			reportScore + signalScore + activityScore + importedScore,
-		),
+			reportScore + signalScore + activityScore + importedScore
+		)
 	);
 	const isAllowed = user.isKnownGithubBot || existing[0]?.status === "allow";
 	const score = isAllowed ? 0 : computedScore;
-	const status: RiskStatus = isAllowed
-		? "allow"
-		: score >= RISK_STATUS_WEIGHTS.block
-			? "block"
-			: score >= RISK_STATUS_WEIGHTS.review
-				? "review"
-				: "watch";
+	const status = riskStatusForScore({ isAllowed, score });
 
 	const repositoryIds = new Set(
-		prs
-			.map((pr) => pr.repositoryId)
-			.filter((value): value is string => !!value),
+		prs.map((pr) => pr.repositoryId).filter((value): value is string => !!value)
 	);
 	const commitCount = prs.reduce((sum, pr) => sum + pr.commitCount, 0);
 	const lastSeenAt = Math.max(
 		user.lastSeenAt,
 		...prs.map((pr) => pr.lastSeenAt),
 		...reports.map((report) => report.createdAt),
-		...signals.map((signal) => signal.observedAt),
+		...signals.map((signal) => signal.observedAt)
 	);
-	const summary =
-		status === "allow"
-			? "Known GitHub bot account; kept on the allow list."
-			: reports.length > 0
-				? `Reported by ${new Set(reports.map((report) => report.reporterLogin)).size} maintainer account(s).`
-				: (existing[0]?.summary ??
-					"Observed through shared OSS abuse signals.");
+	const reporterCount = new Set(reports.map((report) => report.reporterLogin))
+		.size;
+	const summary = riskSummary({
+		existingSummary: existing[0]?.summary,
+		reporterCount,
+		status,
+	});
 
 	const values = {
 		confidence: score,
@@ -626,7 +726,7 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		targetUserId,
 		updatedAt: unixNow(),
 		validatedReportCount: reports.filter(
-			(report) => report.status === "validated",
+			(report) => report.status === "validated"
 		).length,
 	};
 
@@ -644,7 +744,7 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 
 export const getPullRequestByRepositoryNumber = async (
 	repositoryId: string,
-	number: number,
+	number: number
 ) => {
 	const [pullRequest] = await database
 		.select()
@@ -652,14 +752,14 @@ export const getPullRequestByRepositoryNumber = async (
 		.where(
 			and(
 				eq(PullRequest.repositoryId, repositoryId),
-				eq(PullRequest.number, number),
-			),
+				eq(PullRequest.number, number)
+			)
 		)
 		.limit(1);
 	return pullRequest ?? null;
 };
 
-export const listGuardDashboard = async () => {
+export const listDirectoryDashboard = async () => {
 	try {
 		const [profiles, reports, repositories, imports, signals] =
 			await Promise.all([
@@ -679,24 +779,30 @@ export const listGuardDashboard = async () => {
 			]);
 
 		const pullRequests = await database.query.PullRequest.findMany();
-		const riskProfiles = profiles.map((profile) => ({
-			avatarUrl: profile.targetUser.avatarUrl,
-			confidence: profile.confidence,
-			commitCount: profile.commitCount,
-			githubUserId: profile.targetUser.githubUserId,
-			htmlUrl: profile.targetUser.htmlUrl,
-			importedSource: profile.importedSource,
-			lastSeenAt: profile.lastSeenAt,
-			login: profile.targetUser.login,
-			prCount: profile.prCount,
-			reasonCodes: parseJsonArray<ReasonCode>(profile.reasonCodesJson),
-			reportCount: profile.reportCount,
-			repositoryCount: profile.repositoryCount,
-			score: profile.score,
-			status: profile.status,
-			summary: profile.summary,
-			validatedReportCount: profile.validatedReportCount,
-		}));
+		const riskProfiles = profiles.map((profile) => {
+			const status = riskStatusForScore({
+				isAllowed: profile.status === "allow",
+				score: profile.score,
+			});
+			return {
+				avatarUrl: profile.targetUser.avatarUrl,
+				confidence: profile.confidence,
+				commitCount: profile.commitCount,
+				githubUserId: profile.targetUser.githubUserId,
+				htmlUrl: profile.targetUser.htmlUrl,
+				importedSource: profile.importedSource,
+				lastSeenAt: profile.lastSeenAt,
+				login: profile.targetUser.login,
+				prCount: profile.prCount,
+				reasonCodes: parseJsonArray<ReasonCode>(profile.reasonCodesJson),
+				reportCount: profile.reportCount,
+				repositoryCount: profile.repositoryCount,
+				score: profile.score,
+				status,
+				summary: profile.summary,
+				validatedReportCount: profile.validatedReportCount,
+			};
+		});
 		const catcherMap = new Map<
 			string,
 			{
@@ -721,7 +827,7 @@ export const listGuardDashboard = async () => {
 		}
 
 		return {
-			catchers: [...catcherMap.values()].sort((a, b) => b.score - a.score),
+			protectors: [...catcherMap.values()].sort((a, b) => b.score - a.score),
 			imports: imports.map((item) => ({
 				importedAt: item.importedAt,
 				itemCount: item.itemCount,
@@ -747,13 +853,17 @@ export const listGuardDashboard = async () => {
 			riskProfiles,
 			stats: {
 				activeRepositories: repositories.filter((repo) => repo.isActive).length,
-				blockedUsers: profiles.filter((profile) => profile.status === "block")
-					.length,
+				blockedUsers: riskProfiles.filter(
+					(profile) => profile.status === "block"
+				).length,
+				highRiskUsers: riskProfiles.filter(
+					(profile) => profile.status === "high_risk"
+				).length,
 				importedUsers: profiles.filter((profile) => profile.importedSource)
 					.length,
 				openReports: reports.filter(
 					(report) =>
-						report.status === "pending" || report.status === "needs_review",
+						report.status === "pending" || report.status === "needs_review"
 				).length,
 				reviewUsers: profiles.filter((profile) => profile.status === "review")
 					.length,
@@ -764,33 +874,100 @@ export const listGuardDashboard = async () => {
 		};
 	} catch (caught) {
 		if (isMissingBindingError(caught)) {
-			return demoDashboard;
+			return emptyDashboard();
 		}
 		throw caught;
 	}
 };
 
 export const listPublicFeed = async () => {
-	const dashboard = await listGuardDashboard();
+	const dashboard = await listDirectoryDashboard();
+	const riskyUsers = dashboard.riskProfiles
+		.filter((profile) => profile.status !== "allow")
+		.map((profile) => ({
+			confidence: profile.confidence / 100,
+			evidence_summary: profile.summary,
+			github_user_id: profile.githubUserId,
+			last_seen: new Date(profile.lastSeenAt * 1000).toISOString(),
+			login: profile.login,
+			platform: "github",
+			reason_details: reasonDetails(profile.reasonCodes),
+			reasons: profile.reasonCodes,
+			status: profile.status,
+			status_detail: riskStatusDetails(profile.status),
+			url: profile.htmlUrl,
+		}));
 	return {
+		credits: CLANKER_LEADERBOARD_CREDIT,
+		directory_url: "https://oss-protector.raedbahri90.workers.dev",
 		generated_at: new Date().toISOString(),
-		schema_version: "2026-05-14",
-		source: "oss-guard",
-		users: dashboard.riskProfiles
-			.filter((profile) => profile.status !== "allow")
-			.map((profile) => ({
-				confidence: profile.confidence / 100,
-				evidence_summary: profile.summary,
-				github_user_id: profile.githubUserId,
-				last_seen: new Date(profile.lastSeenAt * 1000).toISOString(),
-				login: profile.login,
-				platform: "github",
-				reasons: profile.reasonCodes,
-				status: profile.status,
-				url: profile.htmlUrl,
-			})),
+		protectors: dashboard.protectors.map((protector) => ({
+			login: protector.login,
+			reports: protector.reports,
+			score: protector.score,
+			validated_reports: protector.validatedReports,
+		})),
+		risky_users: riskyUsers,
+		schema_version: "2026-05-15",
+		source: "oss-protector",
+		users: riskyUsers,
 	};
 };
 
-export type GuardDashboard = Awaited<ReturnType<typeof listGuardDashboard>>;
-export type GuardPullRequest = PullRequestSelect;
+export const listClankersApi = async (filters: ClankerFilters) => {
+	const dashboard = await listDirectoryDashboard();
+	const clankers = filterClankers(dashboard.riskProfiles, filters);
+
+	return {
+		clankers: clankers.map((profile) => ({
+			confidence: profile.confidence / 100,
+			evidence_summary: profile.summary,
+			github_user_id: profile.githubUserId,
+			last_seen: new Date(profile.lastSeenAt * 1000).toISOString(),
+			login: profile.login,
+			platform: "github",
+			reason_details: reasonDetails(profile.reasonCodes),
+			reasons: profile.reasonCodes,
+			score: profile.score,
+			score_detail: scoreDetails(profile.score),
+			status: profile.status,
+			status_detail: riskStatusDetails(profile.status),
+			url: profile.htmlUrl,
+		})),
+		count: clankers.length,
+		credits: CLANKER_LEADERBOARD_CREDIT,
+		filters,
+		generated_at: new Date().toISOString(),
+		schema_version: "2026-05-15",
+		source: "oss-protector",
+		total_available: dashboard.riskProfiles.filter(
+			(profile) => profile.status !== "allow"
+		).length,
+	};
+};
+
+export const listProtectorsApi = async (filters: ProtectorFilters) => {
+	const dashboard = await listDirectoryDashboard();
+	const protectors = filterProtectors(dashboard.protectors, filters);
+
+	return {
+		count: protectors.length,
+		credits: CLANKER_LEADERBOARD_CREDIT,
+		filters,
+		generated_at: new Date().toISOString(),
+		protectors: protectors.map((protector) => ({
+			login: protector.login,
+			reports: protector.reports,
+			score: protector.score,
+			validated_reports: protector.validatedReports,
+		})),
+		schema_version: "2026-05-15",
+		source: "oss-protector",
+		total_available: dashboard.protectors.length,
+	};
+};
+
+export type DirectoryDashboard = Awaited<
+	ReturnType<typeof listDirectoryDashboard>
+>;
+export type DirectoryPullRequest = PullRequestSelect;
