@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { publicAppUrl } from "@/components/landing/constants";
 import { RiskProfilesCard } from "@/components/landing/directory-lists";
 import { ClankerFilters } from "@/components/landing/filter-controls";
+import { Footer } from "@/components/landing/footer";
 import {
 	DirectoryPagination,
 	paginateItems,
@@ -138,7 +139,7 @@ function ClankersRoute() {
 				}}
 			/>
 			<SiteHeader />
-			<div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-10 md:px-6">
+			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<SectionHeading
 					description="Every account currently published for review. Use the filters here or call the same filters through the API."
 					eyebrow="Clankers"
@@ -158,6 +159,7 @@ function ClankersRoute() {
 					params={filters}
 				/>
 			</div>
+			<Footer />
 		</main>
 	);
 }
