@@ -1,0 +1,238 @@
+[36mi[39m Using [36mcloudflare-dev[39m emulation in development mode.
+[2m7:16:46 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because lockfile has changed
+
+  [32m[1mVITE[22m v8.0.12[39m  [2mready in [0m[1m2313[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m4000[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m7:19:24 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[2m7:19:24 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:24:02 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/shared.tsx, /src/routes/clankers.tsx?tsr-split=component, /src/components/landing/filter-controls.tsx[22m
+[2m7:24:02 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/constants/risk-statuses.ts[22m
+[2m7:24:02 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/clankers.tsx, /src/components/landing/landing-page.tsx, /src/components/landing/directory-lists.tsx, /src/routes/clankers.tsx?tsr-split=component, /src/components/landing/filter-controls.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m7:24:02 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/constants/reason-codes.ts[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/clankers.tsx
+[Client] [vite] hot updated: /src/routes/api-docs.tsx?tsr-split=component
+[2m7:24:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:24:36 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:24:48 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:25:12 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:25:47 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:25:54 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/filter-controls.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/filter-controls.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/landing-page.tsx, /src/components/landing/directory-lists.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/analytics.ts[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/site-header.tsx, /src/components/landing/hero.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/constants.ts[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/shared.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/shared.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/clankers.tsx, /src/routes/clankers.tsx?tsr-split=component[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/clankers.tsx[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m7:26:10 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/components/landing/site-header.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/clankers.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[Client] [vite] hot updated: /src/routes/api-docs.tsx?tsr-split=component
+[2m7:26:49 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[2m7:26:49 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/filter-controls.tsx[22m
+[2m7:26:49 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/filter-controls.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/shared.tsx[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/shared.tsx[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/clankers.tsx, /src/routes/clankers.tsx?tsr-split=component[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/clankers.tsx[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/protectors.tsx[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/index.tsx, /src/routes/index.tsx?tsr-split=component[22m
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/index.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:29:38 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/clankers.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/protectors.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[Client] [vite] hot updated: /src/routes/api-docs.tsx?tsr-split=component
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:29:50 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/filter-controls.tsx[22m
+[2m7:29:50 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/filter-controls.tsx[22m
+[2m7:29:50 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/directory-lists.tsx[22m
+[2m7:29:50 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/directory-lists.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:30:00 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/directory-lists.tsx[22m
+[2m7:30:00 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/directory-lists.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:32:49 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/clankers.tsx, /src/routes/clankers.tsx?tsr-split=component[22m
+[2m7:32:49 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/clankers.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/clankers.tsx
+[2m7:33:00 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/protectors.tsx[22m
+[2m7:33:00 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/protectors.tsx
+[2m7:33:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m7:33:07 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[Client] [vite] hot updated: /src/routes/api-docs.tsx?tsr-split=component
+[2m7:33:12 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/index.tsx, /src/routes/index.tsx?tsr-split=component[22m
+[2m7:33:12 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/index.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/index.tsx
+[2m7:33:19 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/site-header.tsx[22m
+[2m7:33:19 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/site-header.tsx[22m
+[2m7:33:19 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/hero.tsx[22m
+[2m7:33:19 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/hero.tsx[22m
+[2m7:33:19 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/install.tsx[22m
+[2m7:33:19 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/install.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/components/landing/site-header.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/install.tsx
+[2m7:33:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/clankers.tsx, /src/routes/clankers.tsx?tsr-split=component[22m
+[2m7:33:41 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/clankers.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/clankers.tsx
+[2m7:33:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/components/landing/directory-lists.tsx[22m
+[2m7:33:57 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/directory-lists.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/index.tsx, /src/routes/index.tsx?tsr-split=component[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/index.tsx[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/clankers.tsx, /src/routes/clankers.tsx?tsr-split=component[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/clankers.tsx[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/protectors.tsx[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m7:34:35 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/index.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/clankers.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/protectors.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[Client] [vite] hot updated: /src/routes/api-docs.tsx?tsr-split=component
+[2m7:35:53 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:35:59 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:36:05 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:37:36 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:46:32 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/__root.tsx[22m
+[2m7:46:32 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/__root.tsx[22m
+[2m7:47:04 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/clankers.tsx, /src/routes/clankers.tsx?tsr-split=component[22m
+[2m7:47:04 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/clankers.tsx[22m
+[2m7:47:27 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/protectors.tsx, /src/routes/protectors.tsx?tsr-split=component[22m
+[2m7:47:27 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[2m7:47:53 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/components/landing/directory-lists.tsx[22m
+[2m7:47:53 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/directory-lists.tsx[22m
+[2m7:47:59 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/protectors.tsx, /src/routes/protectors.tsx?tsr-split=component[22m
+[2m7:47:59 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[2m7:48:08 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m7:48:08 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m7:48:16 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m7:48:16 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[2m7:49:15 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/__root.tsx[22m
+[2m7:49:15 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/__root.tsx[22m
+[2m7:52:17 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:52:17 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m7:52:17 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:52:18 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m7:52:31 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:10:31 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:11:44 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:17:30 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:20:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:14 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:22 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:34 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:40 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:48 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/components/landing/directory-lists.tsx[22m
+[2m8:20:48 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/directory-lists.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:53 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/components/landing/filter-controls.tsx[22m
+[2m8:20:53 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/filter-controls.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:20:59 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/components/landing/site-header.tsx[22m
+[2m8:20:59 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/site-header.tsx[22m
+[2m8:20:59 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/components/landing/how-it-works.tsx[22m
+[2m8:20:59 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/components/landing/how-it-works.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/components/landing/site-header.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/components/landing/how-it-works.tsx
+[2m8:21:07 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[Client] [vite] css hot updated: /src/styles.css
+[2m8:21:18 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/protectors.tsx, /src/routes/protectors.tsx?tsr-split=component[22m
+[2m8:21:18 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/protectors.tsx
+[2m8:21:26 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m8:21:26 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[2m8:21:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m8:21:57 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[2m8:21:57 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/protectors.tsx, /src/routes/protectors.tsx?tsr-split=component[22m
+[2m8:21:57 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/protectors.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/protectors.tsx
+[2m8:22:09 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css, /src/routes/api-docs.tsx, /src/routes/api-docs.tsx?tsr-split=component[22m
+[2m8:22:09 AM[22m [36m[1m[vite][22m[39m [34m[2m(ssr)[22m[39m [32mpage reload [39m[2msrc/routes/api-docs.tsx[22m
+[Client] [vite] css hot updated: /src/styles.css
+[Client] [vite] hot updated: /src/routes/api-docs.tsx
+[2m8:32:34 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:33:54 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:33:59 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:34:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:34:51 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:35:05 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:35:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:36:15 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:36:26 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:36:29 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
+[2m8:37:51 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles.css?direct, /src/styles.css[22m
