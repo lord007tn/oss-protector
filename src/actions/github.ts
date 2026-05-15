@@ -241,12 +241,23 @@ const acknowledgeReport = async ({
 	status,
 	targetLogin,
 	verdict,
+	evidenceSummary,
+	scoreBreakdown,
 }: {
 	confidence: number;
+	evidenceSummary?: null | string;
 	installationId?: null | number;
 	issueNumber?: null | number;
 	reasonCode: ReasonCode;
 	repositoryFullName?: null | string;
+	scoreBreakdown?: null | {
+		aiQuality: number;
+		contributionValue: number;
+		credentialRisk: number;
+		farmingRisk: number;
+		maliciousRisk: number;
+		novelty: number;
+	};
 	sourceCommentId?: null | number | string;
 	status: "dismissed" | "needs_review" | "pending" | "validated";
 	targetLogin: string;
@@ -255,10 +266,12 @@ const acknowledgeReport = async ({
 	try {
 		await createReportAcknowledgementComment({
 			confidence,
+			evidenceSummary,
 			installationId,
 			issueNumber,
 			reasonCode,
 			repositoryFullName,
+			scoreBreakdown,
 			sourceCommentId,
 			status,
 			targetLogin,
@@ -333,6 +346,7 @@ const postPullRequestAnalysis = async ({
 		await createPullRequestAnalysisComment({
 			causes: analysis.causes,
 			confidence: analysis.confidence,
+			evidenceSummary: analysis.evidenceSummary,
 			fileCount,
 			headSha,
 			installationId,
@@ -340,6 +354,7 @@ const postPullRequestAnalysis = async ({
 			rationale: analysis.rationale,
 			reasonCode: analysis.reasonCode,
 			repositoryFullName,
+			scoreBreakdown: analysis.scoreBreakdown,
 			verdict: analysis.verdict,
 		});
 	} catch (caught) {
@@ -460,7 +475,9 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 				metadata: {
 					aiConfidence: analysis.confidence,
 					aiCauses: analysis.causes,
+					aiEvidenceSummary: analysis.evidenceSummary,
 					aiRationale: analysis.rationale,
+					aiScoreBreakdown: analysis.scoreBreakdown,
 					aiVerdict: analysis.verdict,
 					reasonCode: analysis.reasonCode,
 				},
@@ -540,6 +557,8 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 			},
 			{
 				causes: validation.causes ?? [],
+				evidenceSummary: validation.evidenceSummary,
+				scoreBreakdown: validation.scoreBreakdown,
 				type: "validation_causes",
 			},
 			{
@@ -563,10 +582,12 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 	});
 	await acknowledgeReport({
 		confidence: validation.confidence,
+		evidenceSummary: validation.evidenceSummary,
 		installationId: payload.installation?.id,
 		issueNumber: payload.issue.number,
 		reasonCode,
 		repositoryFullName: payload.repository.full_name,
+		scoreBreakdown: validation.scoreBreakdown,
 		sourceCommentId: payload.comment.id,
 		status: validation.status,
 		targetLogin: targetUser.login,
@@ -657,6 +678,8 @@ const handlePullRequestReviewComment = async (
 			},
 			{
 				causes: validation.causes ?? [],
+				evidenceSummary: validation.evidenceSummary,
+				scoreBreakdown: validation.scoreBreakdown,
 				type: "validation_causes",
 			},
 			{
@@ -680,10 +703,12 @@ const handlePullRequestReviewComment = async (
 	});
 	await acknowledgeReport({
 		confidence: validation.confidence,
+		evidenceSummary: validation.evidenceSummary,
 		installationId: payload.installation?.id,
 		issueNumber: payload.pull_request.number,
 		reasonCode,
 		repositoryFullName: payload.repository.full_name,
+		scoreBreakdown: validation.scoreBreakdown,
 		sourceCommentId: payload.comment.id,
 		status: validation.status,
 		targetLogin: targetUser.login,

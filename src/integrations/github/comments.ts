@@ -19,10 +19,12 @@ import { runtimeEnv } from "@/env";
 
 export interface ReportAcknowledgementInput {
 	confidence: number;
+	evidenceSummary?: null | string;
 	installationId?: null | number;
 	issueNumber?: null | number;
 	reasonCode: ReasonCode;
 	repositoryFullName?: null | string;
+	scoreBreakdown?: null | ScoreBreakdown;
 	sourceCommentId?: null | number | string;
 	status: ReportStatus;
 	targetLogin: string;
@@ -32,6 +34,7 @@ export interface ReportAcknowledgementInput {
 export interface PullRequestAnalysisCommentInput {
 	causes: string[];
 	confidence: number;
+	evidenceSummary?: null | string;
 	fileCount: number;
 	headSha?: null | string;
 	installationId?: null | number;
@@ -39,7 +42,17 @@ export interface PullRequestAnalysisCommentInput {
 	rationale: string;
 	reasonCode: ReasonCode;
 	repositoryFullName?: null | string;
+	scoreBreakdown?: null | ScoreBreakdown;
 	verdict: "likely_abuse" | "not_enough_evidence" | "unclear";
+}
+
+interface ScoreBreakdown {
+	aiQuality: number;
+	contributionValue: number;
+	credentialRisk: number;
+	farmingRisk: number;
+	maliciousRisk: number;
+	novelty: number;
 }
 
 const encodeLength = (length: number) => {
@@ -133,6 +146,22 @@ const causeList = (causes: string[]) => {
 	return causes.map((cause) => `- ${cause}`).join("\n");
 };
 
+const tableValue = (value: string) => value.replace(/\|/g, "\\|");
+
+const scoreBreakdownMarkdown = (scoreBreakdown?: null | ScoreBreakdown) => {
+	if (!scoreBreakdown) {
+		return "Not available; fallback score only.";
+	}
+	return `| Dimension | Score |
+| --- | ---: |
+| Malicious code risk | ${scoreBreakdown.maliciousRisk}/100 |
+| Credential risk | ${scoreBreakdown.credentialRisk}/100 |
+| Farming risk | ${scoreBreakdown.farmingRisk}/100 |
+| AI or low-quality risk | ${scoreBreakdown.aiQuality}/100 |
+| Contribution value | ${scoreBreakdown.contributionValue}/100 |
+| Novelty | ${scoreBreakdown.novelty}/100 |`;
+};
+
 export const createInstallationClient = async ({
 	installationId,
 }: {
@@ -170,6 +199,11 @@ OSS Protector captured this maintainer report as a review signal.
 | AI verdict | \`${input.verdict ?? "not_run"}\` |
 
 ${statusDescription(input.status)}
+
+Evidence summary: ${tableValue(input.evidenceSummary ?? "No separate evidence summary was returned.")}
+
+Scoring breakdown:
+${scoreBreakdownMarkdown(input.scoreBreakdown)}
 
 Reason context: ${REASON_DESCRIPTIONS[input.reasonCode]}
 
@@ -214,6 +248,11 @@ ${input.rationale}
 
 Why this was flagged:
 ${causeList(input.causes)}
+
+Evidence summary: ${tableValue(input.evidenceSummary ?? input.rationale)}
+
+Scoring breakdown:
+${scoreBreakdownMarkdown(input.scoreBreakdown)}
 
 Reason context: ${REASON_DESCRIPTIONS[input.reasonCode]}
 
