@@ -112,9 +112,9 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 	return (
 		<Card className="rounded-lg">
 			<CardHeader>
-				<CardTitle>Filter protectors</CardTitle>
+				<CardTitle>Filter review signals</CardTitle>
 				<CardDescription>
-					Query the leaderboard by maintainer, reports, or score.
+					Query maintainers by review signal count or validated score.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="grid gap-4">
@@ -137,13 +137,13 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 						type="number"
 					/>
 					<Input
-						aria-label="Minimum protector score"
+						aria-label="Minimum validated score"
 						autoComplete="off"
 						defaultValue={search.min_score || ""}
 						inputMode="numeric"
 						min={0}
 						name="min_score"
-						placeholder="Min score…"
+						placeholder="Min validated score…"
 						type="number"
 					/>
 					<Button type="submit">

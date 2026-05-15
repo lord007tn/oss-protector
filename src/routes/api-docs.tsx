@@ -92,17 +92,18 @@ const protectorParams = [
 	{
 		name: "q",
 		values: "string",
-		description: "Search protector login.",
+		description: "Search maintainer login.",
 	},
 	{
 		name: "min_score",
 		values: "number",
-		description: "Only return protectors at or above this score.",
+		description: "Only return maintainers at or above this validated score.",
 	},
 	{
 		name: "min_reports",
 		values: "number",
-		description: "Only return protectors with at least this many reports.",
+		description:
+			"Only return maintainers with at least this many review signals.",
 	},
 	{
 		name: "limit",
@@ -137,8 +138,9 @@ function ApiDocsRoute() {
 						</CardTitle>
 						<CardDescription>
 							Maintainers can mention the shared app in a pull request to create
-							a review signal. Validated maintainer reviews count toward the
-							Protectors leaderboard.
+							a review signal. Submitted and needs-review reports are tracked,
+							but only validated or independently corroborated reports affect
+							shared scores.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -147,7 +149,7 @@ function ApiDocsRoute() {
 								{[
 									"@oss-protector review this user",
 									"@oss-protector flag this user reason: fake bounty",
-									"@oss-protector ban this user reason: malicious code",
+									"@oss-protector recommend block reason: malicious code",
 								].join("\n")}
 							</code>
 						</pre>
@@ -165,7 +167,7 @@ function ApiDocsRoute() {
 						title="/api/clankers"
 					/>
 					<EndpointCard
-						description="Filterable list of maintainers who submitted reports."
+						description="Filterable list of maintainers who submitted review signals."
 						example="/api/protectors?min_reports=1&min_score=10&limit=10"
 						href="/api/protectors"
 						icon={<ShieldCheck className="size-5 text-primary" />}
