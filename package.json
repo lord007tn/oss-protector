@@ -103,7 +103,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
-      "lightningcss"
+      "lightningcss",
+      "msw",
+      "sharp",
+      "workerd"
     ]
   },
   "lint-staged": {
