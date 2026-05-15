@@ -90,6 +90,59 @@ const fallbackValidateReport = (
 	};
 };
 
+const INDEPENDENT_CONTEXT_KEYWORDS = [
+	"backdoor",
+	"base64",
+	"credential",
+	"curl",
+	"eval(",
+	"exec(",
+	"malicious",
+	"obfuscat",
+	"password",
+	"phish",
+	"private key",
+	"token",
+	"wget",
+] as const;
+
+const hasIndependentPullRequestEvidence = (input: ReportValidationInput) => {
+	const pullRequestContext =
+		`${input.pullRequest?.title ?? ""} ${input.pullRequest?.body ?? ""}`.toLowerCase();
+	return INDEPENDENT_CONTEXT_KEYWORDS.some((keyword) =>
+		pullRequestContext.includes(keyword)
+	);
+};
+
+const capCommandOnlyReport = (
+	result: ReportValidationResult,
+	input: ReportValidationInput
+): ReportValidationResult => {
+	if (
+		result.status === "dismissed" ||
+		result.verdict === "not_enough_evidence" ||
+		hasIndependentPullRequestEvidence(input)
+	) {
+		return result;
+	}
+
+	const needsCap =
+		result.status === "validated" ||
+		result.verdict === "likely_abuse" ||
+		result.confidence >= 65;
+	if (!needsCap) {
+		return result;
+	}
+
+	return {
+		...result,
+		confidence: Math.min(result.confidence, 64),
+		rationale: `${result.rationale} Command-only reports are capped until independent pull request evidence or corroborating reports support the claim.`,
+		status: "needs_review",
+		verdict: "unclear",
+	};
+};
+
 const safeParseJson = <TResult>(value: string | null | undefined) => {
 	if (!value) {
 		return null;
@@ -363,10 +416,13 @@ export const validateReportWithOpenRouter = async (
 			"You validate maintainer reports about suspicious GitHub pull requests. Return strict JSON only with verdict, confidence, status, rationale, and causes. Causes must be short concrete evidence labels. Do not call someone a bot unless evidence is strong.",
 	});
 	if (!aiResponse.parsed) {
-		return {
-			...fallbackValidateReport(input),
-			rationale: `${aiResponse.error} Fallback validation was used.`,
-		};
+		return capCommandOnlyReport(
+			{
+				...fallbackValidateReport(input),
+				rationale: `${aiResponse.error} Fallback validation was used.`,
+			},
+			input
+		);
 	}
 	const parsed = aiResponse.parsed;
 
@@ -395,20 +451,23 @@ export const validateReportWithOpenRouter = async (
 		verdict,
 	});
 
-	return {
-		causes: Array.isArray(parsed.causes)
-			? parsed.causes
-					.filter((cause): cause is string => typeof cause === "string")
-					.slice(0, 5)
-			: fallbackValidateReport(input).causes,
-		confidence,
-		rationale:
-			typeof parsed.rationale === "string"
-				? parsed.rationale.slice(0, 800)
-				: `OpenRouter ${aiResponse.model} returned a structured verdict without rationale.`,
-		status,
-		verdict,
-	};
+	return capCommandOnlyReport(
+		{
+			causes: Array.isArray(parsed.causes)
+				? parsed.causes
+						.filter((cause): cause is string => typeof cause === "string")
+						.slice(0, 5)
+				: fallbackValidateReport(input).causes,
+			confidence,
+			rationale:
+				typeof parsed.rationale === "string"
+					? parsed.rationale.slice(0, 800)
+					: `OpenRouter ${aiResponse.model} returned a structured verdict without rationale.`,
+			status,
+			verdict,
+		},
+		input
+	);
 };
 
 export const validatePullRequestWithOpenRouter = async (
