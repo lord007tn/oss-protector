@@ -11,12 +11,12 @@ const CLANKERS_SOURCE_URL =
 	"https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json";
 const SOURCE_NAME = "UnsafeLabs/Bounty-Hunters clankers.json";
 
-type ClankerEntry = {
+interface ClankerEntry {
 	first_pr?: string;
 	last_pr?: string;
 	total_prs?: number;
 	username?: string;
-};
+}
 
 const args = process.argv.slice(2);
 const remoteMode = args.includes("--remote");
@@ -46,11 +46,25 @@ const unixSeconds = (value?: string) => {
 
 const riskForTotalPrs = (totalPrs: number) => {
 	const score = Math.min(84, 40 + Math.max(0, totalPrs));
+	if (score >= 75) {
+		return {
+			score,
+			status: "high_risk" as const,
+		};
+	}
+	if (score >= 55) {
+		return {
+			score,
+			status: "review" as const,
+		};
+	}
 	return {
 		score,
-		status: score >= 80 ? "block" : score >= 55 ? "review" : "watch",
+		status: "watch" as const,
 	};
 };
+
+const WINDOWS_SHELL_SPECIAL_CHARACTERS = /[\s&()^[\]{}=;!'+,`~|<>"]/;
 
 const buildSeedSql = (entries: ClankerEntry[]) => {
 	const now = Math.floor(Date.now() / 1000);
@@ -155,11 +169,21 @@ const runWrangler = async (sql: string) => {
 		"--file",
 		filePath,
 	];
-	const wranglerBinary =
-		process.platform === "win32" ? "wrangler.cmd" : "wrangler";
-	const child = spawn(wranglerBinary, wranglerArgs, {
-		stdio: "inherit",
-	});
+	const child =
+		process.platform === "win32"
+			? spawn(
+					process.env.ComSpec ?? "cmd.exe",
+					[
+						"/d",
+						"/s",
+						"/c",
+						["wrangler.cmd", ...wranglerArgs.map(windowsShellArg)].join(" "),
+					],
+					{ stdio: "inherit" }
+				)
+			: spawn("wrangler", wranglerArgs, {
+					stdio: "inherit",
+				});
 
 	await new Promise<void>((resolve, reject) => {
 		child.on("error", reject);
@@ -173,11 +197,18 @@ const runWrangler = async (sql: string) => {
 	});
 };
 
+const windowsShellArg = (value: string) => {
+	if (!WINDOWS_SHELL_SPECIAL_CHARACTERS.test(value)) {
+		return value;
+	}
+	return `"${value.replaceAll('"', '\\"')}"`;
+};
+
 const main = async () => {
 	const response = await fetch(CLANKERS_SOURCE_URL);
 	if (!response.ok) {
 		throw new Error(
-			`Failed to fetch ${CLANKERS_SOURCE_URL}: ${response.status}`,
+			`Failed to fetch ${CLANKERS_SOURCE_URL}: ${response.status}`
 		);
 	}
 
@@ -190,7 +221,7 @@ const main = async () => {
 
 	await runWrangler(sql);
 	console.log(
-		`Seeded ${entries.length} imported clanker profiles into ${databaseName} (${remoteMode ? "remote" : "local"}).`,
+		`Seeded ${entries.length} imported clanker profiles into ${databaseName} (${remoteMode ? "remote" : "local"}).`
 	);
 };
 

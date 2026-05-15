@@ -1,5 +1,5 @@
 {
-  "name": "clankers-list",
+  "name": "oss-protector",
   "account_id": "8035e0e333382f6991afdee5dcf24db4",
   "main": ".output/server/index.mjs",
   "compatibility_date": "2026-05-14",
@@ -9,13 +9,11 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "APP_NAME": "OSS Guard",
-    "VITE_APP_URL": "https://clankers-list.raedbahri90.workers.dev",
+    "APP_NAME": "OSS Protector",
+    "VITE_APP_URL": "https://oss-protector.raedbahri90.workers.dev",
     "CLOUDFLARE_D1_DATABASE_NAME": "clankers-list-db",
-    "GITHUB_APP_SLUG": "clankers-list",
-    "VITE_GITHUB_APP_SLUG": "clankers-list",
-    "OPENROUTER_MODEL": "qwen/qwen3-next-80b-a3b-instruct:free",
-    "OPENROUTER_FALLBACK_MODELS": "openai/gpt-oss-120b:free,deepseek/deepseek-v4-flash:free,z-ai/glm-4.7-flash,openai/gpt-5-nano"
+    "GITHUB_APP_SLUG": "oss-protector",
+    "VITE_GITHUB_APP_SLUG": "oss-protector"
   },
   "d1_databases": [
     {

@@ -1,6 +1,6 @@
 import type { ReasonCode } from "@/constants/reason-codes";
 import {
-	createBotReport,
+	createRiskReport,
 	getPullRequestByRepositoryNumber,
 	markRepositoryInactive,
 	recalculateRiskProfile,
@@ -10,23 +10,27 @@ import {
 	upsertInstallation,
 	upsertPullRequest,
 	upsertRepository,
-} from "@/data-access/guard";
+} from "@/data-access/directory";
 import { runtimeEnv } from "@/env";
-import { createReportAcknowledgementComment } from "@/integrations/github/comments";
+import {
+	createInstallationClient,
+	createPullRequestAnalysisComment,
+	createReportAcknowledgementComment,
+} from "@/integrations/github/comments";
 import {
 	validatePullRequestWithOpenRouter,
 	validateReportWithOpenRouter,
 } from "@/integrations/openrouter/validation";
 
-type GithubUserPayload = {
+interface GithubUserPayload {
 	avatar_url?: null | string;
 	html_url?: null | string;
 	id: number;
 	login: string;
 	type?: null | string;
-};
+}
 
-type GithubRepositoryPayload = {
+interface GithubRepositoryPayload {
 	default_branch?: null | string;
 	full_name: string;
 	html_url?: null | string;
@@ -34,9 +38,9 @@ type GithubRepositoryPayload = {
 	name: string;
 	owner?: GithubUserPayload;
 	private?: boolean;
-};
+}
 
-type GithubPullRequestPayload = {
+interface GithubPullRequestPayload {
 	additions?: null | number;
 	base?: { ref?: null | string };
 	body?: null | string;
@@ -52,9 +56,18 @@ type GithubPullRequestPayload = {
 	state: string;
 	title: string;
 	user: GithubUserPayload;
-};
+}
 
-type GithubWebhookPayload = {
+interface PullRequestFileSummary {
+	additions: number;
+	changes: number;
+	deletions: number;
+	filename: string;
+	patch?: string;
+	status: string;
+}
+
+interface GithubWebhookPayload {
 	action?: string;
 	comment?: {
 		author_association?: string;
@@ -83,17 +96,21 @@ type GithubWebhookPayload = {
 	repositories_removed?: GithubRepositoryPayload[];
 	repository?: GithubRepositoryPayload;
 	sender?: GithubUserPayload;
-};
+}
 
 export interface GithubWebhookRequest {
 	body: string;
 	deliveryId?: null | string;
 	eventName: string;
-	skipSignatureVerification?: boolean;
 	signature?: null | string;
+	skipSignatureVerification?: boolean;
 }
 
 const textEncoder = new TextEncoder();
+const COMMAND_PATTERN =
+	/(?:^|\n)\s*(?:@(?:clankers-list(?:\[bot\])?|oss-guard(?:\[bot\])?|oss-protector(?:\[bot\])?|ossguard|ossprotector|botguard|this-product)(?=\s|:|,|\.|$)|\/(?:clankers|ossguard|oss-guard|ossprotector|oss-protector|botguard)(?=\s|$))(?<command>.*)/is;
+const COMMAND_KEYWORD_PATTERN =
+	/(abuse|ai|ban|block|bot|bounty|credential|duplicate|fake|flag|impersonat|malicious|phishing|report|review|spam|watch)/i;
 
 const toHex = (buffer: ArrayBuffer) =>
 	[...new Uint8Array(buffer)]
@@ -104,11 +121,13 @@ const constantTimeEqual = (left: string, right: string) => {
 	if (left.length !== right.length) {
 		return false;
 	}
-	let result = 0;
+	let isEqual = true;
 	for (let index = 0; index < left.length; index += 1) {
-		result |= left.charCodeAt(index) ^ right.charCodeAt(index);
+		if (left.charCodeAt(index) !== right.charCodeAt(index)) {
+			isEqual = false;
+		}
 	}
-	return result === 0;
+	return isEqual;
 };
 
 export const verifyGithubSignature = async ({
@@ -135,25 +154,23 @@ export const verifyGithubSignature = async ({
 		textEncoder.encode(secret),
 		{ hash: "SHA-256", name: "HMAC" },
 		false,
-		["sign"],
+		["sign"]
 	);
 	const digest = await crypto.subtle.sign(
 		"HMAC",
 		key,
-		textEncoder.encode(body),
+		textEncoder.encode(body)
 	);
 	return constantTimeEqual(`sha256=${toHex(digest)}`, signature);
 };
 
 const parseCommand = (body: string) => {
-	const match = body.match(
-		/(?:^|\n)\s*(?:@(?:clankers-list(?:\[bot\])?|oss-guard(?:\[bot\])?|ossguard|botguard|this-product)(?=\s|:|,|\.|$)|\/(?:clankers|ossguard|oss-guard|botguard)(?=\s|$))(?<command>.*)/is,
-	);
+	const match = body.match(COMMAND_PATTERN);
 	if (!match?.groups?.command) {
 		return null;
 	}
 	const command = match.groups.command.trim();
-	if (!/(bot|spam|abuse|report|flag|fake|bounty)/i.test(command)) {
+	if (!COMMAND_KEYWORD_PATTERN.test(command)) {
 		return null;
 	}
 	return command || body.trim();
@@ -176,11 +193,22 @@ const inferReasonCode = (command: string): ReasonCode => {
 	if (normalized.includes("imperson")) {
 		return "impersonation";
 	}
+	if (normalized.includes("ai slope") || normalized.includes("ai slop")) {
+		return "ai_slope";
+	}
 	if (normalized.includes("ai") || normalized.includes("low quality")) {
 		return "low_quality_ai";
 	}
 	if (normalized.includes("spam")) {
 		return "spam_pr";
+	}
+	if (
+		normalized.includes("ban") ||
+		normalized.includes("block") ||
+		normalized.includes("review") ||
+		normalized.includes("watch")
+	) {
+		return "maintainer_report";
 	}
 	return "maintainer_report";
 };
@@ -192,10 +220,12 @@ const isMaintainerAssociation = (association?: string) =>
 
 const ownBotLogins = () =>
 	new Set([
-		`${runtimeEnv().GITHUB_APP_SLUG ?? "clankers-list"}[bot]`,
+		`${runtimeEnv().GITHUB_APP_SLUG ?? "oss-protector"}[bot]`,
 		"clankers-list[bot]",
 		"oss-guard[bot]",
 		"ossguard[bot]",
+		"oss-protector[bot]",
+		"ossprotector[bot]",
 	]);
 
 const isOwnBotUser = (user?: GithubUserPayload) =>
@@ -239,9 +269,87 @@ const acknowledgeReport = async ({
 	}
 };
 
+const parseRepositoryFullName = (repositoryFullName: string) => {
+	const [owner, repo] = repositoryFullName.split("/");
+	if (!(owner && repo)) {
+		return null;
+	}
+	return { owner, repo };
+};
+
+const fetchPullRequestFiles = async ({
+	installationId,
+	pullNumber,
+	repositoryFullName,
+}: {
+	installationId?: null | number;
+	pullNumber: number;
+	repositoryFullName: string;
+}): Promise<PullRequestFileSummary[]> => {
+	const repository = parseRepositoryFullName(repositoryFullName);
+	if (!repository) {
+		return [];
+	}
+	const octokit = await createInstallationClient({
+		installationId,
+	});
+	if (!octokit) {
+		return [];
+	}
+
+	const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
+		owner: repository.owner,
+		per_page: 100,
+		pull_number: pullNumber,
+		repo: repository.repo,
+	});
+
+	return files.slice(0, 40).map((file) => ({
+		additions: file.additions,
+		changes: file.changes,
+		deletions: file.deletions,
+		filename: file.filename,
+		patch: file.patch?.slice(0, 1800),
+		status: file.status,
+	}));
+};
+
+const postPullRequestAnalysis = async ({
+	analysis,
+	fileCount,
+	headSha,
+	installationId,
+	issueNumber,
+	repositoryFullName,
+}: {
+	analysis: Awaited<ReturnType<typeof validatePullRequestWithOpenRouter>>;
+	fileCount: number;
+	headSha?: null | string;
+	installationId?: null | number;
+	issueNumber: number;
+	repositoryFullName: string;
+}) => {
+	try {
+		await createPullRequestAnalysisComment({
+			causes: analysis.causes,
+			confidence: analysis.confidence,
+			fileCount,
+			headSha,
+			installationId,
+			issueNumber,
+			rationale: analysis.rationale,
+			reasonCode: analysis.reasonCode,
+			repositoryFullName,
+			verdict: analysis.verdict,
+		});
+	} catch (caught) {
+		console.warn("Failed to create GitHub PR analysis comment", caught);
+	}
+};
+
 const upsertRepoFromPayload = async (
 	repository: GithubRepositoryPayload,
-	installationId?: null | number,
+	installationId?: null | number
 ) =>
 	upsertRepository({
 		defaultBranch: repository.default_branch,
@@ -254,8 +362,8 @@ const upsertRepoFromPayload = async (
 		ownerLogin: repository.owner?.login ?? repository.full_name.split("/")[0],
 	});
 
-const upsertInstallationFromPayload = async (
-	installation: GithubWebhookPayload["installation"],
+const upsertInstallationFromPayload = (
+	installation: GithubWebhookPayload["installation"]
 ) => {
 	if (!installation?.account) {
 		return null;
@@ -271,7 +379,7 @@ const upsertInstallationFromPayload = async (
 };
 
 const handleInstallationRepositories = async (
-	payload: GithubWebhookPayload,
+	payload: GithubWebhookPayload
 ) => {
 	await upsertInstallationFromPayload(payload.installation);
 	for (const repository of payload.repositories_added ??
@@ -291,7 +399,7 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 	await upsertInstallationFromPayload(payload.installation);
 	const repository = await upsertRepoFromPayload(
 		payload.repository,
-		payload.installation?.id,
+		payload.installation?.id
 	);
 	const author = await upsertGithubUser({
 		avatarUrl: payload.pull_request.user.avatar_url,
@@ -327,16 +435,31 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		payload.action === "ready_for_review" ||
 		payload.action === "synchronize"
 	) {
+		const files = await fetchPullRequestFiles({
+			installationId: payload.installation?.id,
+			pullNumber: payload.pull_request.number,
+			repositoryFullName: payload.repository.full_name,
+		});
 		const analysis = await validatePullRequestWithOpenRouter({
 			body: payload.pull_request.body,
+			files,
 			targetLogin: author.login,
 			title: payload.pull_request.title,
 			url: payload.pull_request.html_url,
+		});
+		await postPullRequestAnalysis({
+			analysis,
+			fileCount: files.length || (payload.pull_request.changed_files ?? 0),
+			headSha: payload.pull_request.head?.sha,
+			installationId: payload.installation?.id,
+			issueNumber: payload.pull_request.number,
+			repositoryFullName: payload.repository.full_name,
 		});
 		if (analysis.verdict === "likely_abuse" && analysis.confidence >= 65) {
 			await recordSignal({
 				metadata: {
 					aiConfidence: analysis.confidence,
+					aiCauses: analysis.causes,
 					aiRationale: analysis.rationale,
 					aiVerdict: analysis.verdict,
 					reasonCode: analysis.reasonCode,
@@ -373,7 +496,7 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 	await upsertInstallationFromPayload(payload.installation);
 	const repository = await upsertRepoFromPayload(
 		payload.repository,
-		payload.installation?.id,
+		payload.installation?.id
 	);
 	const targetUser = await upsertGithubUser({
 		avatarUrl: payload.issue.user.avatar_url,
@@ -385,7 +508,7 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 	const pullRequest = payload.issue.number
 		? await getPullRequestByRepositoryNumber(
 				repository.id,
-				payload.issue.number,
+				payload.issue.number
 			)
 		: null;
 	const reporterAssociation = payload.comment.author_association ?? "NONE";
@@ -404,7 +527,7 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 		targetLogin: targetUser.login,
 	});
 
-	await createBotReport({
+	await createRiskReport({
 		aiRationale: validation.rationale,
 		aiVerdict: validation.verdict,
 		commandText: command,
@@ -414,6 +537,10 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 			{
 				type: "github_issue_comment",
 				url: payload.comment.html_url ?? payload.issue.html_url,
+			},
+			{
+				causes: validation.causes ?? [],
+				type: "validation_causes",
 			},
 			{
 				type: "github_pull_request",
@@ -448,7 +575,7 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 };
 
 const handlePullRequestReviewComment = async (
-	payload: GithubWebhookPayload,
+	payload: GithubWebhookPayload
 ) => {
 	if (
 		payload.action !== "created" ||
@@ -467,7 +594,7 @@ const handlePullRequestReviewComment = async (
 	await upsertInstallationFromPayload(payload.installation);
 	const repository = await upsertRepoFromPayload(
 		payload.repository,
-		payload.installation?.id,
+		payload.installation?.id
 	);
 	const targetUser = await upsertGithubUser({
 		avatarUrl: payload.pull_request.user.avatar_url,
@@ -479,7 +606,7 @@ const handlePullRequestReviewComment = async (
 	const pullRequest =
 		(await getPullRequestByRepositoryNumber(
 			repository.id,
-			payload.pull_request.number,
+			payload.pull_request.number
 		)) ??
 		(await upsertPullRequest({
 			author: targetUser,
@@ -517,7 +644,7 @@ const handlePullRequestReviewComment = async (
 		targetLogin: targetUser.login,
 	});
 
-	await createBotReport({
+	await createRiskReport({
 		aiRationale: validation.rationale,
 		aiVerdict: validation.verdict,
 		commandText: command,
@@ -527,6 +654,10 @@ const handlePullRequestReviewComment = async (
 			{
 				type: "github_pull_request_review_comment",
 				url: payload.comment.html_url ?? payload.pull_request.html_url,
+			},
+			{
+				causes: validation.causes ?? [],
+				type: "validation_causes",
 			},
 			{
 				type: "github_pull_request",

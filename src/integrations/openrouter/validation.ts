@@ -15,6 +15,7 @@ export interface ReportValidationInput {
 }
 
 export interface ReportValidationResult {
+	causes?: string[];
 	confidence: number;
 	rationale: string;
 	status: "dismissed" | "needs_review" | "pending" | "validated";
@@ -23,29 +24,37 @@ export interface ReportValidationResult {
 
 export interface PullRequestAnalysisInput {
 	body?: null | string;
+	files?: Array<{
+		additions: number;
+		changes: number;
+		deletions: number;
+		filename: string;
+		patch?: string;
+		status: string;
+	}>;
 	targetLogin: string;
 	title: string;
 	url: string;
 }
 
 export interface PullRequestAnalysisResult {
+	causes: string[];
 	confidence: number;
 	rationale: string;
 	reasonCode: ReasonCode;
 	verdict: "likely_abuse" | "not_enough_evidence" | "unclear";
 }
 
-const DEFAULT_OPENROUTER_MODELS = [
+const OPENROUTER_FREE_MODEL_CHAIN = [
 	"qwen/qwen3-next-80b-a3b-instruct:free",
 	"openai/gpt-oss-120b:free",
 	"deepseek/deepseek-v4-flash:free",
-	"z-ai/glm-4.7-flash",
-	"openai/gpt-5-nano",
 ] as const;
-const OPENROUTER_MODEL_TIMEOUT_MS = 4500;
+const OPENROUTER_REQUEST_TIMEOUT_MS = 4500;
+const isFreeOpenRouterModel = (model: string) => model.endsWith(":free");
 
 const fallbackValidateReport = (
-	input: ReportValidationInput,
+	input: ReportValidationInput
 ): ReportValidationResult => {
 	const command =
 		`${input.commandText} ${input.reasonText ?? ""}`.toLowerCase();
@@ -58,21 +67,25 @@ const fallbackValidateReport = (
 		"bot",
 	];
 	const keywordHits = strongKeywords.filter((keyword) =>
-		command.includes(keyword),
+		command.includes(keyword)
 	).length;
 	const maintainerBoost = input.reporterIsMaintainer ? 38 : 8;
 	const confidence = Math.min(92, 30 + maintainerBoost + keywordHits * 10);
+	let status: ReportValidationResult["status"] = "pending";
+	if (confidence >= 72) {
+		status = "validated";
+	} else if (confidence >= 45) {
+		status = "needs_review";
+	}
 
 	return {
+		causes: strongKeywords
+			.filter((keyword) => command.includes(keyword))
+			.slice(0, 4),
 		confidence,
 		rationale:
 			"OpenRouter is not configured, so the deterministic fallback used reporter role and command keywords.",
-		status:
-			confidence >= 72
-				? "validated"
-				: confidence >= 45
-					? "needs_review"
-					: "pending",
+		status,
 		verdict: confidence >= 72 ? "likely_abuse" : "unclear",
 	};
 };
@@ -93,21 +106,8 @@ const normalizeConfidence = (value: number) => {
 	return Math.max(0, Math.min(100, Math.round(scaled)));
 };
 
-const configuredModels = () => {
-	const fallbackModels =
-		runtimeEnv().OPENROUTER_FALLBACK_MODELS ??
-		env.OPENROUTER_FALLBACK_MODELS ??
-		"";
-	const models = [
-		runtimeEnv().OPENROUTER_MODEL ?? env.OPENROUTER_MODEL,
-		...fallbackModels
-			.split(",")
-			.map((model) => model.trim())
-			.filter(Boolean),
-		...DEFAULT_OPENROUTER_MODELS,
-	];
-	return [...new Set(models)].filter(Boolean);
-};
+const configuredModels = () =>
+	OPENROUTER_FREE_MODEL_CHAIN.filter(isFreeOpenRouterModel);
 
 const callOpenRouterJson = async <TResult>({
 	input,
@@ -121,8 +121,13 @@ const callOpenRouterJson = async <TResult>({
 		return { error: "OpenRouter is not configured." };
 	}
 
+	const models = configuredModels();
+	if (models.length === 0) {
+		return { error: "No OpenRouter :free models are configured." };
+	}
+
 	let lastError = "OpenRouter did not return a usable response.";
-	for (const model of configuredModels()) {
+	for (const model of models) {
 		try {
 			const response = await fetch(
 				"https://openrouter.ai/api/v1/chat/completions",
@@ -141,11 +146,11 @@ const callOpenRouterJson = async <TResult>({
 						Authorization: `Bearer ${key}`,
 						"Content-Type": "application/json",
 						"HTTP-Referer": runtimeEnv().VITE_APP_URL ?? env.VITE_APP_URL,
-						"X-Title": "OSS Guard",
+						"X-Title": "OSS Protector",
 					},
 					method: "POST",
-					signal: AbortSignal.timeout(OPENROUTER_MODEL_TIMEOUT_MS),
-				},
+					signal: AbortSignal.timeout(OPENROUTER_REQUEST_TIMEOUT_MS),
+				}
 			);
 
 			if (!response.ok) {
@@ -157,7 +162,7 @@ const callOpenRouterJson = async <TResult>({
 				choices?: Array<{ message?: { content?: string } }>;
 			};
 			const parsed = safeParseJson<TResult>(
-				payload.choices?.[0]?.message?.content,
+				payload.choices?.[0]?.message?.content
 			);
 			if (!parsed) {
 				lastError = `OpenRouter model ${model} returned non-JSON content.`;
@@ -190,6 +195,9 @@ const inferReasonCode = (text: string): ReasonCode => {
 	if (normalized.includes("malicious") || normalized.includes("backdoor")) {
 		return "malicious_code";
 	}
+	if (normalized.includes("ai slope") || normalized.includes("ai slop")) {
+		return "ai_slope";
+	}
 	if (normalized.includes("ai") || normalized.includes("low quality")) {
 		return "low_quality_ai";
 	}
@@ -199,48 +207,160 @@ const inferReasonCode = (text: string): ReasonCode => {
 	return "maintainer_report";
 };
 
-const fallbackAnalyzePullRequest = (
+const defaultPullRequestRationale = (
 	input: PullRequestAnalysisInput,
-): PullRequestAnalysisResult => {
-	const text = `${input.title} ${input.body ?? ""}`;
+	verdict: PullRequestAnalysisResult["verdict"]
+) => {
+	const filenames =
+		input.files
+			?.slice(0, 4)
+			.map((file) => file.filename)
+			.join(", ") ?? "";
+	const scope = filenames ? ` Reviewed files: ${filenames}.` : "";
+	if (verdict === "likely_abuse") {
+		return `Automatic review found suspicious OSS abuse indicators in the PR metadata or patch snippets.${scope}`;
+	}
+	if (verdict === "unclear") {
+		return `Automatic review found weak or ambiguous suspicious indicators that need maintainer judgment.${scope}`;
+	}
+	return `Automatic review did not find concrete OSS abuse indicators in the PR metadata or patch snippets.${scope}`;
+};
+
+const extractFallbackCauses = (text: string, changedFiles: number) => {
 	const normalized = text.toLowerCase();
-	const keywordHits = [
-		"fake bounty",
-		"bounty",
-		"spam",
-		"duplicate",
-		"ai generated",
-		"low quality",
-		"malicious",
-		"phishing",
-	].filter((keyword) => normalized.includes(keyword)).length;
-	const confidence = Math.min(88, 18 + keywordHits * 18);
+	const causes = [
+		["fake bounty", "Bounty-seeking language"],
+		["bounty", "Bounty-seeking language"],
+		["spam", "Spam-like PR wording"],
+		["duplicate", "Duplicate PR wording"],
+		["ai slope", "Low-context generated text"],
+		["ai slop", "Low-context generated text"],
+		["ai generated", "Generated-content signal"],
+		["low quality", "Low-quality submission signal"],
+		["malicious", "Malicious-code language"],
+		["phishing", "Phishing language"],
+		["credential", "Credential risk language"],
+		["backdoor", "Backdoor language"],
+		["token", "Token or secret reference"],
+		["secret", "Token or secret reference"],
+		["password", "Credential reference"],
+		["eval(", "Dynamic code execution"],
+		["curl ", "Unexpected network command"],
+		["base64", "Obfuscation marker"],
+		["postinstall", "Dependency lifecycle script"],
+	] as const;
+	const matched: string[] = causes
+		.filter(([keyword]) => normalized.includes(keyword))
+		.map(([, cause]) => cause);
+	if (changedFiles > 20) {
+		matched.push("Broad PR scope");
+	}
+	return [...new Set(matched)].slice(0, 5);
+};
+
+const fallbackAnalyzePullRequest = (
+	input: PullRequestAnalysisInput
+): PullRequestAnalysisResult => {
+	const fileText =
+		input.files
+			?.map(
+				(file) =>
+					`${file.filename} ${file.status} +${file.additions} -${file.deletions} ${file.patch ?? ""}`
+			)
+			.join("\n")
+			.slice(0, 12_000) ?? "";
+	const text = `${input.title} ${input.body ?? ""}\n${fileText}`;
+	const changedFiles = input.files?.length ?? 0;
+	const causes = extractFallbackCauses(text, changedFiles);
+	const keywordHits = causes.length;
+	const broadChangeBoost = changedFiles > 20 ? 12 : 0;
+	const confidence = Math.min(88, 18 + keywordHits * 12 + broadChangeBoost);
+	let verdict: PullRequestAnalysisResult["verdict"] = "not_enough_evidence";
+	if (confidence >= 65) {
+		verdict = "likely_abuse";
+	} else if (confidence >= 35) {
+		verdict = "unclear";
+	}
 
 	return {
+		causes,
 		confidence,
-		rationale:
-			"OpenRouter is not configured, so the deterministic fallback used PR text keywords only.",
+		rationale: defaultPullRequestRationale(input, verdict),
 		reasonCode: inferReasonCode(text),
-		verdict:
-			confidence >= 65
-				? "likely_abuse"
-				: confidence >= 35
-					? "unclear"
-					: "not_enough_evidence",
+		verdict,
 	};
 };
 
+const confidenceForVerdict = (
+	verdict: ReportValidationResult["verdict"],
+	parsedConfidence: number
+) => {
+	if (verdict === "likely_abuse") {
+		return parsedConfidence;
+	}
+	if (verdict === "unclear") {
+		return Math.min(parsedConfidence, 60);
+	}
+	return Math.min(parsedConfidence, 35);
+};
+
+const defaultReportStatus = (
+	confidence: number
+): ReportValidationResult["status"] => {
+	if (confidence >= 75) {
+		return "validated";
+	}
+	return "needs_review";
+};
+
+const statusForReportVerdict = ({
+	confidence,
+	input,
+	parsedStatus,
+	verdict,
+}: {
+	confidence: number;
+	input: ReportValidationInput;
+	parsedStatus: ReportValidationResult["status"];
+	verdict: ReportValidationResult["verdict"];
+}): ReportValidationResult["status"] => {
+	if (verdict === "not_enough_evidence") {
+		return "dismissed";
+	}
+	if (verdict === "unclear") {
+		return parsedStatus === "pending" ? "pending" : "needs_review";
+	}
+	if (
+		parsedStatus === "pending" &&
+		input.reporterIsMaintainer &&
+		confidence >= 72
+	) {
+		return "validated";
+	}
+	if (parsedStatus === "dismissed") {
+		return "needs_review";
+	}
+	return parsedStatus;
+};
+
 export const validateReportWithOpenRouter = async (
-	input: ReportValidationInput,
+	input: ReportValidationInput
 ): Promise<ReportValidationResult> => {
 	const aiResponse = await callOpenRouterJson<ReportValidationResult>({
 		input: {
 			allowed_statuses: ["pending", "validated", "dismissed", "needs_review"],
 			allowed_verdicts: ["likely_abuse", "unclear", "not_enough_evidence"],
 			report: input,
+			response_shape: {
+				causes: ["short concrete cause", "another cause"],
+				confidence: 0,
+				rationale: "brief evidence-based rationale",
+				status: "needs_review",
+				verdict: "unclear",
+			},
 		},
 		system:
-			"You validate maintainer reports about suspicious GitHub pull requests. Return strict JSON only with verdict, confidence, status, and rationale. Do not call someone a bot unless evidence is strong.",
+			"You validate maintainer reports about suspicious GitHub pull requests. Return strict JSON only with verdict, confidence, status, rationale, and causes. Causes must be short concrete evidence labels. Do not call someone a bot unless evidence is strong.",
 	});
 	if (!aiResponse.parsed) {
 		return {
@@ -260,37 +380,27 @@ export const validateReportWithOpenRouter = async (
 		parsed.verdict === "unclear"
 			? parsed.verdict
 			: "unclear";
-	const confidence =
-		verdict === "likely_abuse"
-			? parsedConfidence
-			: verdict === "unclear"
-				? Math.min(parsedConfidence, 60)
-				: Math.min(parsedConfidence, 35);
+	const confidence = confidenceForVerdict(verdict, parsedConfidence);
 	const parsedStatus =
 		parsed.status === "validated" ||
 		parsed.status === "dismissed" ||
 		parsed.status === "needs_review" ||
 		parsed.status === "pending"
 			? parsed.status
-			: confidence >= 75
-				? "validated"
-				: "needs_review";
-	const status =
-		verdict === "not_enough_evidence"
-			? "dismissed"
-			: verdict === "unclear"
-				? parsedStatus === "pending"
-					? "pending"
-					: "needs_review"
-				: parsedStatus === "pending" &&
-						input.reporterIsMaintainer &&
-						confidence >= 72
-					? "validated"
-					: parsedStatus === "dismissed"
-						? "needs_review"
-						: parsedStatus;
+			: defaultReportStatus(confidence);
+	const status = statusForReportVerdict({
+		confidence,
+		input,
+		parsedStatus,
+		verdict,
+	});
 
 	return {
+		causes: Array.isArray(parsed.causes)
+			? parsed.causes
+					.filter((cause): cause is string => typeof cause === "string")
+					.slice(0, 5)
+			: fallbackValidateReport(input).causes,
 		confidence,
 		rationale:
 			typeof parsed.rationale === "string"
@@ -302,22 +412,32 @@ export const validateReportWithOpenRouter = async (
 };
 
 export const validatePullRequestWithOpenRouter = async (
-	input: PullRequestAnalysisInput,
+	input: PullRequestAnalysisInput
 ): Promise<PullRequestAnalysisResult> => {
 	const aiResponse = await callOpenRouterJson<PullRequestAnalysisResult>({
 		input: {
 			allowed_reason_codes: REASON_CODES,
 			allowed_verdicts: ["likely_abuse", "unclear", "not_enough_evidence"],
-			pull_request: input,
+			pull_request: {
+				...input,
+				files: input.files?.map((file) => ({
+					...file,
+					patch: file.patch?.slice(0, 1800),
+				})),
+			},
+			response_shape: {
+				causes: ["short concrete cause", "another cause"],
+				confidence: 0,
+				rationale: "brief evidence-based rationale",
+				reasonCode: "maintainer_report",
+				verdict: "unclear",
+			},
 		},
 		system:
-			"You review GitHub pull requests for suspicious OSS abuse signals. Return strict JSON only with verdict, confidence, reasonCode, and rationale. Do not classify as likely_abuse unless evidence is strong.",
+			"You review GitHub pull requests for suspicious OSS abuse signals by inspecting the title, body, changed file metadata, and patch snippets. Look for fake bounty farming, spam, duplicate low-effort changes, low-quality AI filler, credential phishing, malicious code, dependency/script abuse, suspicious obfuscation, or backdoors. Return strict JSON only with verdict, confidence, reasonCode, rationale, and causes. Causes must be short concrete evidence labels. Do not classify as likely_abuse unless concrete evidence appears in the PR.",
 	});
 	if (!aiResponse.parsed) {
-		return {
-			...fallbackAnalyzePullRequest(input),
-			rationale: `${aiResponse.error} Fallback PR analysis was used.`,
-		};
+		return fallbackAnalyzePullRequest(input);
 	}
 	const parsed = aiResponse.parsed;
 
@@ -332,22 +452,22 @@ export const validatePullRequestWithOpenRouter = async (
 		parsed.verdict === "unclear"
 			? parsed.verdict
 			: fallback.verdict;
-	const confidence =
-		verdict === "likely_abuse"
-			? parsedConfidence
-			: verdict === "unclear"
-				? Math.min(parsedConfidence, 60)
-				: Math.min(parsedConfidence, 35);
+	const confidence = confidenceForVerdict(verdict, parsedConfidence);
 	const reasonCode = REASON_CODES.includes(parsed.reasonCode as ReasonCode)
 		? (parsed.reasonCode as ReasonCode)
 		: fallback.reasonCode;
 
 	return {
+		causes: Array.isArray(parsed.causes)
+			? parsed.causes
+					.filter((cause): cause is string => typeof cause === "string")
+					.slice(0, 5)
+			: fallback.causes,
 		confidence,
 		rationale:
 			typeof parsed.rationale === "string"
 				? parsed.rationale.slice(0, 800)
-				: "OpenRouter returned a structured PR verdict without rationale.",
+				: defaultPullRequestRationale(input, verdict),
 		reasonCode,
 		verdict,
 	};

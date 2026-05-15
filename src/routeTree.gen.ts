@@ -9,12 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProtectorsRouteImport } from './routes/protectors'
 import { Route as InstallRouteImport } from './routes/install'
+import { Route as ClankersRouteImport } from './routes/clankers'
+import { Route as ApiDocsRouteImport } from './routes/api-docs'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ProtectorsRoute = ProtectorsRouteImport.update({
+  id: '/protectors',
+  path: '/protectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
   path: '/install',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClankersRoute = ClankersRouteImport.update({
+  id: '/clankers',
+  path: '/clankers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocsRoute = ApiDocsRouteImport.update({
+  id: '/api-docs',
+  path: '/api-docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,37 +43,70 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api-docs': typeof ApiDocsRoute
+  '/clankers': typeof ClankersRoute
   '/install': typeof InstallRoute
+  '/protectors': typeof ProtectorsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api-docs': typeof ApiDocsRoute
+  '/clankers': typeof ClankersRoute
   '/install': typeof InstallRoute
+  '/protectors': typeof ProtectorsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api-docs': typeof ApiDocsRoute
+  '/clankers': typeof ClankersRoute
   '/install': typeof InstallRoute
+  '/protectors': typeof ProtectorsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/install'
+  fullPaths: '/' | '/api-docs' | '/clankers' | '/install' | '/protectors'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/install'
-  id: '__root__' | '/' | '/install'
+  to: '/' | '/api-docs' | '/clankers' | '/install' | '/protectors'
+  id: '__root__' | '/' | '/api-docs' | '/clankers' | '/install' | '/protectors'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiDocsRoute: typeof ApiDocsRoute
+  ClankersRoute: typeof ClankersRoute
   InstallRoute: typeof InstallRoute
+  ProtectorsRoute: typeof ProtectorsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/protectors': {
+      id: '/protectors'
+      path: '/protectors'
+      fullPath: '/protectors'
+      preLoaderRoute: typeof ProtectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/install': {
       id: '/install'
       path: '/install'
       fullPath: '/install'
       preLoaderRoute: typeof InstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clankers': {
+      id: '/clankers'
+      path: '/clankers'
+      fullPath: '/clankers'
+      preLoaderRoute: typeof ClankersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api-docs': {
+      id: '/api-docs'
+      path: '/api-docs'
+      fullPath: '/api-docs'
+      preLoaderRoute: typeof ApiDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,7 +121,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiDocsRoute: ApiDocsRoute,
+  ClankersRoute: ClankersRoute,
   InstallRoute: InstallRoute,
+  ProtectorsRoute: ProtectorsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

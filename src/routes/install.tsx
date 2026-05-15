@@ -25,7 +25,7 @@ export const Route = createFileRoute("/install")({
 function InstallRoute() {
 	const { code, setup_action: setupAction } = Route.useSearch();
 	const [conversion, setConversion] = useState<GithubManifestConversion | null>(
-		null,
+		null
 	);
 	const [error, setError] = useState<string | null>(null);
 	const [isConverting, setIsConverting] = useState(false);
@@ -53,7 +53,7 @@ function InstallRoute() {
 			setConversion(payload as GithubManifestConversion);
 		} catch (caught) {
 			setError(
-				caught instanceof Error ? caught.message : "GitHub conversion failed.",
+				caught instanceof Error ? caught.message : "GitHub conversion failed."
 			);
 		} finally {
 			setIsConverting(false);
@@ -69,7 +69,7 @@ function InstallRoute() {
 						GitHub App setup
 					</div>
 					<h1 className="font-semibold text-2xl md:text-3xl">
-						Finish OSS Guard installation
+						Finish OSS Protector installation
 					</h1>
 				</header>
 
@@ -151,7 +151,7 @@ function ConvertedApp({
 					<a
 						className={buttonVariants()}
 						href={installUrl}
-						rel="noreferrer"
+						rel="noopener noreferrer"
 						target="_blank"
 					>
 						<Github className="size-4" />
@@ -161,7 +161,7 @@ function ConvertedApp({
 						<a
 							className={buttonVariants({ variant: "outline" })}
 							href={conversion.html_url}
-							rel="noreferrer"
+							rel="noopener noreferrer"
 							target="_blank"
 						>
 							App settings
