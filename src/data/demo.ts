@@ -1,5 +1,5 @@
 export const demoDashboard = {
-	catchers: [
+	protectors: [
 		{
 			login: "maintainer-one",
 			reports: 8,
@@ -62,7 +62,7 @@ export const demoDashboard = {
 			reportCount: 1,
 			repositoryCount: 1,
 			score: 86,
-			status: "block",
+			status: "high_risk",
 			summary:
 				"Imported from the public bounty-hunter feed and reinforced by a maintainer report.",
 			validatedReportCount: 1,
@@ -88,7 +88,8 @@ export const demoDashboard = {
 	],
 	stats: {
 		activeRepositories: 0,
-		blockedUsers: 1,
+		blockedUsers: 0,
+		highRiskUsers: 1,
 		importedUsers: 79,
 		openReports: 1,
 		reviewUsers: 1,

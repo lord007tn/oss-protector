@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { listGuardDashboard } from "@/data-access/guard";
+import { listDirectoryDashboard } from "@/data-access/directory";
 
 export const getDashboardFn = createServerFn({ method: "GET" }).handler(
-	async () => listGuardDashboard(),
+	async () => listDirectoryDashboard()
 );
