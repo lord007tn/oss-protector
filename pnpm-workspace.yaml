@@ -1,4 +1,5 @@
 onlyBuiltDependencies:
+  - "@openrouter/sdk"
   - esbuild
   - lightningcss
   - msw
