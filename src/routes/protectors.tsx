@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { publicAppUrl } from "@/components/landing/constants";
 import { ProtectorsCard } from "@/components/landing/directory-lists";
 import { ProtectorFilters } from "@/components/landing/filter-controls";
+import { Footer } from "@/components/landing/footer";
 import {
 	DirectoryPagination,
 	paginateItems,
@@ -127,7 +128,7 @@ function ProtectorsRoute() {
 				}}
 			/>
 			<SiteHeader />
-			<div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-10 md:px-6">
+			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<SectionHeading
 					description="Maintainer reports are captured as review signals. Submitted and needs-review reports stay visible, but only validated or independently corroborated evidence affects public score."
 					eyebrow="Review signals"
@@ -148,6 +149,7 @@ function ProtectorsRoute() {
 					params={filters}
 				/>
 			</div>
+			<Footer />
 		</main>
 	);
 }

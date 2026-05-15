@@ -2,6 +2,7 @@ import type { DirectoryDashboard } from "@/actions/directory";
 
 import { buildAnalytics } from "./analytics";
 import { Credits } from "./credits";
+import { Footer } from "./footer";
 import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
 import { SiteHeader } from "./site-header";
@@ -18,6 +19,7 @@ export function LandingPage({ dashboard }: { dashboard: DirectoryDashboard }) {
 			<Hero analytics={analytics} dashboard={dashboard} />
 			<HowItWorks />
 			<Credits />
+			<Footer />
 		</main>
 	);
 }
