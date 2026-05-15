@@ -26,13 +26,15 @@ export function SectionHeading({
 
 	return (
 		<div className="max-w-3xl">
-			<Badge className="rounded-md" variant="outline">
+			<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
 				{eyebrow}
-			</Badge>
-			<Heading className="mt-3 text-balance font-semibold text-3xl md:text-4xl">
+			</span>
+			<Heading className="mt-2 text-balance font-semibold text-2xl tracking-tight md:text-3xl">
 				{title}
 			</Heading>
-			<p className="mt-3 text-muted-foreground leading-7">{description}</p>
+			<p className="mt-2 max-w-2xl text-muted-foreground text-sm leading-6 md:text-[15px]">
+				{description}
+			</p>
 		</div>
 	);
 }
@@ -49,18 +51,20 @@ export function ProcessStep({
 	title: string;
 }) {
 	return (
-		<Card className="rounded-lg">
-			<CardHeader>
+		<Card className="rounded-md border-muted/60">
+			<CardHeader className="space-y-2 pb-3">
 				<div className="flex items-center justify-between gap-3">
-					<span className="font-mono text-muted-foreground text-sm">
+					<span className="font-mono text-muted-foreground text-xs tabular-nums">
 						{String(index).padStart(2, "0")}
 					</span>
-					<span className="grid size-9 place-items-center rounded-md bg-muted text-primary">
-						<Icon className="size-4" />
+					<span className="grid size-8 place-items-center rounded-md border border-muted bg-muted/40 text-foreground">
+						<Icon className="size-3.5" />
 					</span>
 				</div>
-				<CardTitle>{title}</CardTitle>
-				<CardDescription>{description}</CardDescription>
+				<CardTitle className="font-medium text-base">{title}</CardTitle>
+				<CardDescription className="text-xs leading-5">
+					{description}
+				</CardDescription>
 			</CardHeader>
 		</Card>
 	);

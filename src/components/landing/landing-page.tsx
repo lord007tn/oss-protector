@@ -1,4 +1,4 @@
-import type { DirectoryDashboard } from "@/data-access/directory";
+import type { DirectoryDashboard } from "@/actions/directory";
 
 import { buildAnalytics } from "./analytics";
 import { Credits } from "./credits";

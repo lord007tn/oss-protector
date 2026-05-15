@@ -1,19 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { ReasonCode } from "@/constants/reason-codes";
-import {
-	REASON_CAUSES,
-	REASON_DESCRIPTIONS,
-	REASON_LABELS,
-} from "@/constants/reason-codes";
 import type { ReportStatus } from "@/constants/report-statuses";
 import type { RiskStatus } from "@/constants/risk-statuses";
-import {
-	RISK_SCORE_BANDS,
-	RISK_STATUS_DESCRIPTIONS,
-	RISK_STATUS_LABELS,
-	riskStatusForScore,
-} from "@/constants/risk-statuses";
+import { riskStatusForScore } from "@/constants/risk-statuses";
 import { database } from "@/db";
 import {
 	AppEvent,
@@ -31,13 +21,6 @@ import {
 } from "@/db/schema";
 import { parseJsonArray } from "@/lib/json";
 import { toUnixSeconds, unixNow } from "@/lib/time";
-
-import {
-	type ClankerFilters,
-	filterClankers,
-	filterProtectors,
-	type ProtectorFilters,
-} from "./directory-filters";
 
 export interface GithubAccountInput {
 	avatarUrl?: null | string;
@@ -112,62 +95,6 @@ const boundedConfidence = (value: number) =>
 const asTextId = (value: number | string) => String(value);
 
 const json = (value: unknown) => JSON.stringify(value);
-
-const CLANKER_LEADERBOARD_CREDIT = {
-	creator: "@heyandras",
-	creator_url: "https://x.com/heyandras",
-	inspiration_url: "https://clankers-leaderboard.pages.dev/",
-	note: "Initial inspiration and first clanker data layer.",
-} as const;
-
-const riskStatusDetails = (status: RiskStatus) => ({
-	description: RISK_STATUS_DESCRIPTIONS[status],
-	label: RISK_STATUS_LABELS[status],
-	status,
-});
-
-const reasonDetails = (reasons: ReasonCode[]) =>
-	reasons.map((reason) => ({
-		causes: REASON_CAUSES[reason],
-		code: reason,
-		description: REASON_DESCRIPTIONS[reason],
-		label: REASON_LABELS[reason],
-	}));
-
-const scoreDetails = (score: number) => ({
-	bands: RISK_SCORE_BANDS.map((band) => ({
-		label: RISK_STATUS_LABELS[band.status],
-		max: band.max,
-		min: band.min,
-		status: band.status,
-	})),
-	method:
-		"Score combines validated maintainer reports, independently corroborated PR signals, repeated observations, and imported source matches. Submitted reports are tracked but do not affect public score until validated.",
-	value: score,
-});
-
-const isMissingBindingError = (caught: unknown) =>
-	caught instanceof Error &&
-	(caught.message.includes("Missing Cloudflare D1 binding") ||
-		caught.message.includes("no such table"));
-
-const emptyDashboard = () => ({
-	protectors: [],
-	imports: [],
-	reports: [],
-	riskProfiles: [],
-	stats: {
-		activeRepositories: 0,
-		blockedUsers: 0,
-		highRiskUsers: 0,
-		importedUsers: 0,
-		openReports: 0,
-		reviewUsers: 0,
-		signals: 0,
-		trackedPrs: 0,
-		trackedUsers: 0,
-	},
-});
 
 export const upsertGithubUser = async (input: GithubAccountInput) => {
 	const now = unixNow();
@@ -739,6 +666,133 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 	return profile;
 };
 
+export interface MaintainerCorrectionInput {
+	correctedByLogin: string;
+	pullRequestId?: null | string;
+	repositoryId?: null | string;
+	sourceUrl: string;
+	targetUserId: string;
+}
+
+const correctionMetadata = (
+	kind: "allow" | "confirm" | "dismiss",
+	input: MaintainerCorrectionInput,
+	extra: Record<string, unknown> = {}
+) => ({
+	correctedByLogin: input.correctedByLogin,
+	kind,
+	...extra,
+});
+
+const recordCorrectionSignal = async ({
+	input,
+	kind,
+	metadata,
+	weight,
+}: {
+	input: MaintainerCorrectionInput;
+	kind: "allow" | "confirm" | "dismiss";
+	metadata?: Record<string, unknown>;
+	weight: number;
+}) =>
+	recordSignal({
+		metadata: correctionMetadata(kind, input, metadata),
+		pullRequestId: input.pullRequestId ?? null,
+		repositoryId: input.repositoryId ?? null,
+		signalType: "maintainer_correction",
+		source: "github_comment_command",
+		sourceUrl: input.sourceUrl,
+		targetUserId: input.targetUserId,
+		weight,
+	});
+
+export const dismissReportsForUser = async (
+	input: MaintainerCorrectionInput
+) => {
+	const updated = await database
+		.update(BotReport)
+		.set({ status: "dismissed", updatedAt: unixNow() })
+		.where(
+			and(
+				eq(BotReport.targetUserId, input.targetUserId),
+				inArray(BotReport.status, ["pending", "needs_review", "validated"])
+			)
+		)
+		.returning();
+
+	await recordCorrectionSignal({
+		input,
+		kind: "dismiss",
+		metadata: { dismissedReportIds: updated.map((row) => row.id) },
+		weight: -30,
+	});
+	const profile = await recalculateRiskProfile(input.targetUserId);
+	return { dismissedCount: updated.length, profile };
+};
+
+export const validateLatestReportForUser = async (
+	input: MaintainerCorrectionInput
+) => {
+	const [latest] = await database
+		.select()
+		.from(BotReport)
+		.where(
+			and(
+				eq(BotReport.targetUserId, input.targetUserId),
+				inArray(BotReport.status, ["pending", "needs_review"])
+			)
+		)
+		.orderBy(desc(BotReport.createdAt))
+		.limit(1);
+
+	if (latest) {
+		await database
+			.update(BotReport)
+			.set({ status: "validated", updatedAt: unixNow() })
+			.where(eq(BotReport.id, latest.id));
+	}
+
+	await recordCorrectionSignal({
+		input,
+		kind: "confirm",
+		metadata: { confirmedReportId: latest?.id ?? null },
+		weight: 25,
+	});
+	const profile = await recalculateRiskProfile(input.targetUserId);
+	return { profile, validated: latest ?? null };
+};
+
+export const allowlistUser = async (input: MaintainerCorrectionInput) => {
+	const now = unixNow();
+	const summary = `Allowlisted by maintainer @${input.correctedByLogin}.`;
+	await database
+		.insert(RiskProfile)
+		.values({
+			confidence: 0,
+			firstSeenAt: now,
+			lastSeenAt: now,
+			score: 0,
+			status: "allow",
+			summary,
+			targetUserId: input.targetUserId,
+			updatedAt: now,
+		})
+		.onConflictDoUpdate({
+			set: {
+				confidence: 0,
+				score: 0,
+				status: "allow",
+				summary,
+				updatedAt: now,
+			},
+			target: RiskProfile.targetUserId,
+		});
+
+	await recordCorrectionSignal({ input, kind: "allow", weight: 0 });
+	const profile = await recalculateRiskProfile(input.targetUserId);
+	return { profile };
+};
+
 export const getPullRequestByRepositoryNumber = async (
 	repositoryId: string,
 	number: number
@@ -756,241 +810,26 @@ export const getPullRequestByRepositoryNumber = async (
 	return pullRequest ?? null;
 };
 
-export const listDirectoryDashboard = async () => {
-	try {
-		const [profiles, reports, repositories, imports, signals] =
-			await Promise.all([
-				database.query.RiskProfile.findMany({
-					orderBy: { score: "desc" },
-					with: { targetUser: true },
-				}),
-				database.query.BotReport.findMany({
-					orderBy: { createdAt: "desc" },
-					with: { targetUser: true },
-				}),
-				database.query.Repository.findMany(),
-				database.query.SourceImport.findMany({
-					orderBy: { importedAt: "desc" },
-				}),
-				database.query.BotSignal.findMany(),
-			]);
+export const fetchDirectoryDashboardRecords = async () => {
+	const [profiles, reports, repositories, imports, signals, pullRequests] =
+		await Promise.all([
+			database.query.RiskProfile.findMany({
+				orderBy: { score: "desc" },
+				with: { targetUser: true },
+			}),
+			database.query.BotReport.findMany({
+				orderBy: { createdAt: "desc" },
+				with: { targetUser: true },
+			}),
+			database.query.Repository.findMany(),
+			database.query.SourceImport.findMany({
+				orderBy: { importedAt: "desc" },
+			}),
+			database.query.BotSignal.findMany(),
+			database.query.PullRequest.findMany(),
+		]);
 
-		const pullRequests = await database.query.PullRequest.findMany();
-		const riskProfiles = profiles.map((profile) => {
-			const status = riskStatusForScore({
-				isAllowed: profile.status === "allow",
-				score: profile.score,
-			});
-			return {
-				avatarUrl: profile.targetUser.avatarUrl,
-				confidence: profile.confidence,
-				commitCount: profile.commitCount,
-				githubUserId: profile.targetUser.githubUserId,
-				htmlUrl: profile.targetUser.htmlUrl,
-				importedSource: profile.importedSource,
-				lastSeenAt: profile.lastSeenAt,
-				login: profile.targetUser.login,
-				prCount: profile.prCount,
-				reasonCodes: parseJsonArray<ReasonCode>(profile.reasonCodesJson),
-				reportCount: profile.reportCount,
-				repositoryCount: profile.repositoryCount,
-				score: profile.score,
-				status,
-				summary: profile.summary,
-				validatedReportCount: profile.validatedReportCount,
-			};
-		});
-		const catcherMap = new Map<
-			string,
-			{
-				dismissedReports: number;
-				login: string;
-				needsReviewReports: number;
-				reports: number;
-				score: number;
-				submittedReports: number;
-				validatedReports: number;
-			}
-		>();
-		for (const report of reports) {
-			const current = catcherMap.get(report.reporterLogin) ?? {
-				dismissedReports: 0,
-				login: report.reporterLogin,
-				needsReviewReports: 0,
-				reports: 0,
-				score: 0,
-				submittedReports: 0,
-				validatedReports: 0,
-			};
-			current.reports += 1;
-			if (report.status === "validated") {
-				current.validatedReports += 1;
-				current.score += report.reporterIsMaintainer ? 20 : 8;
-			} else if (report.status === "needs_review") {
-				current.needsReviewReports += 1;
-			} else if (report.status === "dismissed") {
-				current.dismissedReports += 1;
-			} else {
-				current.submittedReports += 1;
-			}
-			catcherMap.set(report.reporterLogin, current);
-		}
-
-		return {
-			protectors: [...catcherMap.values()].sort(
-				(a, b) =>
-					b.score - a.score ||
-					b.validatedReports - a.validatedReports ||
-					b.reports - a.reports
-			),
-			imports: imports.map((item) => ({
-				importedAt: item.importedAt,
-				itemCount: item.itemCount,
-				sourceName: item.sourceName,
-				sourceUrl: item.sourceUrl,
-				status: item.status,
-			})),
-			reports: reports.map((report) => ({
-				aiRationale: report.aiRationale,
-				aiVerdict: report.aiVerdict,
-				confidence: report.confidence,
-				createdAt: report.createdAt,
-				id: report.id,
-				reasonCode: report.reasonCode,
-				reasonText: report.reasonText,
-				reporterAssociation: report.reporterAssociation,
-				reporterIsMaintainer: report.reporterIsMaintainer,
-				reporterLogin: report.reporterLogin,
-				sourceUrl: report.sourceUrl,
-				status: report.status,
-				targetLogin: report.targetUser.login,
-			})),
-			riskProfiles,
-			stats: {
-				activeRepositories: repositories.filter((repo) => repo.isActive).length,
-				blockedUsers: riskProfiles.filter(
-					(profile) => profile.status === "block"
-				).length,
-				highRiskUsers: riskProfiles.filter(
-					(profile) => profile.status === "high_risk"
-				).length,
-				importedUsers: profiles.filter((profile) => profile.importedSource)
-					.length,
-				openReports: reports.filter(
-					(report) =>
-						report.status === "pending" || report.status === "needs_review"
-				).length,
-				reviewUsers: profiles.filter((profile) => profile.status === "review")
-					.length,
-				signals: signals.length,
-				trackedPrs: pullRequests.length,
-				trackedUsers: profiles.length,
-			},
-		};
-	} catch (caught) {
-		if (isMissingBindingError(caught)) {
-			return emptyDashboard();
-		}
-		throw caught;
-	}
+	return { imports, profiles, pullRequests, reports, repositories, signals };
 };
 
-export const listPublicFeed = async () => {
-	const dashboard = await listDirectoryDashboard();
-	const riskyUsers = dashboard.riskProfiles
-		.filter((profile) => profile.status !== "allow")
-		.map((profile) => ({
-			confidence: profile.confidence / 100,
-			evidence_summary: profile.summary,
-			github_user_id: profile.githubUserId,
-			last_seen: new Date(profile.lastSeenAt * 1000).toISOString(),
-			login: profile.login,
-			platform: "github",
-			reason_details: reasonDetails(profile.reasonCodes),
-			reasons: profile.reasonCodes,
-			status: profile.status,
-			status_detail: riskStatusDetails(profile.status),
-			url: profile.htmlUrl,
-		}));
-	return {
-		credits: CLANKER_LEADERBOARD_CREDIT,
-		directory_url: "https://oss-protector.raedbahri90.workers.dev",
-		generated_at: new Date().toISOString(),
-		protectors: dashboard.protectors.map((protector) => ({
-			dismissed_reports: protector.dismissedReports,
-			login: protector.login,
-			needs_review_reports: protector.needsReviewReports,
-			reports: protector.reports,
-			review_signal_count: protector.reports,
-			score: protector.score,
-			submitted_reports: protector.submittedReports,
-			validated_reports: protector.validatedReports,
-		})),
-		risky_users: riskyUsers,
-		schema_version: "2026-05-15",
-		source: "oss-protector",
-		users: riskyUsers,
-	};
-};
-
-export const listClankersApi = async (filters: ClankerFilters) => {
-	const dashboard = await listDirectoryDashboard();
-	const clankers = filterClankers(dashboard.riskProfiles, filters);
-
-	return {
-		clankers: clankers.map((profile) => ({
-			confidence: profile.confidence / 100,
-			evidence_summary: profile.summary,
-			github_user_id: profile.githubUserId,
-			last_seen: new Date(profile.lastSeenAt * 1000).toISOString(),
-			login: profile.login,
-			platform: "github",
-			reason_details: reasonDetails(profile.reasonCodes),
-			reasons: profile.reasonCodes,
-			score: profile.score,
-			score_detail: scoreDetails(profile.score),
-			status: profile.status,
-			status_detail: riskStatusDetails(profile.status),
-			url: profile.htmlUrl,
-		})),
-		count: clankers.length,
-		credits: CLANKER_LEADERBOARD_CREDIT,
-		filters,
-		generated_at: new Date().toISOString(),
-		schema_version: "2026-05-15",
-		source: "oss-protector",
-		total_available: dashboard.riskProfiles.filter(
-			(profile) => profile.status !== "allow"
-		).length,
-	};
-};
-
-export const listProtectorsApi = async (filters: ProtectorFilters) => {
-	const dashboard = await listDirectoryDashboard();
-	const protectors = filterProtectors(dashboard.protectors, filters);
-
-	return {
-		count: protectors.length,
-		credits: CLANKER_LEADERBOARD_CREDIT,
-		filters,
-		generated_at: new Date().toISOString(),
-		protectors: protectors.map((protector) => ({
-			dismissed_reports: protector.dismissedReports,
-			login: protector.login,
-			needs_review_reports: protector.needsReviewReports,
-			reports: protector.reports,
-			review_signal_count: protector.reports,
-			score: protector.score,
-			submitted_reports: protector.submittedReports,
-			validated_reports: protector.validatedReports,
-		})),
-		schema_version: "2026-05-15",
-		source: "oss-protector",
-		total_available: dashboard.protectors.length,
-	};
-};
-
-export type DirectoryDashboard = Awaited<
-	ReturnType<typeof listDirectoryDashboard>
->;
 export type DirectoryPullRequest = PullRequestSelect;

@@ -1,6 +1,10 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
+export interface RateLimitBinding {
+	limit(input: { key: string }): Promise<{ success: boolean }>;
+}
+
 export interface RuntimeBindings {
 	ALLOW_UNSIGNED_GITHUB_WEBHOOKS?: string;
 	APP_NAME?: string;
@@ -16,6 +20,7 @@ export interface RuntimeBindings {
 	GITHUB_MANIFEST_TOKEN?: string;
 	GITHUB_WEBHOOK_SECRET?: string;
 	OPENROUTER_API_KEY?: string;
+	PUBLIC_RL?: RateLimitBinding;
 	VITE_APP_URL?: string;
 }
 
@@ -34,7 +39,7 @@ export const runtimeBindings = () => {
 };
 
 export const runtimeEnv = () => {
-	const { clankers_db: _binding, ...envVars } = runtimeBindings();
+	const { clankers_db: _db, PUBLIC_RL: _rl, ...envVars } = runtimeBindings();
 	return envVars;
 };
 

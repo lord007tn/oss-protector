@@ -12,12 +12,12 @@ import { SiteHeader } from "@/components/landing/site-header";
 import { JsonLd } from "@/components/seo/json-ld";
 import { REASON_CODES } from "@/constants/reason-codes";
 import { RISK_STATUSES } from "@/constants/risk-statuses";
+import { getDashboardFn } from "@/functions/dashboard";
 import type {
 	ClankerFilters as ClankerFilterValues,
 	ClankerStatusFilter,
-} from "@/data-access/directory-filters";
-import { filterClankers } from "@/data-access/directory-filters";
-import { getDashboardFn } from "@/functions/dashboard";
+} from "@/helpers/directory-filters";
+import { filterClankers } from "@/helpers/directory-filters";
 import { useDashboard } from "@/hooks/api/dashboard/use-dashboard";
 
 const reasonCodes = new Set<string>(["all", ...REASON_CODES]);
