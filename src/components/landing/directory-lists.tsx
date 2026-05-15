@@ -65,10 +65,10 @@ export function RiskProfilesCard({
 }
 
 export function ProtectorsCard({
-	description = "Maintainers whose reports are already captured.",
+	description = "Maintainers whose reports are captured as review signals.",
 	protectors,
 	startIndex = 0,
-	title = "Protectors",
+	title = "Review signals",
 }: {
 	description?: string;
 	protectors: Protector[];
@@ -97,22 +97,23 @@ export function ProtectorsCard({
 										{startIndex + index + 1}. @{protector.login}
 									</p>
 									<p className="text-muted-foreground text-xs">
-										{protector.validatedReports} validated of{" "}
-										{protector.reports} reports
+										{protector.validatedReports} validated ·{" "}
+										{protector.needsReviewReports + protector.submittedReports}{" "}
+										under review · {protector.reports} total
 									</p>
 								</div>
 								<Badge variant="secondary">
 									<CheckCircle2 className="size-3.5" />
-									{protector.score}
+									{protector.score} validated score
 								</Badge>
 							</div>
 						))}
 					</div>
 				) : (
 					<EmptyState
-						description="Protector profiles appear after maintainers report accounts from GitHub issues or pull requests."
+						description="Maintainer review signals appear after reports are submitted from GitHub issues or pull requests."
 						icon={UsersRound}
-						title="No protectors yet"
+						title="No review signals yet"
 					/>
 				)}
 			</CardContent>

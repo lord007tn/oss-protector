@@ -26,19 +26,19 @@ export const Route = createFileRoute("/protectors")({
 			},
 		],
 		meta: [
-			{ title: "Maintainer Protectors | OSS Protector" },
+			{ title: "Maintainer Review Signals | OSS Protector" },
 			{
 				content:
-					"Browse maintainers whose OSS abuse reports contribute to the OSS Protector public review feed.",
+					"Browse maintainer report activity, submitted review signals, and validated report counts for OSS Protector.",
 				name: "description",
 			},
 			{
-				content: "Maintainer Protectors | OSS Protector",
+				content: "Maintainer Review Signals | OSS Protector",
 				property: "og:title",
 			},
 			{
 				content:
-					"See maintainer report activity and validated report counts for OSS Protector.",
+					"See submitted, needs-review, validated, and dismissed maintainer report counts for OSS Protector.",
 				property: "og:description",
 			},
 			{
@@ -87,7 +87,7 @@ function ProtectorsRoute() {
 					"@context": "https://schema.org",
 					"@type": "Dataset",
 					description:
-						"OSS Protector maintainer report leaderboard showing review contributions and validated report counts.",
+						"OSS Protector maintainer review signal dataset showing submitted, needs-review, validated, and dismissed report counts.",
 					distribution: {
 						"@type": "DataDownload",
 						contentUrl: `${publicAppUrl}/api/protectors`,
@@ -97,9 +97,9 @@ function ProtectorsRoute() {
 					keywords: [
 						"open source maintainers",
 						"github app reviews",
-						"maintainer report leaderboard",
+						"maintainer review signals",
 					],
-					name: "OSS Protector Maintainer Protectors",
+					name: "OSS Protector Maintainer Review Signals",
 					provider: {
 						"@id": `${publicAppUrl}/#organization`,
 					},
@@ -117,11 +117,11 @@ function ProtectorsRoute() {
 								"@type": "Person",
 								name: protector.login,
 							},
-							name: `${protector.login} - ${protector.reports} reports`,
+							name: `${protector.login} - ${protector.validatedReports} validated reports`,
 							position: paginatedProtectors.start + index,
 						})
 					),
-					name: "OSS Protector maintainer protector page results",
+					name: "OSS Protector maintainer review signal page results",
 					numberOfItems: paginatedProtectors.items.length,
 					url: `${publicAppUrl}/protectors`,
 				}}
@@ -129,17 +129,17 @@ function ProtectorsRoute() {
 			<SiteHeader />
 			<div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-10 md:px-6">
 				<SectionHeading
-					description="Maintainers whose reports have been captured by OSS Protector."
-					eyebrow="Protectors"
+					description="Maintainer reports are captured as review signals. Submitted and needs-review reports stay visible, but only validated or independently corroborated evidence affects public score."
+					eyebrow="Review signals"
 					headingLevel={1}
-					title="All protectors."
+					title="Maintainer review signals."
 				/>
 				<ProtectorFilters search={filters} />
 				<ProtectorsCard
-					description={`Showing ${paginatedProtectors.start.toLocaleString()}-${paginatedProtectors.end.toLocaleString()} of ${paginatedProtectors.total.toLocaleString()} protectors matching the current filters.`}
+					description={`Showing ${paginatedProtectors.start.toLocaleString()}-${paginatedProtectors.end.toLocaleString()} of ${paginatedProtectors.total.toLocaleString()} maintainers matching the current filters.`}
 					protectors={paginatedProtectors.items}
 					startIndex={paginatedProtectors.start - 1}
-					title="Protectors"
+					title="Review signals"
 				/>
 				<DirectoryPagination
 					basePath="/protectors"

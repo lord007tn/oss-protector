@@ -109,15 +109,15 @@ const privateKey = () => {
 
 const statusDescription = (status: ReportStatus) => {
 	if (status === "validated") {
-		return "This report has enough signal to affect the shared score.";
+		return "This report has enough corroborated signal to affect the shared score.";
 	}
 	if (status === "needs_review") {
-		return "This report was captured and needs more corroborating signal.";
+		return "This report was captured as a review signal and needs more corroborating evidence before it affects shared score.";
 	}
 	if (status === "dismissed") {
 		return "This report was captured but did not have enough evidence.";
 	}
-	return "This report was captured and is waiting for more signal.";
+	return "This report was submitted as a review signal and is waiting for validation.";
 };
 
 const scoreBandMarkdown = () =>
@@ -173,7 +173,7 @@ ${statusDescription(input.status)}
 
 Reason context: ${REASON_DESCRIPTIONS[input.reasonCode]}
 
-Maintainer commands like \`@oss-protector review this user\`, \`@oss-protector flag this user\`, or \`@oss-protector ban this user\` are counted as review signals. Validated maintainer reviews also contribute to the Protectors leaderboard.
+Maintainer commands like \`@oss-protector review this user\`, \`@oss-protector flag this user reason: fake bounty\`, or \`@oss-protector recommend block reason: malicious code\` are captured as review signals. Only validated or independently corroborated reports affect shared scores.
 
 This is not a final accusation or an automatic block. Treat it as shared context for maintainer review. OSS Protector also reviews new pull requests automatically and posts an assessment when the app receives PR events.`;
 };

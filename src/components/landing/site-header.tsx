@@ -39,7 +39,7 @@ export function SiteHeader() {
 						className={buttonVariants({ variant: "ghost" })}
 						href="/protectors"
 					>
-						Protectors
+						Signals
 					</a>
 					<a
 						className={buttonVariants({ variant: "ghost" })}
