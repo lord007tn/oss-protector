@@ -22,6 +22,7 @@ export const githubAppManifest = () => {
 			"pull_request_review_comment",
 		],
 		default_permissions: {
+			checks: "write",
 			contents: "read",
 			issues: "write",
 			pull_requests: "write",

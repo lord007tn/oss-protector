@@ -1,7 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Github, KeyRound, Loader2 } from "lucide-react";
+import {
+	ArrowRight,
+	CheckCircle2,
+	Github,
+	KeyRound,
+	Loader2,
+} from "lucide-react";
 import { useState } from "react";
 import type { GithubManifestConversion } from "@/actions/github-manifest";
+import { Footer } from "@/components/landing/footer";
+import { SiteHeader } from "@/components/landing/site-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -17,13 +26,178 @@ export const Route = createFileRoute("/install")({
 	component: InstallRoute,
 	validateSearch: (search) => ({
 		code: typeof search.code === "string" ? search.code : undefined,
+		installation_id:
+			typeof search.installation_id === "string" ||
+			typeof search.installation_id === "number"
+				? String(search.installation_id)
+				: undefined,
 		setup_action:
 			typeof search.setup_action === "string" ? search.setup_action : undefined,
 	}),
 });
 
 function InstallRoute() {
-	const { code, setup_action: setupAction } = Route.useSearch();
+	const {
+		code,
+		installation_id: installationId,
+		setup_action: setupAction,
+	} = Route.useSearch();
+
+	// Three flows land here:
+	//   1. Public install completion: GitHub redirects with installation_id+setup_action,
+	//      no `code`. Show a confirmation + next steps.
+	//   2. Manifest exchange (one-time during App creation): `code` is present.
+	//   3. Direct visit: nothing in the URL. Show a marketing-y prompt.
+	if (installationId && !code) {
+		return (
+			<InstallSuccess action={setupAction} installationId={installationId} />
+		);
+	}
+
+	if (code) {
+		return <ManifestExchange code={code} setupAction={setupAction} />;
+	}
+
+	return <NoParamsLanding />;
+}
+
+function InstallSuccess({
+	action,
+	installationId,
+}: {
+	action: string | undefined;
+	installationId: string;
+}) {
+	return (
+		<main className="min-h-screen bg-background">
+			<SiteHeader />
+			<div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-10 md:px-6 md:py-14">
+				<div className="grid gap-2">
+					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
+						Install complete
+					</span>
+					<h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
+						OSS Protector is now watching your repositories.
+					</h1>
+					<p className="text-muted-foreground text-sm leading-6 md:text-[15px]">
+						Installation{" "}
+						<code className="font-mono text-[12px]">#{installationId}</code>
+						{action ? (
+							<>
+								{" "}
+								(<code className="font-mono text-[12px]">{action}</code>)
+							</>
+						) : null}{" "}
+						was registered. Future pull requests on covered repos will get an
+						automatic OSS Protector assessment.
+					</p>
+				</div>
+
+				<Alert>
+					<CheckCircle2 />
+					<AlertTitle>You don't need to do anything else.</AlertTitle>
+					<AlertDescription>
+						Open a pull request on any of the repositories you selected during
+						install. Within ~20 seconds the bot will post a verdict comment with
+						a risk score, reason code, and scoring breakdown.
+					</AlertDescription>
+				</Alert>
+
+				<Card className="rounded-md border-muted/60">
+					<CardHeader className="space-y-1 pb-3">
+						<CardTitle className="font-medium text-base">
+							Maintainer commands
+						</CardTitle>
+						<CardDescription className="text-xs leading-5">
+							Anyone with OWNER, MEMBER, or COLLABORATOR association on the repo
+							can correct the system from any PR comment.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<pre className="overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+							<code>
+								{[
+									"@oss-protector flag this user reason: fake bounty",
+									"@oss-protector dismiss   # false positive on the PR's author",
+									"@oss-protector confirm   # validate the latest open report",
+									"@oss-protector allow     # permanently allowlist the PR author",
+								].join("\n")}
+							</code>
+						</pre>
+					</CardContent>
+				</Card>
+
+				<div className="flex flex-wrap gap-2">
+					<a className={buttonVariants({ size: "sm" })} href="/clankers">
+						Browse the public clanker feed
+						<ArrowRight data-icon="inline-end" />
+					</a>
+					<a
+						className={buttonVariants({ size: "sm", variant: "outline" })}
+						href="/api-docs"
+					>
+						API docs
+					</a>
+					<a
+						className={buttonVariants({ size: "sm", variant: "ghost" })}
+						href="/contest"
+					>
+						Contest a listing
+					</a>
+				</div>
+			</div>
+			<Footer />
+		</main>
+	);
+}
+
+function NoParamsLanding() {
+	return (
+		<main className="min-h-screen bg-background">
+			<SiteHeader />
+			<div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-10 md:px-6 md:py-14">
+				<div className="grid gap-2">
+					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
+						Install
+					</span>
+					<h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
+						Install the OSS Protector GitHub App.
+					</h1>
+					<p className="text-muted-foreground text-sm leading-6 md:text-[15px]">
+						Add one shared GitHub App to the repositories you want protected.
+						The bot will post a structured PR assessment on every new pull
+						request and accept maintainer commands in comments.
+					</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<a
+						className={buttonVariants({ size: "sm" })}
+						href="https://github.com/apps/oss-protector/installations/new"
+					>
+						<Github data-icon="inline-start" />
+						Install on GitHub
+					</a>
+					<a
+						className={buttonVariants({ size: "sm", variant: "outline" })}
+						href="/clankers"
+					>
+						See what the feed looks like
+						<ArrowRight data-icon="inline-end" />
+					</a>
+				</div>
+			</div>
+			<Footer />
+		</main>
+	);
+}
+
+function ManifestExchange({
+	code,
+	setupAction,
+}: {
+	code: string;
+	setupAction: string | undefined;
+}) {
 	const [conversion, setConversion] = useState<GithubManifestConversion | null>(
 		null
 	);
@@ -31,10 +205,6 @@ function InstallRoute() {
 	const [isConverting, setIsConverting] = useState(false);
 
 	const exchangeCode = async () => {
-		if (!code) {
-			setError("No GitHub manifest code was provided.");
-			return;
-		}
 		setIsConverting(true);
 		setError(null);
 		try {
@@ -62,40 +232,38 @@ function InstallRoute() {
 
 	return (
 		<main className="min-h-screen bg-background">
-			<div className="mx-auto grid w-full max-w-4xl gap-5 px-4 py-6 md:px-6">
+			<SiteHeader />
+			<div className="mx-auto grid w-full max-w-3xl gap-5 px-4 py-10 md:px-6 md:py-14">
 				<header className="grid gap-2">
-					<div className="flex items-center gap-2 text-muted-foreground text-sm">
-						<Github className="size-4 text-primary" />
+					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
 						GitHub App setup
-					</div>
-					<h1 className="font-semibold text-2xl md:text-3xl">
-						Finish OSS Protector installation
+					</span>
+					<h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
+						Exchange manifest code
 					</h1>
 				</header>
 
-				<Card className="rounded-lg">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<KeyRound className="size-5 text-primary" />
+				<Card className="rounded-md border-muted/60">
+					<CardHeader className="space-y-1 pb-3">
+						<CardTitle className="flex items-center gap-2 font-medium text-base">
+							<KeyRound className="size-4 text-muted-foreground" />
 							Manifest exchange
 						</CardTitle>
-						<CardDescription>
+						<CardDescription className="text-xs leading-5">
 							Exchange the one-hour GitHub manifest code, then save the returned
 							values as Cloudflare secrets.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="grid gap-4">
 						<div className="flex flex-wrap items-center gap-2">
-							<Badge variant={code ? "secondary" : "destructive"}>
-								{code ? "Code detected" : "Missing code"}
-							</Badge>
+							<Badge variant="secondary">Code detected</Badge>
 							{setupAction ? (
 								<Badge variant="outline">{setupAction}</Badge>
 							) : null}
 						</div>
 
 						<Button
-							disabled={!code || isConverting}
+							disabled={isConverting}
 							onClick={exchangeCode}
 							type="button"
 						>
@@ -108,7 +276,7 @@ function InstallRoute() {
 						</Button>
 
 						{error ? (
-							<p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
+							<p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
 								{error}
 							</p>
 						) : null}
@@ -117,6 +285,7 @@ function InstallRoute() {
 
 				{conversion ? <ConvertedApp conversion={conversion} /> : null}
 			</div>
+			<Footer />
 		</main>
 	);
 }

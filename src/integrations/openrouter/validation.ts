@@ -132,13 +132,15 @@ interface StructuredPrContext {
 // AND supported_parameters includes "response_format" (or "structured_outputs").
 // Ordered fastest -> heaviest fallback. Each request stops at the first model
 // that returns a parseable JSON response.
+//
+// Chain length × per-call timeout must stay well under Cloudflare's 30s
+// waitUntil budget. Two MoE models at 6s each = 12s worst case AI, leaving
+// headroom for GitHub listFiles + posting the analysis comment.
 const OPENROUTER_FREE_MODEL_CHAIN = [
 	"qwen/qwen3-next-80b-a3b-instruct:free",
 	"google/gemma-4-31b-it:free",
-	"nvidia/nemotron-3-super-120b-a12b:free",
-	"minimax/minimax-m2.5:free",
 ] as const;
-const OPENROUTER_REQUEST_TIMEOUT_MS = 4500;
+const OPENROUTER_REQUEST_TIMEOUT_MS = 6000;
 const MAX_PATCH_EXCERPT_LENGTH = 1800;
 const MAX_CONTEXT_TEXT_LENGTH = 12_000;
 const DOC_EXTENSION_PATTERN = /\.(md|mdx|txt|rst|adoc)$/i;
@@ -289,17 +291,22 @@ const callOpenRouterJson = async <TResult>({
 }) => {
 	const key = runtimeEnv().OPENROUTER_API_KEY ?? env.OPENROUTER_API_KEY;
 	if (!key) {
+		console.log(`openrouter: kind=${schemaName} skipped=missing_api_key`);
 		return { error: "OpenRouter is not configured." };
 	}
 
 	const models = configuredModels();
 	if (models.length === 0) {
+		console.log(`openrouter: kind=${schemaName} skipped=no_models`);
 		return { error: "No OpenRouter :free models are configured." };
 	}
 
 	const client = openRouterClient(key);
 	let lastError = "OpenRouter did not return a usable response.";
+	const attempts: string[] = [];
+	const overallStart = Date.now();
 	for (const model of models) {
+		const start = Date.now();
 		try {
 			const response = await client.chat.send(
 				{
@@ -323,16 +330,26 @@ const callOpenRouterJson = async <TResult>({
 				},
 				{ timeoutMs: OPENROUTER_REQUEST_TIMEOUT_MS }
 			);
+			const latencyMs = Date.now() - start;
 			const parsed = safeParseJson<TResult>(
 				response.choices[0]?.message?.content
 			);
 			if (!parsed) {
+				attempts.push(`${model}=${latencyMs}ms:non_json`);
 				lastError = `OpenRouter model ${model} returned non-JSON content.`;
 				continue;
 			}
-
+			console.log(
+				`openrouter: kind=${schemaName} winner=${model} latency_ms=${latencyMs} total_ms=${
+					Date.now() - overallStart
+				} attempts=[${attempts.concat(`${model}=${latencyMs}ms:ok`).join("|")}]`
+			);
 			return { model, parsed };
 		} catch (caught) {
+			const latencyMs = Date.now() - start;
+			const reason =
+				caught instanceof Error ? caught.message.slice(0, 60) : "unknown";
+			attempts.push(`${model}=${latencyMs}ms:${reason.replace(/\s+/g, "_")}`);
 			lastError =
 				caught instanceof Error
 					? `OpenRouter call failed: ${caught.message}`
@@ -340,6 +357,11 @@ const callOpenRouterJson = async <TResult>({
 		}
 	}
 
+	console.log(
+		`openrouter: kind=${schemaName} winner=none total_ms=${
+			Date.now() - overallStart
+		} attempts=[${attempts.join("|")}] fallback=deterministic`
+	);
 	return { error: lastError };
 };
 
@@ -846,6 +868,145 @@ const fallbackValidateReport = (
 	};
 };
 
+// Keyword sets used to verify that the AI's risk dimensions are actually
+// grounded in the PR text. Models occasionally hallucinate credentialRisk: 80
+// on PRs with no credential content, which then drives `reasonCode` to
+// "credential_phishing". Clamping the dimension to 0 when no matching keywords
+// are present forces the reason picker to fall through to the next-highest
+// grounded dimension.
+const CREDENTIAL_RISK_KEYWORDS = [
+	"api key",
+	"api_key",
+	"apikey",
+	"auth token",
+	"basic auth",
+	"bearer",
+	"client secret",
+	"client_secret",
+	"credential",
+	"exfil",
+	"login form",
+	"oauth",
+	"password",
+	"phish",
+	"private key",
+	"private_key",
+	"refresh token",
+	"secret",
+	"session cookie",
+	"ssh-rsa",
+	"token",
+	"webhook",
+] as const;
+
+const MALICIOUS_CODE_KEYWORDS = [
+	"atob(",
+	"backdoor",
+	"base64",
+	"child_process",
+	"curl ",
+	"curl -",
+	"curl http",
+	"eval(",
+	"exec(",
+	"fetch http",
+	"http.get",
+	"malicious",
+	"obfuscat",
+	"postinstall",
+	"preinstall",
+	"reverse shell",
+	"shell_exec",
+	"spawn(",
+	"system(",
+	"wget ",
+	"wget -",
+] as const;
+
+const matchesAnyKeyword = (
+	haystack: string,
+	keywords: readonly string[]
+): boolean => keywords.some((kw) => haystack.includes(kw));
+
+const buildPullRequestHaystack = (input: PullRequestAnalysisInput): string =>
+	lowerText(
+		`${input.title}\n${input.body ?? ""}\n${
+			input.files
+				?.map((file) => `${file.filename}\n${file.patch ?? ""}`)
+				.join("\n") ?? ""
+		}`.slice(0, MAX_CONTEXT_TEXT_LENGTH)
+	);
+
+// Pick the reason that matches the highest grounded risk dimension. Used
+// when the AI's reason came from a dimension we just clamped to 0.
+const reasonFromBreakdown = (breakdown: ScoreBreakdown): ReasonCode => {
+	const candidates: Array<{ code: ReasonCode; score: number }> = [
+		{ code: "malicious_code", score: breakdown.maliciousRisk },
+		{ code: "credential_phishing", score: breakdown.credentialRisk },
+		{ code: "fake_bounty", score: breakdown.farmingRisk },
+		{ code: "ai_slope", score: breakdown.aiQuality },
+	];
+	candidates.sort((a, b) => b.score - a.score);
+	if (candidates[0].score >= 40) {
+		return candidates[0].code;
+	}
+	return "maintainer_report";
+};
+
+interface ClampedPrResult {
+	clamped: boolean;
+	reasonCode: ReasonCode;
+	scoreBreakdown: ScoreBreakdown;
+}
+
+// If the AI returned a non-trivial credentialRisk or maliciousRisk but the
+// PR text doesn't actually contain a matching keyword, force that dimension
+// to 0 and re-pick the reason from the remaining (grounded) breakdown.
+const clampHallucinatedPrRisks = ({
+	haystack,
+	parsedReason,
+	scoreBreakdown,
+}: {
+	haystack: string;
+	parsedReason: ReasonCode;
+	scoreBreakdown: ScoreBreakdown;
+}): ClampedPrResult => {
+	let credentialRisk = scoreBreakdown.credentialRisk;
+	let maliciousRisk = scoreBreakdown.maliciousRisk;
+	let clamped = false;
+
+	if (
+		credentialRisk > 25 &&
+		!matchesAnyKeyword(haystack, CREDENTIAL_RISK_KEYWORDS)
+	) {
+		credentialRisk = 0;
+		clamped = true;
+	}
+	if (
+		maliciousRisk > 25 &&
+		!matchesAnyKeyword(haystack, MALICIOUS_CODE_KEYWORDS)
+	) {
+		maliciousRisk = 0;
+		clamped = true;
+	}
+
+	const adjusted: ScoreBreakdown = {
+		...scoreBreakdown,
+		credentialRisk,
+		maliciousRisk,
+	};
+
+	const reasonGotClamped =
+		(parsedReason === "credential_phishing" && credentialRisk === 0) ||
+		(parsedReason === "malicious_code" && maliciousRisk === 0);
+
+	return {
+		clamped,
+		reasonCode: reasonGotClamped ? reasonFromBreakdown(adjusted) : parsedReason,
+		scoreBreakdown: adjusted,
+	};
+};
+
 const INDEPENDENT_CONTEXT_KEYWORDS = [
 	"backdoor",
 	"base64",
@@ -1005,7 +1166,8 @@ const normalizeReportResult = (
 
 const normalizePrResult = (
 	parsed: Partial<PullRequestAnalysisResult>,
-	fallback: PullRequestAnalysisResult
+	fallback: PullRequestAnalysisResult,
+	input: PullRequestAnalysisInput
 ): PullRequestAnalysisResult => {
 	const parsedConfidence =
 		typeof parsed.confidence === "number"
@@ -1015,9 +1177,30 @@ const normalizePrResult = (
 		? parsed.verdict
 		: fallback.verdict;
 	const confidence = confidenceForVerdict(verdict, parsedConfidence);
-	const reasonCode = REASON_CODES.includes(parsed.reasonCode as ReasonCode)
+	const parsedReasonCode = REASON_CODES.includes(
+		parsed.reasonCode as ReasonCode
+	)
 		? (parsed.reasonCode as ReasonCode)
 		: fallback.reasonCode;
+	const parsedScoreBreakdown = normalizeScoreBreakdown(
+		parsed.scoreBreakdown,
+		fallback.scoreBreakdown
+	);
+
+	// Clamp credentialRisk / maliciousRisk dimensions if the PR text doesn't
+	// actually contain matching keywords. Stops AI hallucinations (e.g. a
+	// fake-bounty PR getting labelled "Credential phishing").
+	const haystack = buildPullRequestHaystack(input);
+	const { clamped, reasonCode, scoreBreakdown } = clampHallucinatedPrRisks({
+		haystack,
+		parsedReason: parsedReasonCode,
+		scoreBreakdown: parsedScoreBreakdown,
+	});
+
+	const rationale =
+		typeof parsed.rationale === "string"
+			? parsed.rationale.slice(0, 800)
+			: fallback.rationale;
 	return {
 		causes: normalizeCauses(parsed.causes, fallback.causes),
 		confidence,
@@ -1025,15 +1208,11 @@ const normalizePrResult = (
 			typeof parsed.evidenceSummary === "string"
 				? parsed.evidenceSummary.slice(0, 500)
 				: fallback.evidenceSummary,
-		rationale:
-			typeof parsed.rationale === "string"
-				? parsed.rationale.slice(0, 800)
-				: fallback.rationale,
+		rationale: clamped
+			? `${rationale} Credential or malicious-risk dimensions were clamped because the patch text did not contain matching keywords.`
+			: rationale,
 		reasonCode,
-		scoreBreakdown: normalizeScoreBreakdown(
-			parsed.scoreBreakdown,
-			fallback.scoreBreakdown
-		),
+		scoreBreakdown,
 		verdict,
 	};
 };
@@ -1159,5 +1338,5 @@ export const validatePullRequestWithOpenRouter = async (
 	if (!aiResponse.parsed) {
 		return fallback;
 	}
-	return normalizePrResult(aiResponse.parsed, fallback);
+	return normalizePrResult(aiResponse.parsed, fallback, input);
 };

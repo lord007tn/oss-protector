@@ -281,6 +281,87 @@ const parseRepositoryFullName = (repositoryFullName?: null | string) => {
 	return { owner, repo };
 };
 
+const CHECK_CONCLUSION_FOR_VERDICT: Record<
+	PullRequestAnalysisCommentInput["verdict"],
+	"failure" | "neutral" | "success"
+> = {
+	// `failure` flips the merge box red and can be required by branch protection.
+	likely_abuse: "failure",
+	// `success` is intentionally used for "not_enough_evidence" so honest PRs
+	// don't end up with a confusing yellow/red status from our check.
+	not_enough_evidence: "success",
+	// `neutral` reads as informational — visible but doesn't block merges.
+	unclear: "neutral",
+};
+
+const checkRunTitleForVerdict = (
+	verdict: PullRequestAnalysisCommentInput["verdict"],
+	confidence: number
+) => {
+	if (verdict === "likely_abuse") {
+		return `Flagged ${confidence}/100`;
+	}
+	if (verdict === "unclear") {
+		return `Needs review ${confidence}/100`;
+	}
+	return `Clean ${confidence}/100`;
+};
+
+const checkRunSummary = (input: PullRequestAnalysisCommentInput) => {
+	const causes = input.causes.length
+		? input.causes
+				.slice(0, 4)
+				.map((cause) => `- ${cause}`)
+				.join("\n")
+		: "- No specific cause was extracted.";
+	return `**${assessmentSummary(input.verdict)}**
+
+Reason: \`${input.reasonCode}\` (${REASON_LABELS[input.reasonCode]})
+Files reviewed: ${input.fileCount}
+
+${input.rationale}
+
+Why this was flagged:
+${causes}
+
+See the full assessment in the PR comment for the scoring breakdown.`;
+};
+
+const postPullRequestCheckRun = async ({
+	input,
+	octokit,
+	repository,
+}: {
+	input: PullRequestAnalysisCommentInput;
+	octokit: Awaited<ReturnType<typeof createInstallationClient>>;
+	repository: { owner: string; repo: string };
+}) => {
+	if (!(octokit && input.headSha)) {
+		return;
+	}
+	try {
+		await octokit.rest.checks.create({
+			completed_at: new Date().toISOString(),
+			conclusion: CHECK_CONCLUSION_FOR_VERDICT[input.verdict],
+			head_sha: input.headSha,
+			name: "OSS Protector",
+			output: {
+				summary: checkRunSummary(input),
+				title: checkRunTitleForVerdict(input.verdict, input.confidence),
+			},
+			owner: repository.owner,
+			repo: repository.repo,
+			started_at: new Date().toISOString(),
+			status: "completed",
+		});
+	} catch (caught) {
+		// Checks: write permission may not be granted on this installation
+		// (existing installs predate the manifest update). Fall back silently —
+		// the PR comment is still posted.
+		console.warn("oss-protector: failed to post check run", caught);
+	}
+};
+
 export const createPullRequestAnalysisComment = async (
 	input: PullRequestAnalysisCommentInput
 ) => {
@@ -299,6 +380,11 @@ export const createPullRequestAnalysisComment = async (
 	if (!octokit) {
 		return { skipped: true };
 	}
+
+	// Post the check run alongside the comment. Doing both is intentional:
+	// the comment carries the full table for humans, the check run gives
+	// branch protection a programmatic signal it can gate on.
+	await postPullRequestCheckRun({ input, octokit, repository });
 
 	const marker = analysisMarker(input.headSha);
 	const existingComments = await octokit.rest.issues.listComments({
