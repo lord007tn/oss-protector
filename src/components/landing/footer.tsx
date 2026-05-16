@@ -10,6 +10,9 @@ const FOOTER_LINKS = [
 	{ href: apiDocsPath, label: "API" },
 	{ href: "/api/risky-users.json", label: "Public feed" },
 	{ href: githubAppInstallUrl, label: "Install" },
+	{ href: "/contest", label: "Contest" },
+	{ href: "/privacy", label: "Privacy" },
+	{ href: "/terms", label: "Terms" },
 ] as const;
 
 export function Footer() {

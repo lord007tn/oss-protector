@@ -30,14 +30,11 @@
       "migrations_dir": "drizzle"
     }
   ],
-  "unsafe": {
-    "bindings": [
-      {
-        "name": "PUBLIC_RL",
-        "type": "ratelimit",
-        "namespace_id": "1001",
-        "simple": { "limit": 60, "period": 60 }
-      }
-    ]
-  }
+  "ratelimits": [
+    {
+      "name": "PUBLIC_RL",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ]
 }
