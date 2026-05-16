@@ -1,4 +1,13 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import {
+	and,
+	count,
+	countDistinct,
+	desc,
+	eq,
+	inArray,
+	max,
+	sql,
+} from "drizzle-orm";
 
 import type { ReasonCode } from "@/constants/reason-codes";
 import type { ReportStatus } from "@/constants/report-statuses";
@@ -396,51 +405,29 @@ export const createRiskReport = async (input: CreateRiskReportInput) => {
 	return created;
 };
 
-const reportBaseScore = ({
-	reporterIsMaintainer,
-	status,
-}: {
-	reporterIsMaintainer: boolean;
-	status: string;
-}) => {
-	if (status === "validated") {
-		return reporterIsMaintainer ? 28 : 6;
-	}
-	return 0;
-};
-
-const reportAiBoost = (verdict: null | string) => {
-	if (verdict === "likely_abuse") {
-		return 14;
-	}
-	if (verdict === "unclear") {
-		return 4;
-	}
-	return 0;
-};
-
-const scoreReport = (report: {
-	aiVerdict: null | string;
-	reporterIsMaintainer: boolean;
-	status: string;
-}) => {
-	if (report.status !== "validated") {
-		return 0;
-	}
-	return reportBaseScore(report) + reportAiBoost(report.aiVerdict) + 12;
-};
+// Per-report score is now computed inside reportAggregatesQuery via SQL CASE
+// statements; the JS scoreReport helper has moved into that aggregate.
 
 const riskSummary = ({
 	existingSummary,
+	isKnownBot,
 	reporterCount,
 	status,
 }: {
 	existingSummary?: null | string;
+	isKnownBot: boolean;
 	reporterCount: number;
 	status: RiskStatus;
 }) => {
 	if (status === "allow") {
-		return "Known GitHub bot account; kept on the allow list.";
+		// Prefer an existing custom summary (e.g. a maintainer allowlist note);
+		// only fall back to the bot-account boilerplate when nothing better exists.
+		if (existingSummary && !isKnownBot) {
+			return existingSummary;
+		}
+		return isKnownBot
+			? "Known GitHub bot account; kept on the allow list."
+			: (existingSummary ?? "Allowlisted account.");
 	}
 	if (reporterCount > 0) {
 		return `Reported by ${reporterCount} maintainer account(s).`;
@@ -553,6 +540,155 @@ export const recordAppEvent = async (input: {
 	return created;
 };
 
+// SQL aggregate of report-derived score and counts. Mirrors the JS logic in
+// reportBaseScore + reportAiBoost + the trailing +12 on validated reports.
+const reportAggregatesQuery = (targetUserId: string) =>
+	database
+		.select({
+			reasonCodesCsv: sql<string>`COALESCE(GROUP_CONCAT(DISTINCT ${BotReport.reasonCode}), '')`,
+			reportCount: count(),
+			reportScore: sql<number>`COALESCE(SUM(CASE
+				WHEN ${BotReport.status} = 'validated' THEN
+					(CASE WHEN ${BotReport.reporterIsMaintainer} = 1 THEN 28 ELSE 6 END)
+					+ (CASE
+						WHEN ${BotReport.aiVerdict} = 'likely_abuse' THEN 14
+						WHEN ${BotReport.aiVerdict} = 'unclear' THEN 4
+						ELSE 0
+					END)
+					+ 12
+				ELSE 0
+			END), 0)`,
+			reporterCount: countDistinct(BotReport.reporterLogin),
+			validatedReportCount: sql<number>`COALESCE(SUM(CASE WHEN ${BotReport.status} = 'validated' THEN 1 ELSE 0 END), 0)`,
+			maxReportAt: max(BotReport.createdAt),
+		})
+		.from(BotReport)
+		.where(eq(BotReport.targetUserId, targetUserId));
+
+// SQL aggregate of signal score. maintainer_report signals only contribute
+// when their linked BotReport is validated, matching the original JS reducer.
+const signalAggregatesQuery = (targetUserId: string) =>
+	database
+		.select({
+			signalScore: sql<number>`COALESCE(SUM(CASE
+				WHEN ${BotSignal.signalType} != 'maintainer_report' THEN ${BotSignal.weight}
+				WHEN ${BotReport.status} = 'validated' THEN ${BotSignal.weight}
+				ELSE 0
+			END), 0)`,
+			maxObservedAt: max(BotSignal.observedAt),
+		})
+		.from(BotSignal)
+		.leftJoin(BotReport, eq(BotReport.id, BotSignal.reportId))
+		.where(eq(BotSignal.targetUserId, targetUserId));
+
+const pullRequestAggregatesQuery = (targetUserId: string) =>
+	database
+		.select({
+			prCount: count(),
+			commitCount: sql<number>`COALESCE(SUM(${PullRequest.commitCount}), 0)`,
+			repositoryCount: countDistinct(PullRequest.repositoryId),
+			maxLastSeenAt: max(PullRequest.lastSeenAt),
+		})
+		.from(PullRequest)
+		.where(eq(PullRequest.authorUserId, targetUserId));
+
+type ReportAgg = Awaited<ReturnType<typeof reportAggregatesQuery>>[number];
+type SignalAgg = Awaited<ReturnType<typeof signalAggregatesQuery>>[number];
+type PrAgg = Awaited<ReturnType<typeof pullRequestAggregatesQuery>>[number];
+type ExistingProfile =
+	| {
+			importedSource: null | string;
+			lastSignalAt: null | number;
+			prCount: number;
+			reasonCodesJson: null | string;
+			repositoryCount: number;
+			status: RiskStatus;
+			summary: null | string;
+	  }
+	| undefined;
+
+const mergeReasonCodes = (
+	existing: ExistingProfile,
+	reportAgg: ReportAgg | undefined
+) => {
+	const codes = new Set<ReasonCode>(
+		parseJsonArray<ReasonCode>(existing?.reasonCodesJson)
+	);
+	for (const code of (reportAgg?.reasonCodesCsv ?? "").split(",")) {
+		const trimmed = code.trim();
+		if (trimmed) {
+			codes.add(trimmed as ReasonCode);
+		}
+	}
+	return codes;
+};
+
+const buildProfileValues = ({
+	existing,
+	prAgg,
+	reportAgg,
+	signalAgg,
+	targetUserId,
+	user,
+}: {
+	existing: ExistingProfile;
+	prAgg: PrAgg | undefined;
+	reportAgg: ReportAgg | undefined;
+	signalAgg: SignalAgg | undefined;
+	targetUserId: string;
+	user: GithubUserSelect;
+}) => {
+	const reportScore = Number(reportAgg?.reportScore ?? 0);
+	const signalScore = Number(signalAgg?.signalScore ?? 0);
+	const reportCount = Number(reportAgg?.reportCount ?? 0);
+	const validatedReportCount = Number(reportAgg?.validatedReportCount ?? 0);
+	const reporterCount = Number(reportAgg?.reporterCount ?? 0);
+	const prCount = Number(prAgg?.prCount ?? 0);
+	const commitCount = Number(prAgg?.commitCount ?? 0);
+	const repositoryCount = Number(prAgg?.repositoryCount ?? 0);
+
+	const activityScore = Math.min(20, prCount * 2);
+	const importedScore = existing?.importedSource ? 48 : 0;
+	const computedScore = boundedConfidence(
+		reportScore + signalScore + activityScore + importedScore
+	);
+	const isAllowed = user.isKnownGithubBot || existing?.status === "allow";
+	const score = isAllowed ? 0 : computedScore;
+	const status = riskStatusForScore({ isAllowed, score });
+
+	const lastSeenAt = Math.max(
+		user.lastSeenAt,
+		Number(prAgg?.maxLastSeenAt ?? 0),
+		Number(reportAgg?.maxReportAt ?? 0),
+		Number(signalAgg?.maxObservedAt ?? 0)
+	);
+	const summary = riskSummary({
+		existingSummary: existing?.summary,
+		isKnownBot: user.isKnownGithubBot,
+		reporterCount,
+		status,
+	});
+
+	return {
+		commitCount,
+		confidence: score,
+		importedSource: existing?.importedSource ?? null,
+		lastSeenAt,
+		lastSignalAt:
+			Number(signalAgg?.maxObservedAt ?? existing?.lastSignalAt ?? 0) || null,
+		prCount: Math.max(existing?.prCount ?? 0, prCount),
+		reasonCodesJson: json([...mergeReasonCodes(existing, reportAgg)]),
+		reportCount,
+		repositoryCount: repositoryCount || existing?.repositoryCount || 0,
+		score,
+		status,
+		summary,
+		targetUserId,
+		updatedAt: unixNow(),
+		validatedReportCount,
+	};
+};
+
 export const recalculateRiskProfile = async (targetUserId: string) => {
 	const [user] = await database
 		.select()
@@ -563,96 +699,25 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		return null;
 	}
 
-	const reports = await database
-		.select()
-		.from(BotReport)
-		.where(eq(BotReport.targetUserId, targetUserId));
-	const signals = await database
-		.select()
-		.from(BotSignal)
-		.where(eq(BotSignal.targetUserId, targetUserId));
-	const prs = await database
-		.select()
-		.from(PullRequest)
-		.where(eq(PullRequest.authorUserId, targetUserId));
+	const [[reportAgg], [signalAgg], [prAgg], [existing]] = await Promise.all([
+		reportAggregatesQuery(targetUserId),
+		signalAggregatesQuery(targetUserId),
+		pullRequestAggregatesQuery(targetUserId),
+		database
+			.select()
+			.from(RiskProfile)
+			.where(eq(RiskProfile.targetUserId, targetUserId))
+			.limit(1),
+	]);
 
-	const existing = await database
-		.select()
-		.from(RiskProfile)
-		.where(eq(RiskProfile.targetUserId, targetUserId))
-		.limit(1);
-
-	const reasonCodes = new Set<ReasonCode>(
-		parseJsonArray<ReasonCode>(existing[0]?.reasonCodesJson)
-	);
-	for (const report of reports) {
-		reasonCodes.add(report.reasonCode);
-	}
-
-	const validatedReportIds = new Set(
-		reports
-			.filter((report) => report.status === "validated")
-			.map((report) => report.id)
-	);
-	const reportScore = reports.reduce(
-		(sum, report) => sum + scoreReport(report),
-		0
-	);
-	const signalScore = signals.reduce((sum, signal) => {
-		if (signal.signalType !== "maintainer_report") {
-			return sum + signal.weight;
-		}
-		return signal.reportId && validatedReportIds.has(signal.reportId)
-			? sum + signal.weight
-			: sum;
-	}, 0);
-	const activityScore = Math.min(20, prs.length * 2);
-	const importedScore = existing[0]?.importedSource ? 48 : 0;
-	const computedScore = boundedConfidence(
-		reportScore + signalScore + activityScore + importedScore
-	);
-	const isAllowed = user.isKnownGithubBot || existing[0]?.status === "allow";
-	const score = isAllowed ? 0 : computedScore;
-	const status = riskStatusForScore({ isAllowed, score });
-
-	const repositoryIds = new Set(
-		prs.map((pr) => pr.repositoryId).filter((value): value is string => !!value)
-	);
-	const commitCount = prs.reduce((sum, pr) => sum + pr.commitCount, 0);
-	const lastSeenAt = Math.max(
-		user.lastSeenAt,
-		...prs.map((pr) => pr.lastSeenAt),
-		...reports.map((report) => report.createdAt),
-		...signals.map((signal) => signal.observedAt)
-	);
-	const reporterCount = new Set(reports.map((report) => report.reporterLogin))
-		.size;
-	const summary = riskSummary({
-		existingSummary: existing[0]?.summary,
-		reporterCount,
-		status,
-	});
-
-	const values = {
-		confidence: score,
-		commitCount,
-		importedSource: existing[0]?.importedSource ?? null,
-		lastSeenAt,
-		lastSignalAt:
-			signals.at(-1)?.observedAt ?? existing[0]?.lastSignalAt ?? null,
-		prCount: Math.max(existing[0]?.prCount ?? 0, prs.length),
-		reasonCodesJson: json([...reasonCodes]),
-		reportCount: reports.length,
-		repositoryCount: repositoryIds.size || existing[0]?.repositoryCount || 0,
-		score,
-		status,
-		summary,
+	const values = buildProfileValues({
+		existing,
+		prAgg,
+		reportAgg,
+		signalAgg,
 		targetUserId,
-		updatedAt: unixNow(),
-		validatedReportCount: reports.filter(
-			(report) => report.status === "validated"
-		).length,
-	};
+		user,
+	});
 
 	const [profile] = await database
 		.insert(RiskProfile)
@@ -674,8 +739,13 @@ export interface MaintainerCorrectionInput {
 	targetUserId: string;
 }
 
+export type CorrectionKind = "allow" | "confirm" | "dismiss";
+
+const correctionSignalType = (kind: CorrectionKind) =>
+	`maintainer_correction_${kind}` as const;
+
 const correctionMetadata = (
-	kind: "allow" | "confirm" | "dismiss",
+	kind: CorrectionKind,
 	input: MaintainerCorrectionInput,
 	extra: Record<string, unknown> = {}
 ) => ({
@@ -691,7 +761,7 @@ const recordCorrectionSignal = async ({
 	weight,
 }: {
 	input: MaintainerCorrectionInput;
-	kind: "allow" | "confirm" | "dismiss";
+	kind: CorrectionKind;
 	metadata?: Record<string, unknown>;
 	weight: number;
 }) =>
@@ -699,12 +769,32 @@ const recordCorrectionSignal = async ({
 		metadata: correctionMetadata(kind, input, metadata),
 		pullRequestId: input.pullRequestId ?? null,
 		repositoryId: input.repositoryId ?? null,
-		signalType: "maintainer_correction",
+		signalType: correctionSignalType(kind),
 		source: "github_comment_command",
 		sourceUrl: input.sourceUrl,
 		targetUserId: input.targetUserId,
 		weight,
 	});
+
+export const correctionAlreadyApplied = async ({
+	kind,
+	sourceUrl,
+}: {
+	kind: CorrectionKind;
+	sourceUrl: string;
+}) => {
+	const [existing] = await database
+		.select({ id: BotSignal.id })
+		.from(BotSignal)
+		.where(
+			and(
+				eq(BotSignal.sourceUrl, sourceUrl),
+				eq(BotSignal.signalType, correctionSignalType(kind))
+			)
+		)
+		.limit(1);
+	return !!existing;
+};
 
 export const dismissReportsForUser = async (
 	input: MaintainerCorrectionInput
