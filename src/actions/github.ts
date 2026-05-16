@@ -209,8 +209,36 @@ const handleInstallationRepositories = async (
 	}
 };
 
+const PR_ANALYSIS_ACTIONS = new Set([
+	"opened",
+	"reopened",
+	"ready_for_review",
+	"synchronize",
+]);
+
+const PR_TRACKING_ACTIONS = new Set([
+	...PR_ANALYSIS_ACTIONS,
+	"edited",
+	"labeled",
+	"unlabeled",
+	"assigned",
+	"unassigned",
+]);
+
 const handlePullRequest = async (payload: GithubWebhookPayload) => {
 	if (!(payload.repository && payload.pull_request)) {
+		return;
+	}
+	// Skip everything except the actions we actually act on. closed/merged
+	// trigger this webhook too and would otherwise cost an OpenRouter call
+	// just to record state we already have. Tracking actions still update
+	// the PullRequest row but don't re-run the analysis pipeline.
+	if (
+		!(
+			PR_TRACKING_ACTIONS.has(payload.action ?? "") ||
+			PR_ANALYSIS_ACTIONS.has(payload.action ?? "")
+		)
+	) {
 		return;
 	}
 	await upsertInstallationFromPayload(payload.installation);
@@ -246,12 +274,7 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		repository,
 	});
 
-	if (
-		payload.action === "opened" ||
-		payload.action === "reopened" ||
-		payload.action === "ready_for_review" ||
-		payload.action === "synchronize"
-	) {
+	if (PR_ANALYSIS_ACTIONS.has(payload.action ?? "")) {
 		const files = await fetchPullRequestFiles({
 			installationId: payload.installation?.id,
 			pullNumber: payload.pull_request.number,
