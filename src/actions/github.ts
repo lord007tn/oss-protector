@@ -1,6 +1,7 @@
 import type { ReasonCode } from "@/constants/reason-codes";
 import {
 	allowlistUser,
+	correctionAlreadyApplied,
 	createRiskReport,
 	dismissReportsForUser,
 	getPullRequestByRepositoryNumber,
@@ -344,6 +345,17 @@ const handleMaintainerCorrection = async ({
 		sourceUrl,
 		targetUserId,
 	};
+
+	// Idempotency guard: if GitHub re-delivers this webhook, the correction signal
+	// will already exist for (sourceUrl, kind). Skip re-applying so we don't
+	// re-promote a different report on confirm or stack negative weight on dismiss.
+	const alreadyApplied = await correctionAlreadyApplied({
+		kind: correction.kind,
+		sourceUrl,
+	});
+	if (alreadyApplied) {
+		return;
+	}
 
 	if (correction.kind === "dismiss") {
 		await dismissReportsForUser(correctionInput);

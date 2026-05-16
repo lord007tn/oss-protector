@@ -127,10 +127,16 @@ interface StructuredPrContext {
 	url: string;
 }
 
+// Free OpenRouter models with response_format=json_schema support.
+// Source: https://openrouter.ai/api/v1/models filtered by id endsWith ":free"
+// AND supported_parameters includes "response_format" (or "structured_outputs").
+// Ordered fastest -> heaviest fallback. Each request stops at the first model
+// that returns a parseable JSON response.
 const OPENROUTER_FREE_MODEL_CHAIN = [
 	"qwen/qwen3-next-80b-a3b-instruct:free",
-	"openai/gpt-oss-120b:free",
-	"deepseek/deepseek-v4-flash:free",
+	"google/gemma-4-31b-it:free",
+	"nvidia/nemotron-3-super-120b-a12b:free",
+	"minimax/minimax-m2.5:free",
 ] as const;
 const OPENROUTER_REQUEST_TIMEOUT_MS = 4500;
 const MAX_PATCH_EXCERPT_LENGTH = 1800;

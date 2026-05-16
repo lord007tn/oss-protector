@@ -28,6 +28,13 @@ const CLANKER_LEADERBOARD_CREDIT = {
 	note: "Initial inspiration and first clanker data layer.",
 } as const;
 
+const PUBLIC_APP_URL = "https://oss-protector.raedbahri90.workers.dev";
+const DELISTING = {
+	contest_url: `${PUBLIC_APP_URL}/contest`,
+	maintainer_command: "@oss-protector dismiss",
+	note: "If you are listed and believe it is wrong, ask any maintainer of the repo where the report came from to run the maintainer command in any PR comment, or open a delisting issue at the contest URL.",
+} as const;
+
 type DashboardRecords = Awaited<
 	ReturnType<typeof fetchDirectoryDashboardRecords>
 >;
@@ -260,7 +267,8 @@ export const listPublicFeed = async () => {
 
 	return {
 		credits: CLANKER_LEADERBOARD_CREDIT,
-		directory_url: "https://oss-protector.raedbahri90.workers.dev",
+		delisting: DELISTING,
+		directory_url: PUBLIC_APP_URL,
 		generated_at: new Date().toISOString(),
 		protectors: dashboard.protectors.map(publicProtector),
 		risky_users: riskyUsers,
@@ -282,6 +290,7 @@ export const listClankersApi = async (filters: ClankerFilters) => {
 		})),
 		count: clankers.length,
 		credits: CLANKER_LEADERBOARD_CREDIT,
+		delisting: DELISTING,
 		filters,
 		generated_at: new Date().toISOString(),
 		schema_version: "2026-05-15",
@@ -299,6 +308,7 @@ export const listProtectorsApi = async (filters: ProtectorFilters) => {
 	return {
 		count: protectors.length,
 		credits: CLANKER_LEADERBOARD_CREDIT,
+		delisting: DELISTING,
 		filters,
 		generated_at: new Date().toISOString(),
 		protectors: protectors.map(publicProtector),

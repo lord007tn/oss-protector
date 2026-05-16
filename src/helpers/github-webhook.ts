@@ -225,18 +225,29 @@ export const isMaintainerAssociation = (association?: string) =>
 	association === "MEMBER" ||
 	association === "COLLABORATOR";
 
-const ownBotLogins = () =>
-	new Set([
-		`${runtimeEnv().GITHUB_APP_SLUG ?? "oss-protector"}[bot]`,
-		"clankers-list[bot]",
-		"oss-guard[bot]",
-		"ossguard[bot]",
-		"oss-protector[bot]",
-		"ossprotector[bot]",
-	]);
+const LEGACY_BOT_LOGINS = new Set([
+	"clankers-list[bot]",
+	"oss-guard[bot]",
+	"oss-protector[bot]",
+	"ossguard[bot]",
+	"ossprotector[bot]",
+]);
 
-export const isOwnBotUser = (user?: GithubUserPayload) =>
-	!!user?.login && ownBotLogins().has(user.login);
+const ownBotLogins = () => {
+	const slug = runtimeEnv().GITHUB_APP_SLUG;
+	const known = new Set(LEGACY_BOT_LOGINS);
+	if (slug) {
+		known.add(`${slug}[bot]`);
+	}
+	return known;
+};
+
+export const isOwnBotUser = (user?: GithubUserPayload) => {
+	if (!user?.login) {
+		return false;
+	}
+	return ownBotLogins().has(user.login);
+};
 
 export const parseRepositoryFullName = (repositoryFullName: string) => {
 	const [owner, repo] = repositoryFullName.split("/");

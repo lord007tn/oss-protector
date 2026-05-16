@@ -43,6 +43,9 @@ const sitemap = () =>
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/clankers</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/protectors</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/api-docs</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/contest</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/privacy</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/terms</loc></url>",
 		"</urlset>",
 	].join("\n");
 
@@ -56,16 +59,39 @@ async function withSecurityHeaders(
 	return response;
 }
 
-const clientKey = (request: Request) =>
-	request.headers.get("cf-connecting-ip") ??
-	request.headers.get("x-forwarded-for") ??
-	"anonymous";
+// Collapse an IPv6 address to its /64 subnet (first four hextets). Dual-stack
+// clients commonly egress from a /64 pool, so per-/128 buckets are trivially
+// bypassed. IPv4 addresses pass through unchanged. Unknown clients share a
+// single "anonymous" bucket.
+const bucketIp = (ip: string) => {
+	if (!ip.includes(":")) {
+		return ip;
+	}
+	const expanded = ip.split("%")[0].toLowerCase();
+	const hextets = expanded.split(":");
+	const known = hextets.filter((h) => h !== "").slice(0, 4);
+	return `${known.join(":")}::/64`;
+};
+
+const clientKey = (request: Request) => {
+	const ip =
+		request.headers.get("cf-connecting-ip") ??
+		request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+		"";
+	return ip ? bucketIp(ip) : "anonymous";
+};
 
 const tooManyRequests = () =>
 	withSecurityHeaders(
 		Response.json(
 			{ error: "Too many requests. Try again in a minute." },
-			{ headers: { "Retry-After": "60" }, status: 429 }
+			{
+				headers: {
+					"Retry-After": "60",
+					"X-RateLimit-Hit": "1",
+				},
+				status: 429,
+			}
 		)
 	);
 
@@ -75,13 +101,21 @@ async function enforcePublicRateLimit(
 ) {
 	const binding = env?.PUBLIC_RL;
 	if (!binding) {
+		console.log(
+			"rate-limit: PUBLIC_RL binding missing; env keys =",
+			env ? Object.keys(env).join(",") : "env undefined"
+		);
 		return null;
 	}
+	const key = clientKey(request);
 	try {
-		const result = await binding.limit({ key: clientKey(request) });
-		return result.success ? null : tooManyRequests();
+		const result = await binding.limit({ key });
+		if (!result.success) {
+			return tooManyRequests();
+		}
+		return null;
 	} catch (caught) {
-		console.warn("Rate limit check failed; allowing request.", caught);
+		console.warn("rate-limit: check failed; allowing request", caught);
 		return null;
 	}
 }
@@ -232,9 +266,14 @@ const routeFetch = (
 export default {
 	fetch(
 		request: Request,
-		env: RuntimeBindings | undefined,
+		envArg: RuntimeBindings | undefined,
 		context?: ExecutionContext
 	) {
+		// Nitro's cloudflare_module wrapper invokes our handler through
+		// `nitroApp.fetch(request)`, which drops the env/context args. Nitro
+		// stashes env on globalThis.__env__ before that — so fall back to it.
+		const env =
+			envArg ?? (globalThis as GlobalWithRuntime).__env__ ?? undefined;
 		if (env) {
 			(globalThis as GlobalWithRuntime).__env__ = env;
 		}

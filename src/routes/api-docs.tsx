@@ -141,8 +141,12 @@ function ApiDocsRoute() {
 						<code className="font-mono text-[11px]">/api/clankers</code>,{" "}
 						<code className="font-mono text-[11px]">/api/protectors</code>,{" "}
 						<code className="font-mono text-[11px]">/api/risky-users.json</code>
-						) are throttled at <strong>60 requests per minute per IP</strong>.
-						Webhooks are not throttled.
+						) are throttled at{" "}
+						<strong>60 requests per minute per client IP</strong> (IPv6 clients
+						bucketed by <code className="font-mono text-[11px]">/64</code>{" "}
+						prefix). Webhooks are not throttled. Over-limit responses return{" "}
+						<code className="font-mono text-[11px]">HTTP 429</code> with{" "}
+						<code className="font-mono text-[11px]">Retry-After: 60</code>.
 					</AlertDescription>
 				</Alert>
 

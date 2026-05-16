@@ -9,20 +9,38 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ProtectorsRouteImport } from './routes/protectors'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as InstallRouteImport } from './routes/install'
+import { Route as ContestRouteImport } from './routes/contest'
 import { Route as ClankersRouteImport } from './routes/clankers'
 import { Route as ApiDocsRouteImport } from './routes/api-docs'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProtectorsRoute = ProtectorsRouteImport.update({
   id: '/protectors',
   path: '/protectors',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
   path: '/install',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContestRoute = ContestRouteImport.update({
+  id: '/contest',
+  path: '/contest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClankersRoute = ClankersRouteImport.update({
@@ -45,42 +63,86 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api-docs': typeof ApiDocsRoute
   '/clankers': typeof ClankersRoute
+  '/contest': typeof ContestRoute
   '/install': typeof InstallRoute
+  '/privacy': typeof PrivacyRoute
   '/protectors': typeof ProtectorsRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api-docs': typeof ApiDocsRoute
   '/clankers': typeof ClankersRoute
+  '/contest': typeof ContestRoute
   '/install': typeof InstallRoute
+  '/privacy': typeof PrivacyRoute
   '/protectors': typeof ProtectorsRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api-docs': typeof ApiDocsRoute
   '/clankers': typeof ClankersRoute
+  '/contest': typeof ContestRoute
   '/install': typeof InstallRoute
+  '/privacy': typeof PrivacyRoute
   '/protectors': typeof ProtectorsRoute
+  '/terms': typeof TermsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api-docs' | '/clankers' | '/install' | '/protectors'
+  fullPaths:
+    | '/'
+    | '/api-docs'
+    | '/clankers'
+    | '/contest'
+    | '/install'
+    | '/privacy'
+    | '/protectors'
+    | '/terms'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api-docs' | '/clankers' | '/install' | '/protectors'
-  id: '__root__' | '/' | '/api-docs' | '/clankers' | '/install' | '/protectors'
+  to:
+    | '/'
+    | '/api-docs'
+    | '/clankers'
+    | '/contest'
+    | '/install'
+    | '/privacy'
+    | '/protectors'
+    | '/terms'
+  id:
+    | '__root__'
+    | '/'
+    | '/api-docs'
+    | '/clankers'
+    | '/contest'
+    | '/install'
+    | '/privacy'
+    | '/protectors'
+    | '/terms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiDocsRoute: typeof ApiDocsRoute
   ClankersRoute: typeof ClankersRoute
+  ContestRoute: typeof ContestRoute
   InstallRoute: typeof InstallRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProtectorsRoute: typeof ProtectorsRoute
+  TermsRoute: typeof TermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/protectors': {
       id: '/protectors'
       path: '/protectors'
@@ -88,11 +150,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectorsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/install': {
       id: '/install'
       path: '/install'
       fullPath: '/install'
       preLoaderRoute: typeof InstallRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contest': {
+      id: '/contest'
+      path: '/contest'
+      fullPath: '/contest'
+      preLoaderRoute: typeof ContestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clankers': {
@@ -123,8 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiDocsRoute: ApiDocsRoute,
   ClankersRoute: ClankersRoute,
+  ContestRoute: ContestRoute,
   InstallRoute: InstallRoute,
+  PrivacyRoute: PrivacyRoute,
   ProtectorsRoute: ProtectorsRoute,
+  TermsRoute: TermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
