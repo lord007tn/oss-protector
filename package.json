@@ -77,6 +77,8 @@
     "build:prod": "cross-env VITE_APP_URL=https://oss-protector.raedbahri90.workers.dev vite build",
     "preview": "vite preview",
     "deploy": "pnpm run build:prod && wrangler deploy",
+    "smoke": "tsx ./scripts/post-deploy-smoke.ts",
+    "deploy:verify": "pnpm run deploy && pnpm run smoke",
     "cf-typegen": "wrangler types",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",

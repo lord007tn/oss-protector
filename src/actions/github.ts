@@ -743,6 +743,20 @@ export const handleGithubWebhook = async ({
 	}
 
 	const payload = JSON.parse(body) as GithubWebhookPayload;
+	const eventStart = Date.now();
+	// Record the event up-front with status=pending. If Cloudflare cancels the
+	// waitUntil() task before the heavy processing finishes, we still have an
+	// audit row instead of a silently-dropped webhook.
+	await recordAppEvent({
+		action: payload.action,
+		actorLogin: payload.sender?.login,
+		deliveryId,
+		eventName,
+		installationGithubId: payload.installation?.id,
+		rawPayload: payload,
+		repositoryFullName: payload.repository?.full_name,
+		status: "pending",
+	});
 	try {
 		if (
 			eventName === "installation" ||
@@ -760,6 +774,11 @@ export const handleGithubWebhook = async ({
 			await handlePullRequestReviewComment(payload);
 		}
 
+		console.log(
+			`webhook: event=${eventName} action=${payload.action ?? "_"} elapsed_ms=${
+				Date.now() - eventStart
+			} status=processed`
+		);
 		await recordAppEvent({
 			action: payload.action,
 			actorLogin: payload.sender?.login,
@@ -772,6 +791,12 @@ export const handleGithubWebhook = async ({
 		});
 		return Response.json({ ok: true });
 	} catch (caught) {
+		console.warn(
+			`webhook: event=${eventName} action=${payload.action ?? "_"} elapsed_ms=${
+				Date.now() - eventStart
+			} status=failed`,
+			caught
+		);
 		await recordAppEvent({
 			action: payload.action,
 			actorLogin: payload.sender?.login,
