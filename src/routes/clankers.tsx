@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ShieldQuestion } from "lucide-react";
 
 import { publicAppUrl } from "@/components/landing/constants";
 import { RiskProfilesCard } from "@/components/landing/directory-lists";
@@ -11,6 +12,7 @@ import {
 import { SectionHeading } from "@/components/landing/shared";
 import { SiteHeader } from "@/components/landing/site-header";
 import { JsonLd } from "@/components/seo/json-ld";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { REASON_CODES } from "@/constants/reason-codes";
 import { RISK_STATUSES } from "@/constants/risk-statuses";
 import { getDashboardFn } from "@/functions/dashboard";
@@ -146,6 +148,18 @@ function ClankersRoute() {
 					headingLevel={1}
 					title="All clankers."
 				/>
+				<Alert>
+					<ShieldQuestion />
+					<AlertTitle>Listed and believe it's wrong?</AlertTitle>
+					<AlertDescription>
+						OSS Protector is a review aid, not a verdict. If you're on this page
+						and the listing is incorrect,{" "}
+						<a className="underline underline-offset-2" href="/contest">
+							see how to contest a listing
+						</a>
+						— most cases are resolved by a single maintainer comment.
+					</AlertDescription>
+				</Alert>
 				<ClankerFilters search={filters} />
 				<RiskProfilesCard
 					description={`Showing ${paginatedProfiles.start.toLocaleString()}-${paginatedProfiles.end.toLocaleString()} of ${paginatedProfiles.total.toLocaleString()} clankers matching the current filters.`}

@@ -9,6 +9,7 @@ import {
 	recalculateRiskProfile,
 	recordAppEvent,
 	recordSignal,
+	resetRiskProfile,
 	upsertGithubUser,
 	upsertInstallation,
 	upsertPullRequest,
@@ -321,6 +322,7 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 
 const acknowledgeCorrection = async (input: {
 	correctedByLogin: string;
+	crossTargetMention?: null | string;
 	installationId?: null | number;
 	issueNumber?: null | number;
 	kind: CorrectionCommand["kind"];
@@ -384,12 +386,15 @@ const handleMaintainerCorrection = async ({
 		await dismissReportsForUser(correctionInput);
 	} else if (correction.kind === "confirm") {
 		await validateLatestReportForUser(correctionInput);
+	} else if (correction.kind === "reset") {
+		await resetRiskProfile(correctionInput);
 	} else {
 		await allowlistUser(correctionInput);
 	}
 
 	await acknowledgeCorrection({
 		correctedByLogin: reporterLogin,
+		crossTargetMention: correction.crossTargetMention,
 		installationId,
 		issueNumber,
 		kind: correction.kind,

@@ -33,9 +33,12 @@ export interface ReportAcknowledgementInput {
 
 export interface CorrectionAcknowledgementInput {
 	correctedByLogin: string;
+	// If the maintainer's command body @-mentioned a different user, surface
+	// that in the ack so they know cross-targeting isn't supported.
+	crossTargetMention?: null | string;
 	installationId?: null | number;
 	issueNumber?: null | number;
-	kind: "allow" | "confirm" | "dismiss";
+	kind: "allow" | "confirm" | "dismiss" | "reset";
 	note?: null | string;
 	repositoryFullName?: null | string;
 	sourceCommentId?: null | number | string;
@@ -414,7 +417,7 @@ const CORRECTION_LABELS: Record<
 	allow: {
 		effect: "Allowlisted",
 		explanation:
-			"Future reports for this account will not affect the shared score until the allowlist is removed.",
+			"Future reports for this account will not affect the shared score until the allowlist is reset. To undo, run `@oss-protector reset`.",
 		verb: "allowed",
 	},
 	confirm: {
@@ -429,6 +432,12 @@ const CORRECTION_LABELS: Record<
 			"All open and validated reports on this account were dismissed and a negative correction signal was recorded.",
 		verb: "dismissed",
 	},
+	reset: {
+		effect: "Reset",
+		explanation:
+			"Any prior allowlist on this account was cleared. The score will be recomputed from the current reports and signals on the next webhook.",
+		verb: "reset",
+	},
 };
 
 const correctionAcknowledgementBody = (
@@ -439,6 +448,10 @@ const correctionAcknowledgementBody = (
 	const note = input.note
 		? `\n\nMaintainer note: ${tableValue(input.note)}`
 		: "";
+	const crossTargetNotice =
+		input.crossTargetMention && input.crossTargetMention !== input.targetLogin
+			? `\n\n> **Note:** your command mentioned \`@${input.crossTargetMention}\` but cross-target syntax is not supported. This correction applied to the PR author \`@${input.targetLogin}\` only. If you meant to act on \`@${input.crossTargetMention}\`, open or comment on a PR they authored.`
+			: "";
 	return `${marker}
 OSS Protector correction applied by maintainer @${input.correctedByLogin}.
 
@@ -448,9 +461,9 @@ OSS Protector correction applied by maintainer @${input.correctedByLogin}.
 | Target | @${input.targetLogin} |
 | Effect | ${label.effect} |
 
-${label.explanation}${note}
+${label.explanation}${crossTargetNotice}${note}
 
-If this was sent in error, the maintainer can run \`@oss-protector confirm\` to re-validate a recent report or \`@oss-protector dismiss\` again to add another negative signal.`;
+If this was sent in error, the maintainer can run \`@oss-protector confirm\` to re-validate a recent report, \`@oss-protector dismiss\` to add another negative signal, or \`@oss-protector reset\` to clear an allowlist.`;
 };
 
 export const createCorrectionAcknowledgementComment = async (
