@@ -96,6 +96,13 @@ const CORRECTION_CONFIRM_PATTERN =
 	/\b(confirm|validate|verified|approve report|yes abuse)\b/i;
 const CORRECTION_ALLOW_PATTERN =
 	/\b(allow|allowlist|whitelist|trust this user|safe forever)\b/i;
+const CORRECTION_RESET_PATTERN =
+	/\b(reset|unallow|undo allow|remove allowlist|reconsider|re-evaluate|reevaluate)\b/i;
+// Matches a stray `@someoneelse` mention in a correction body (other than the
+// bot itself). Used to honestly acknowledge that cross-target syntax isn't
+// implemented — we always operate on the PR author.
+const CROSS_TARGET_PATTERN =
+	/@(?!(?:oss-protector|clankers-list|oss-guard|ossguard|ossprotector)(?:\[bot\])?\b)([a-z0-9](?:-?[a-z0-9]){0,38})\b/i;
 
 const toHex = (buffer: ArrayBuffer) =>
 	[...new Uint8Array(buffer)]
@@ -165,12 +172,21 @@ export const parseCommand = (body: string) => {
 	return command || body.trim();
 };
 
-export type CorrectionKind = "allow" | "confirm" | "dismiss";
+export type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
 
 export interface CorrectionCommand {
 	command: string;
+	// If the command body mentions `@otheruser`, we capture it for an
+	// honest ack. Cross-targeting isn't implemented — we still act on the
+	// PR author — but silently mis-targeting is worse than telling the user.
+	crossTargetMention: string | null;
 	kind: CorrectionKind;
 }
+
+const detectCrossTargetMention = (command: string): string | null => {
+	const match = command.match(CROSS_TARGET_PATTERN);
+	return match?.[1] ?? null;
+};
 
 export const parseCorrectionCommand = (
 	body: string
@@ -179,14 +195,19 @@ export const parseCorrectionCommand = (
 	if (!command) {
 		return null;
 	}
+	const crossTargetMention = detectCrossTargetMention(command);
+	// Reset checked first so a stray "reset" keyword wins over "allow".
+	if (CORRECTION_RESET_PATTERN.test(command)) {
+		return { command, crossTargetMention, kind: "reset" };
+	}
 	if (CORRECTION_DISMISS_PATTERN.test(command)) {
-		return { command, kind: "dismiss" };
+		return { command, crossTargetMention, kind: "dismiss" };
 	}
 	if (CORRECTION_CONFIRM_PATTERN.test(command)) {
-		return { command, kind: "confirm" };
+		return { command, crossTargetMention, kind: "confirm" };
 	}
 	if (CORRECTION_ALLOW_PATTERN.test(command)) {
-		return { command, kind: "allow" };
+		return { command, crossTargetMention, kind: "allow" };
 	}
 	return null;
 };

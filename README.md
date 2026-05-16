@@ -163,11 +163,15 @@ the system from any PR comment:
 ```text
 @oss-protector dismiss     # mark all open reports on this PR's author as dismissed and add a negative correction signal
 @oss-protector confirm     # validate the most recent open report and add a positive correction signal
-@oss-protector allow       # permanently allowlist the PR author (status = allow, score = 0)
+@oss-protector allow       # allowlist the PR author (status = allow, score = 0)
+@oss-protector reset       # clear a prior allowlist; score is recomputed from current signals on the next webhook
 ```
 
 The bot posts a confirmation comment for each correction. Non-maintainer
-comments using those verbs are ignored.
+comments using those verbs are ignored. Cross-target syntax
+(`@oss-protector allow @other-user`) is not supported — corrections always
+act on the PR author. The bot will flag the cross-target mention in its ack
+comment.
 
 ## Rate limits
 
