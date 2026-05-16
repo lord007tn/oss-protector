@@ -288,6 +288,11 @@ export const upsertPullRequest = async ({
 		})
 		.returning();
 
+	// pull_request_seen is recorded for audit/timeline only. Weight stays at 0
+	// because activityScore in recalculateRiskProfile already caps PR-count
+	// contribution at 20 — adding +2/PR here double-counts and lets a
+	// high-volume author get pushed past the watch threshold purely by
+	// opening lots of benign PRs.
 	await recordSignal({
 		metadata: {
 			changedFiles: pullRequest.changedFiles ?? 0,
@@ -300,7 +305,7 @@ export const upsertPullRequest = async ({
 		source: "github_webhook",
 		sourceUrl: pullRequest.htmlUrl,
 		targetUserId: author.id,
-		weight: 2,
+		weight: 0,
 	});
 	await recalculateRiskProfile(author.id);
 
@@ -540,14 +545,33 @@ export const recordAppEvent = async (input: {
 	return created;
 };
 
-// SQL aggregate of report-derived score and counts. Mirrors the JS logic in
-// reportBaseScore + reportAiBoost + the trailing +12 on validated reports.
+// SQL aggregate of report-derived counts (no longer includes reportScore;
+// that's computed via the per-reporter capped query below to defend against
+// report-bombing).
 const reportAggregatesQuery = (targetUserId: string) =>
 	database
 		.select({
 			reasonCodesCsv: sql<string>`COALESCE(GROUP_CONCAT(DISTINCT ${BotReport.reasonCode}), '')`,
 			reportCount: count(),
-			reportScore: sql<number>`COALESCE(SUM(CASE
+			reporterCount: countDistinct(BotReport.reporterLogin),
+			validatedReportCount: sql<number>`COALESCE(SUM(CASE WHEN ${BotReport.status} = 'validated' THEN 1 ELSE 0 END), 0)`,
+			maxReportAt: max(BotReport.createdAt),
+		})
+		.from(BotReport)
+		.where(eq(BotReport.targetUserId, targetUserId));
+
+// Per-reporter MAX validated contribution for this target. Caps report-
+// bombing: a single reporter filing N validated reports on the same target
+// counts the same as 1. Each row is one reporter's best single contribution.
+// `validatedScore` mirrors the original per-report formula:
+//   base + ai-boost + 12,  where
+//   base = 28 if reporterIsMaintainer else 6
+//   ai-boost = 14 if likely_abuse, 4 if unclear, else 0
+const perReporterContributionQuery = (targetUserId: string) =>
+	database
+		.select({
+			reporterLogin: BotReport.reporterLogin,
+			validatedScore: sql<number>`COALESCE(MAX(CASE
 				WHEN ${BotReport.status} = 'validated' THEN
 					(CASE WHEN ${BotReport.reporterIsMaintainer} = 1 THEN 28 ELSE 6 END)
 					+ (CASE
@@ -558,12 +582,38 @@ const reportAggregatesQuery = (targetUserId: string) =>
 					+ 12
 				ELSE 0
 			END), 0)`,
-			reporterCount: countDistinct(BotReport.reporterLogin),
-			validatedReportCount: sql<number>`COALESCE(SUM(CASE WHEN ${BotReport.status} = 'validated' THEN 1 ELSE 0 END), 0)`,
-			maxReportAt: max(BotReport.createdAt),
 		})
 		.from(BotReport)
-		.where(eq(BotReport.targetUserId, targetUserId));
+		.where(eq(BotReport.targetUserId, targetUserId))
+		.groupBy(BotReport.reporterLogin);
+
+// Global per-reporter accuracy used to weight new contributions. A reporter
+// with all validated reports gets weight ~1; a reporter with all dismissed
+// reports approaches 0. The +3 prior in the denominator stops new reporters
+// (low total) from being scored unfairly low or unfairly high — they trend
+// toward the baseline until they accumulate a track record.
+const reporterTrustQuery = (logins: string[]) =>
+	database
+		.select({
+			reporterLogin: BotReport.reporterLogin,
+			total: count(),
+			validated: sql<number>`COALESCE(SUM(CASE WHEN ${BotReport.status} = 'validated' THEN 1 ELSE 0 END), 0)`,
+		})
+		.from(BotReport)
+		.where(inArray(BotReport.reporterLogin, logins))
+		.groupBy(BotReport.reporterLogin);
+
+const TRUST_PRIOR = 3;
+const TRUST_NEUTRAL = 0.5;
+const TRUST_FLOOR = 0.2;
+
+const reporterTrust = (validated: number, total: number) => {
+	if (total <= 0) {
+		return TRUST_NEUTRAL;
+	}
+	const raw = validated / Math.max(total, TRUST_PRIOR);
+	return Math.max(TRUST_FLOOR, raw);
+};
 
 // SQL aggregate of signal score. maintainer_report signals only contribute
 // when their linked BotReport is validated, matching the original JS reducer.
@@ -627,6 +677,7 @@ const buildProfileValues = ({
 	existing,
 	prAgg,
 	reportAgg,
+	reportScore,
 	signalAgg,
 	targetUserId,
 	user,
@@ -634,11 +685,11 @@ const buildProfileValues = ({
 	existing: ExistingProfile;
 	prAgg: PrAgg | undefined;
 	reportAgg: ReportAgg | undefined;
+	reportScore: number;
 	signalAgg: SignalAgg | undefined;
 	targetUserId: string;
 	user: GithubUserSelect;
 }) => {
-	const reportScore = Number(reportAgg?.reportScore ?? 0);
 	const signalScore = Number(signalAgg?.signalScore ?? 0);
 	const reportCount = Number(reportAgg?.reportCount ?? 0);
 	const validatedReportCount = Number(reportAgg?.validatedReportCount ?? 0);
@@ -699,21 +750,45 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		return null;
 	}
 
-	const [[reportAgg], [signalAgg], [prAgg], [existing]] = await Promise.all([
-		reportAggregatesQuery(targetUserId),
-		signalAggregatesQuery(targetUserId),
-		pullRequestAggregatesQuery(targetUserId),
-		database
-			.select()
-			.from(RiskProfile)
-			.where(eq(RiskProfile.targetUserId, targetUserId))
-			.limit(1),
-	]);
+	const [[reportAgg], [signalAgg], [prAgg], [existing], perReporter] =
+		await Promise.all([
+			reportAggregatesQuery(targetUserId),
+			signalAggregatesQuery(targetUserId),
+			pullRequestAggregatesQuery(targetUserId),
+			database
+				.select()
+				.from(RiskProfile)
+				.where(eq(RiskProfile.targetUserId, targetUserId))
+				.limit(1),
+			perReporterContributionQuery(targetUserId),
+		]);
+
+	// Compute reportScore: per-reporter MAX validated contribution × trust.
+	// Caps report-bombing (one reporter spamming N reports stays capped at
+	// one report's worth of score) and downweights low-accuracy reporters.
+	const reporterLogins = perReporter.map((r) => r.reporterLogin);
+	const trusts = reporterLogins.length
+		? await reporterTrustQuery(reporterLogins)
+		: [];
+	const trustByLogin = new Map(
+		trusts.map((t) => [
+			t.reporterLogin,
+			reporterTrust(Number(t.validated), Number(t.total)),
+		])
+	);
+	const reportScore = perReporter.reduce(
+		(acc, r) =>
+			acc +
+			Number(r.validatedScore) *
+				(trustByLogin.get(r.reporterLogin) ?? TRUST_NEUTRAL),
+		0
+	);
 
 	const values = buildProfileValues({
 		existing,
 		prAgg,
 		reportAgg,
+		reportScore,
 		signalAgg,
 		targetUserId,
 		user,
@@ -739,7 +814,7 @@ export interface MaintainerCorrectionInput {
 	targetUserId: string;
 }
 
-export type CorrectionKind = "allow" | "confirm" | "dismiss";
+export type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
 
 const correctionSignalType = (kind: CorrectionKind) =>
 	`maintainer_correction_${kind}` as const;
@@ -879,6 +954,29 @@ export const allowlistUser = async (input: MaintainerCorrectionInput) => {
 		});
 
 	await recordCorrectionSignal({ input, kind: "allow", weight: 0 });
+	const profile = await recalculateRiskProfile(input.targetUserId);
+	return { profile };
+};
+
+// Undo a prior allow. We can't unallow a known GitHub bot (isKnownGithubBot
+// is sticky and still drives isAllowed=true in recalculateRiskProfile), but
+// for human accounts the status flips to "watch" and the recalculate pass
+// will then compute the real score from current signals + reports.
+export const resetRiskProfile = async (input: MaintainerCorrectionInput) => {
+	const now = unixNow();
+	const summary = `Reset by maintainer @${input.correctedByLogin}.`;
+	await database
+		.update(RiskProfile)
+		.set({
+			confidence: 0,
+			score: 0,
+			status: "watch",
+			summary,
+			updatedAt: now,
+		})
+		.where(eq(RiskProfile.targetUserId, input.targetUserId));
+
+	await recordCorrectionSignal({ input, kind: "reset", weight: 0 });
 	const profile = await recalculateRiskProfile(input.targetUserId);
 	return { profile };
 };

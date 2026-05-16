@@ -193,7 +193,8 @@ function ApiDocsRoute() {
 									{[
 										"@oss-protector dismiss     # false positive: dismiss all open reports",
 										"@oss-protector confirm     # validate the latest open report",
-										"@oss-protector allow       # permanently allowlist the PR author",
+										"@oss-protector allow       # allowlist the PR author (sticky)",
+										"@oss-protector reset       # clear a prior allowlist; recompute from current signals",
 									].join("\n")}
 								</code>
 							</pre>
