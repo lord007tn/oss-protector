@@ -1,8 +1,16 @@
-import { Github } from "lucide-react";
+import { Github, Scale } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-import { apiDocsPath, appName, githubAppInstallUrl } from "./constants";
+import {
+	apiDocsPath,
+	appName,
+	githubAppInstallUrl,
+	githubRepoLicenseUrl,
+	githubRepoSlug,
+	githubRepoUrl,
+} from "./constants";
 
 const FOOTER_LINKS = [
 	{ href: "/clankers", label: "Clankers" },
@@ -31,6 +39,13 @@ export function Footer() {
 						<span className="font-medium text-sm tracking-tight">
 							{appName}
 						</span>
+						<Badge
+							className="ml-1 gap-1 rounded-full font-medium text-[10px] uppercase tracking-[0.14em]"
+							variant="outline"
+						>
+							<Github className="size-3" />
+							Open source
+						</Badge>
 					</div>
 					<nav
 						aria-label="Footer"
@@ -59,15 +74,29 @@ export function Footer() {
 						or{" "}
 						<code className="font-mono text-[11px]">@oss-protector allow</code>.
 					</p>
-					<a
-						className="inline-flex items-center gap-1.5 hover:text-foreground"
-						href="https://github.com/lord007tn/oss-protector"
-						rel="noopener noreferrer"
-						target="_blank"
-					>
-						<Github className="size-3.5" />
-						lord007tn/oss-protector
-					</a>
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+						<a
+							className="inline-flex items-center gap-1.5 hover:text-foreground"
+							href={githubRepoUrl}
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							<Github className="size-3.5" />
+							{githubRepoSlug}
+						</a>
+						<span aria-hidden className="text-muted-foreground/60">
+							·
+						</span>
+						<a
+							className="inline-flex items-center gap-1.5 hover:text-foreground"
+							href={githubRepoLicenseUrl}
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							<Scale className="size-3.5" />
+							MIT licensed
+						</a>
+					</div>
 				</div>
 			</div>
 		</footer>
