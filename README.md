@@ -1,150 +1,140 @@
+<div align="center">
+
+<img src="public/oss-protector-mark.svg" alt="OSS Protector" width="96" height="96" />
+
 # OSS Protector
 
-Shared OSS abuse intelligence for suspicious GitHub pull request activity.
+**Shared abuse intelligence for suspicious GitHub pull request activity.**
 
-The app is a TanStack Start + Cloudflare Workers product with:
+A single GitHub App + public directory that helps maintainers spot bounty-farming, AI-spam, low-effort duplicate PRs, and outright malicious contributions before they waste anyone's time.
 
-- Shared GitHub App installation and webhook ingestion.
-- Automatic PR analysis comments that inspect pull request metadata, changed files, and patch snippets.
-- PR, issue comment, and PR review comment signals.
-- OpenRouter validation for maintainer reports and PR risk analysis, with deterministic fallback scoring when no API key is configured.
-- Drizzle ORM beta schema on Cloudflare D1.
-- Public JSON feed at `/api/risky-users.json` with a `/api/feed.json` compatibility alias.
-- Public directory for risky accounts, report reasons, and maintainers who submit reports.
+[![CI](https://github.com/lord007tn/oss-protector/actions/workflows/ci.yml/badge.svg)](https://github.com/lord007tn/oss-protector/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+[Hosted instance](https://oss-protector.raedbahri90.workers.dev) · [Install the App](https://github.com/apps/oss-protector/installations/new) · [Public feed](https://oss-protector.raedbahri90.workers.dev/api/risky-users.json) · [Contributing](CONTRIBUTING.md)
+
+</div>
+
+---
+
+## What it does
+
+When you install the OSS Protector GitHub App on a repository, it:
+
+1. **Watches PRs.** Every `pull_request`, `issue_comment`, and `pull_request_review_comment` event is sent to a shared webhook.
+2. **Analyzes the PR.** Changed files, patch snippets, and metadata are inspected for known abuse patterns — fake bounty farming, duplicate low-effort PRs, AI-filler, credential phishing, malicious code, dependency-script abuse, obfuscation, and backdoor indicators.
+3. **Scores the contributor.** A scoring engine combines signals from this PR, prior reports across all installed repos, reporter trust, and age decay. AI validation (via OpenRouter) sanity-checks the result; deterministic fallback runs when no API key is configured.
+4. **Comments.** Strong evidence gets posted as a PR assessment. Weaker signals stay in a review queue. Maintainers can confirm, dismiss, allow, or reset with `@oss-protector` commands.
+5. **Publishes.** Confirmed risky accounts show up on the public directory and the [JSON feed](https://oss-protector.raedbahri90.workers.dev/api/risky-users.json) so other maintainers benefit too.
+
+It's one GitHub App, one database, one feed — maintainers don't each have to run their own.
 
 ## Stack
 
-- TanStack Start
-- React Query
-- shadcn/ui with Base UI primitives
-- Drizzle ORM `1.0.0-beta.24`
-- Cloudflare Workers + D1
-- OpenRouter chat completions
+- **Frontend** — TanStack Start (file-based routing, SSR), React 19, shadcn/ui on Base UI primitives, Tailwind 4.
+- **API + Worker** — TanStack Start server functions on Cloudflare Workers.
+- **Data** — Drizzle ORM `1.0.0-beta.24` on Cloudflare D1.
+- **Auth** — Better Auth (GitHub user sign-in) + `@octokit/auth-app` (App installation tokens).
+- **AI** — OpenRouter chat completions, free-tier model chain with a paid fallback.
+- **Lint/format** — Ultracite (oxlint + oxfmt), Biome, Knip.
+- **Tests** — Vitest.
 
-## Local Setup
+## Quick start
 
 ```bash
+git clone https://github.com/lord007tn/oss-protector.git
+cd oss-protector
 pnpm install
+cp .env.example .env
 pnpm dev
 ```
 
-`pnpm dev` runs the Vite app. Use the Cloudflare worker preview when you need
-real D1 bindings locally:
+Open <http://localhost:3000>. Most UI and scoring work can be done without D1 or a GitHub App — `pnpm dev` runs the Vite app with in-memory state.
+
+For full Worker + D1 testing locally:
 
 ```bash
 pnpm build
 pnpm exec wrangler dev --local --port 8787
+pnpm run db:migrate:local
+pnpm run db:seed
 ```
 
-Copy `.env.example` to `.env` and fill values as they become available:
+> Requires Node 20+, [pnpm 10](https://pnpm.io/installation), and a Cloudflare account for the Worker preview.
 
-```bash
-VITE_APP_URL=http://localhost:3000
-VITE_ENABLE_GITHUB_AUTH=false
-CLOUDFLARE_D1_DATABASE_NAME=clankers-list-db
-OPENROUTER_API_KEY=
-```
+## Configuration
 
-## Public Feed
+Copy `.env.example` to `.env` and fill what you need. None of the GitHub or OpenRouter values are required to run `pnpm dev`.
 
-Projects can consume the directory with:
+| Variable | Required for | Description |
+| --- | --- | --- |
+| `VITE_APP_URL` | always | Public origin. Defaults to `http://localhost:3000`. |
+| `VITE_ENABLE_GITHUB_AUTH` | UI sign-in | Set to `true` to enable the GitHub login button. |
+| `CLOUDFLARE_D1_DATABASE_NAME` | D1 | Defaults to `clankers-list-db`. |
+| `BETTER_AUTH_SECRET` | sign-in | Required to enable Better Auth sessions. |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | sign-in | GitHub OAuth credentials for Better Auth. |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | webhooks | The GitHub App's identity, used for installation tokens. |
+| `GITHUB_APP_SLUG` | UI | Used to build the `installations/new` URL. |
+| `GITHUB_WEBHOOK_SECRET` | webhooks | Verifies inbound webhook signatures. |
+| `ALLOW_UNSIGNED_GITHUB_WEBHOOKS` | dev only | Bypasses signature check for local testing. |
+| `OPENROUTER_API_KEY` | AI scoring | If unset, the deterministic fallback runs. |
+
+## Public feed
+
+Other projects can consume the directory:
 
 ```bash
 curl https://oss-protector.raedbahri90.workers.dev/api/risky-users.json
 ```
 
-The response includes `risky_users` for accounts to review or ban and
-`protectors` for maintainers who submitted reports. `/api/feed.json` returns the
-same payload for older clients.
+The payload contains `risky_users` (accounts to review or ban) and `protectors` (maintainers who submitted reports). `/api/feed.json` returns the same payload for older clients.
+
+Public read endpoints are rate-limited per client IP via the Cloudflare Rate Limiting binding configured in `wrangler.json`.
 
 ## Database
 
-Generate migrations after schema edits:
-
 ```bash
-pnpm run db:generate
+pnpm run db:generate          # generate migrations after schema edits
+pnpm run db:migrate:local     # apply locally
+pnpm run db:seed              # seed locally
+pnpm run db:migrate           # apply remotely
+pnpm run db:seed:remote       # seed remotely
 ```
 
-Apply locally:
-
-```bash
-pnpm run db:migrate:local
-pnpm run db:seed
-```
-
-Apply remotely:
-
-```bash
-pnpm run db:migrate
-pnpm run db:seed:remote
-```
-
-The seed imports `https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json`.
-The first layer of the idea and initial clanker data is credited to the
-[Clankers Leaderboard](https://clankers-leaderboard.pages.dev/) published by
-[@heyandras](https://x.com/heyandras).
+The seed imports [`Bounty-Hunters/clankers.json`](https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json). The initial dataset and the original concept are credited to the [Clankers Leaderboard](https://clankers-leaderboard.pages.dev/) by [@heyandras](https://x.com/heyandras).
 
 ## GitHub App
 
-OSS Protector is one shared GitHub App. OSS maintainers should not create their own apps; they install the shared app on selected repositories:
+OSS Protector is **one shared GitHub App**. Maintainers don't create their own — they install the shared app on the repos they own:
 
 ```text
 https://github.com/apps/oss-protector/installations/new
 ```
 
-The GitHub App settings should use:
+If you're self-hosting your own instance, create a GitHub App with:
 
 ```text
-Webhook URL: https://oss-protector.raedbahri90.workers.dev/api/github/webhook
+Webhook URL:           https://<your-worker-host>/api/github/webhook
 Repository permissions: Contents read, Issues write, Pull requests write
-Subscribed events: Issue comment, Pull request, Pull request review comment
-Visibility: Public
+Subscribed events:     Issue comment, Pull request, Pull request review comment
+Visibility:            Public
 ```
 
-Store the app values in Cloudflare:
+Then store the secrets in Cloudflare:
 
 ```bash
-GITHUB_APP_ID=...
-GITHUB_APP_SLUG=...
-GITHUB_WEBHOOK_SECRET=...
-GITHUB_APP_PRIVATE_KEY=...
-BETTER_AUTH_SECRET=...
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-VITE_ENABLE_GITHUB_AUTH=true
-```
-
-For Cloudflare production, store secrets with Wrangler:
-
-```bash
-wrangler secret put GITHUB_WEBHOOK_SECRET
-wrangler secret put GITHUB_APP_PRIVATE_KEY
 wrangler secret put GITHUB_APP_ID
+wrangler secret put GITHUB_APP_PRIVATE_KEY
+wrangler secret put GITHUB_WEBHOOK_SECRET
 wrangler secret put BETTER_AUTH_SECRET
 wrangler secret put GITHUB_CLIENT_SECRET
 wrangler secret put OPENROUTER_API_KEY
 ```
 
-Better Auth handles GitHub user sign-in at `/api/auth/*` when
-`BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` are
-configured. The GitHub App webhook and installation-token flow still uses
-`@octokit/auth-app`, because Better Auth does not replace GitHub App
-installation authentication.
+Better Auth handles GitHub user sign-in at `/api/auth/*` once `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` are set. The webhook + installation-token flow still uses `@octokit/auth-app` — Better Auth does not replace GitHub App installation authentication.
 
-The internal OpenRouter model chain only uses model IDs that end in `:free`.
-
-## Automatic PR Analysis
-
-OSS Protector participates automatically when a pull request is opened,
-reopened, marked ready for review, or updated. It fetches the changed file list
-and patch snippets, analyzes the PR for suspicious OSS abuse patterns, then posts
-an assessment directly on the PR.
-
-The automatic assessment can flag patterns such as fake bounty farming, duplicate
-low-effort PRs, spam, low-quality AI filler, credential phishing, malicious code,
-dependency script abuse, obfuscation, or backdoor indicators.
-
-Only strong evidence is promoted automatically. Weak or non-maintainer reports stay in review states.
+The internal OpenRouter model chain only uses model IDs that end in `:free`, with a paid fallback when free-tier models hallucinate.
 
 ## Maintainer commands
 
@@ -156,46 +146,44 @@ Anyone can mention the bot to file a report:
 @oss-protector recommend block reason: malicious code
 ```
 
-Repo owners, organization members, and collaborators (GitHub
-`author_association` `OWNER`, `MEMBER`, or `COLLABORATOR`) can also correct
-the system from any PR comment:
+Repo owners, organization members, and collaborators (GitHub `author_association` of `OWNER`, `MEMBER`, or `COLLABORATOR`) can correct the system from any PR comment:
 
 ```text
-@oss-protector dismiss     # mark all open reports on this PR's author as dismissed and add a negative correction signal
-@oss-protector confirm     # validate the most recent open report and add a positive correction signal
+@oss-protector dismiss     # mark all open reports on this PR's author as dismissed
+@oss-protector confirm     # validate the most recent open report
 @oss-protector allow       # allowlist the PR author (status = allow, score = 0)
-@oss-protector reset       # clear a prior allowlist; score is recomputed from current signals on the next webhook
+@oss-protector reset       # clear a prior allowlist; score recomputes on the next webhook
 ```
 
-The bot posts a confirmation comment for each correction. Non-maintainer
-comments using those verbs are ignored. Cross-target syntax
-(`@oss-protector allow @other-user`) is not supported — corrections always
-act on the PR author. The bot will flag the cross-target mention in its ack
-comment.
-
-## Rate limits
-
-Public read endpoints (`/api/clankers`, `/api/protectors`,
-`/api/risky-users.json`, `/api/feed.json`) are rate-limited per client IP via
-the Cloudflare Rate Limiting binding configured in `wrangler.json`. GitHub
-webhooks are not rate-limited.
+The bot posts a confirmation comment for each correction. Non-maintainer comments using those verbs are ignored. Cross-target syntax (`@oss-protector allow @other-user`) is not supported — corrections always act on the PR author. The bot flags any cross-target attempt in its ack comment.
 
 ## Verification
 
 ```bash
-pnpm check
-pnpm run typecheck
-pnpm build
+pnpm check          # ultracite (oxlint + oxfmt)
+pnpm run typecheck  # tsc --noEmit
+pnpm test           # vitest
+pnpm build          # vite build
 ```
+
+CI runs the same chain on every push and PR.
 
 ## Deploy
 
-Create or update the D1 database ID in `wrangler.json`, then:
+Set the Cloudflare D1 `database_id` in `wrangler.json`, then:
 
 ```bash
 pnpm run deploy
 ```
 
-Deploys are wired through Cloudflare's Git integration on this Worker — every
-push to `main` triggers a Cloudflare-managed build and deploy. Run
-`pnpm run deploy` locally only for out-of-cycle hotfixes.
+Deploys are wired through Cloudflare's Git integration on the hosted instance — every push to `main` triggers a Cloudflare-managed build and deploy. Run `pnpm run deploy` locally only for out-of-cycle hotfixes.
+
+## Contributing
+
+PRs and bug reports are very welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and workflow, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
+
+Found a security issue? Please follow [SECURITY.md](SECURITY.md) and do **not** open a public issue.
+
+## License
+
+[MIT](LICENSE) © OSS Protector contributors.

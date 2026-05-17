@@ -1,0 +1,52 @@
+name: False positive
+description: The bot flagged a legitimate PR or contributor.
+title: "[false-positive] "
+labels: ["false-positive", "scoring"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sorry the bot got it wrong. The more detail you can share, the faster we can fix the signal that misfired.
+  - type: input
+    id: pr-url
+    attributes:
+      label: PR URL the bot commented on
+      placeholder: "https://github.com/owner/repo/pull/123"
+    validations:
+      required: true
+  - type: input
+    id: contributor
+    attributes:
+      label: Flagged contributor (GitHub handle)
+      placeholder: "@somecontributor"
+    validations:
+      required: true
+  - type: textarea
+    id: bot-comment
+    attributes:
+      label: What the bot said
+      description: Paste the bot's comment or a link to it.
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: why-wrong
+    attributes:
+      label: Why this is a false positive
+      description: What signal do you think misfired? E.g. "this is a real fix, the contributor maintains the upstream library."
+    validations:
+      required: true
+  - type: checkboxes
+    id: dismissed
+    attributes:
+      label: Have you already dismissed it via `@oss-protector dismiss`?
+      options:
+        - label: Yes, I dismissed it as the maintainer.
+        - label: No, I can't dismiss it (not a maintainer of that repo).
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's [Code of Conduct](../CODE_OF_CONDUCT.md).
+          required: true

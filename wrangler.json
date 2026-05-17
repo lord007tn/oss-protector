@@ -1,6 +1,5 @@
 {
   "name": "oss-protector",
-  "account_id": "REDACTED_CF_ACCOUNT_ID",
   "main": ".output/server/index.mjs",
   "compatibility_date": "2026-05-14",
   "compatibility_flags": ["nodejs_compat"],
@@ -26,7 +25,7 @@
     {
       "binding": "clankers_db",
       "database_name": "clankers-list-db",
-      "database_id": "REDACTED_D1_DATABASE_ID",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
       "migrations_dir": "drizzle"
     }
   ],
