@@ -1,9 +1,9 @@
 import { FileJson, Github, Star } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { formatStarCount, useGithubStars } from "@/hooks/use-github-stars";
+import { githubStars } from "@/generated/github-stars";
 import { authClient } from "@/lib/auth-client";
+import { formatStarCount } from "@/lib/github-stars";
 import { cn } from "@/lib/utils";
 
 import {
@@ -83,8 +83,6 @@ export function SiteHeader() {
 }
 
 function GithubStarButton() {
-	const { data: stars, isLoading } = useGithubStars();
-
 	return (
 		<a
 			aria-label="Star OSS Protector on GitHub"
@@ -102,11 +100,7 @@ function GithubStarButton() {
 			</span>
 			<span className="flex h-full items-center gap-1 border-l bg-muted/40 px-2.5 font-mono text-muted-foreground text-xs tabular-nums">
 				<Star aria-hidden className="size-3 text-amber-500" />
-				{isLoading ? (
-					<Skeleton className="h-3 w-6" />
-				) : (
-					<span>{formatStarCount(stars ?? 0)}</span>
-				)}
+				<span>{formatStarCount(githubStars)}</span>
 			</span>
 		</a>
 	);

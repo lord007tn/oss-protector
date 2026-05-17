@@ -56,7 +56,7 @@ export const env = createEnv({
 		BETTER_AUTH_SECRET: z.string().optional(),
 		CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
 		CLOUDFLARE_D1_DATABASE_ID: z.string().optional(),
-		CLOUDFLARE_D1_DATABASE_NAME: z.string().default("clankers-list-db"),
+		CLOUDFLARE_D1_DATABASE_NAME: z.string().default("oss-protector"),
 		CLOUDFLARE_D1_TOKEN: z.string().optional(),
 		GITHUB_APP_CREATE_OWNER: z.string().optional(),
 		GITHUB_APP_ID: z.string().optional(),

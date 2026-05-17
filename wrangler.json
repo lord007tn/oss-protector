@@ -17,15 +17,15 @@
   "vars": {
     "APP_NAME": "OSS Protector",
     "VITE_APP_URL": "https://oss-protector.raedbahri90.workers.dev",
-    "CLOUDFLARE_D1_DATABASE_NAME": "clankers-list-db",
+    "CLOUDFLARE_D1_DATABASE_NAME": "oss-protector",
     "GITHUB_APP_SLUG": "oss-protector",
     "VITE_GITHUB_APP_SLUG": "oss-protector"
   },
   "d1_databases": [
     {
       "binding": "clankers_db",
-      "database_name": "clankers-list-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_name": "oss-protector",
+      "database_id": "bbf2be1c-7746-4b46-be6a-4363ea5f4a71",
       "migrations_dir": "drizzle"
     }
   ],
