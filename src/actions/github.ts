@@ -8,7 +8,7 @@ import {
 	markRepositoryInactive,
 	recalculateRiskProfile,
 	recordAppEvent,
-	recordSignal,
+	replacePullRequestAiSignal,
 	resetRiskProfile,
 	upsertGithubUser,
 	upsertInstallation,
@@ -280,6 +280,20 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 	});
 
 	if (PR_ANALYSIS_ACTIONS.has(payload.action ?? "")) {
+		// Repo-insider PRs aren't the abuse vector this tool is designed for.
+		// An OWNER/MEMBER/COLLABORATOR opening a PR on a repo they have
+		// write access to is a normal workflow — we'd just be flagging
+		// commit-hygiene smells (like accidentally committing .env) as if
+		// they were external attacks. Skip the AI pipeline entirely; still
+		// upserted the PR row above so we have the audit trail.
+		const authorAssociation = payload.pull_request.author_association ?? "NONE";
+		if (isMaintainerAssociation(authorAssociation)) {
+			console.log(
+				`pr-analysis: skipped, author_association=${authorAssociation} pr=${payload.repository.full_name}#${payload.pull_request.number}`
+			);
+			return;
+		}
+
 		const files = await fetchPullRequestFiles({
 			installationId: payload.installation?.id,
 			pullNumber: payload.pull_request.number,
@@ -305,27 +319,18 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			analysis.verdict === "likely_abuse"
 				? aiPrSignalWeight(analysis.confidence)
 				: 0;
-		if (aiSignalWeight > 0) {
-			await recordSignal({
-				metadata: {
-					aiConfidence: analysis.confidence,
-					aiCauses: analysis.causes,
-					aiEvidenceSummary: analysis.evidenceSummary,
-					aiRationale: analysis.rationale,
-					aiScoreBreakdown: analysis.scoreBreakdown,
-					aiVerdict: analysis.verdict,
-					reasonCode: analysis.reasonCode,
-				},
-				pullRequestId: pullRequestRecord.id,
-				repositoryId: repository.id,
-				signalType: "ai_pr_review",
-				source: "openrouter",
-				sourceUrl: payload.pull_request.html_url,
-				targetUserId: author.id,
-				weight: aiSignalWeight,
-			});
-			await recalculateRiskProfile(author.id);
-		}
+		// Replace any prior ai_pr_review signal on this same PR. Without this
+		// dedupe, repeated synchronizes on a single PR stack the score (we
+		// caught nassimna at score=100 from 6 signals on one PR).
+		await replacePullRequestAiSignal({
+			aiSignalWeight,
+			analysis,
+			pullRequestId: pullRequestRecord.id,
+			pullRequestUrl: payload.pull_request.html_url,
+			repositoryId: repository.id,
+			targetUserId: author.id,
+		});
+		await recalculateRiskProfile(author.id);
 	}
 };
 

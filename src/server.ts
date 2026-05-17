@@ -3,6 +3,7 @@ import {
 	listClankersApi,
 	listProtectorsApi,
 	listPublicFeed,
+	recentWebhookEvents,
 } from "./actions/directory";
 import { handleGithubWebhook } from "./actions/github";
 import {
@@ -182,6 +183,24 @@ const protectorsResponse = async (
 	);
 };
 
+const recentWebhookResponse = async (params: URLSearchParams) => {
+	const repo = params.get("repo") ?? "";
+	const since = Number(params.get("since") ?? "0");
+	if (!repo) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing repo" }, { status: 400 })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json(
+			await recentWebhookEvents({
+				repositoryFullName: repo,
+				sinceSeconds: Number.isFinite(since) ? since : 0,
+			})
+		)
+	);
+};
+
 const manifestConvertResponse = async (request: Request) => {
 	const body = (await request.json()) as { code?: string };
 	if (!body.code) {
@@ -250,6 +269,9 @@ const routeFetch = (
 	}
 	if (path === "/api/protectors") {
 		return protectorsResponse(request, env, url.searchParams);
+	}
+	if (path === "/api/health/recent-webhook") {
+		return recentWebhookResponse(url.searchParams);
 	}
 	if (path === "/api/github/manifest") {
 		return withSecurityHeaders(Response.json(githubAppManifest()));

@@ -510,6 +510,37 @@ export const recordSourceImport = async (input: {
 	return created;
 };
 
+// Read the most recent pull_request webhook events for a single repo within
+// a bounded window. Used by the smoke endpoint to confirm webhook delivery.
+const MAX_RECENT_EVENT_WINDOW_SECONDS = 600;
+const MAX_RECENT_EVENT_ROWS = 10;
+
+export const recentWebhookEventsQuery = (input: {
+	repositoryFullName: string;
+	sinceSeconds: number;
+}) => {
+	const cappedSince = Math.max(
+		input.sinceSeconds,
+		Math.floor(Date.now() / 1000) - MAX_RECENT_EVENT_WINDOW_SECONDS
+	);
+	return database
+		.select({
+			action: AppEvent.action,
+			processedAt: AppEvent.processedAt,
+			status: AppEvent.status,
+		})
+		.from(AppEvent)
+		.where(
+			and(
+				eq(AppEvent.eventName, "pull_request"),
+				eq(AppEvent.repositoryFullName, input.repositoryFullName)
+			)
+		)
+		.orderBy(desc(AppEvent.processedAt))
+		.limit(MAX_RECENT_EVENT_ROWS)
+		.then((rows) => rows.filter((row) => row.processedAt >= cappedSince));
+};
+
 export const recordAppEvent = async (input: {
 	action?: null | string;
 	actorLogin?: null | string;
@@ -883,6 +914,69 @@ export const correctionAlreadyApplied = async ({
 		)
 		.limit(1);
 	return !!existing;
+};
+
+// Replace any prior ai_pr_review signal on this (target, pullRequest) with
+// the latest analysis. Repeated synchronizes on the same PR shouldn't stack
+// the score — the AI's most recent verdict is the authoritative one. Setting
+// stale signals' weight to 0 keeps them as audit history without affecting
+// the score.
+export const replacePullRequestAiSignal = async ({
+	aiSignalWeight,
+	analysis,
+	pullRequestId,
+	pullRequestUrl,
+	repositoryId,
+	targetUserId,
+}: {
+	aiSignalWeight: number;
+	analysis: {
+		causes: string[];
+		confidence: number;
+		evidenceSummary?: string;
+		rationale: string;
+		reasonCode: string;
+		scoreBreakdown?: unknown;
+		verdict: string;
+	};
+	pullRequestId: string;
+	pullRequestUrl: string;
+	repositoryId: string;
+	targetUserId: string;
+}) => {
+	// Zero out the weight on prior ai_pr_review rows for this PR.
+	await database
+		.update(BotSignal)
+		.set({ weight: 0 })
+		.where(
+			and(
+				eq(BotSignal.targetUserId, targetUserId),
+				eq(BotSignal.pullRequestId, pullRequestId),
+				eq(BotSignal.signalType, "ai_pr_review")
+			)
+		);
+
+	// Insert the fresh signal if the latest analysis was actionable.
+	if (aiSignalWeight > 0) {
+		await recordSignal({
+			metadata: {
+				aiConfidence: analysis.confidence,
+				aiCauses: analysis.causes,
+				aiEvidenceSummary: analysis.evidenceSummary,
+				aiRationale: analysis.rationale,
+				aiScoreBreakdown: analysis.scoreBreakdown,
+				aiVerdict: analysis.verdict,
+				reasonCode: analysis.reasonCode,
+			},
+			pullRequestId,
+			repositoryId,
+			signalType: "ai_pr_review",
+			source: "openrouter",
+			sourceUrl: pullRequestUrl,
+			targetUserId,
+			weight: aiSignalWeight,
+		});
+	}
 };
 
 export const dismissReportsForUser = async (

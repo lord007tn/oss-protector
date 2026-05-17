@@ -1,22 +1,38 @@
 #!/usr/bin/env tsx
 /**
  * Post-deploy smoke test: open a synthetic fixture PR on the e2e repo and
- * assert the bot comments within a budget. Detects waitUntil() cancellations,
- * webhook routing breakage, and missing GitHub App permissions before users do.
+ * assert that the bot's webhook pipeline received and processed it within a
+ * budget. Detects waitUntil() cancellations, webhook routing breakage, and
+ * missing GitHub App permissions before users do.
  *
- * Run via `pnpm run smoke`. Requires `gh` CLI auth and the GitHub App installed
- * on the configured E2E_REPO.
+ * Default success path: hits the public /api/health/recent-webhook endpoint
+ * and looks for a `pull_request` AppEvent row landed since the smoke kicked
+ * off. This is the robust check because PRs authored by repo
+ * OWNER/MEMBER/COLLABORATOR intentionally skip the analysis pipeline (and
+ * produce no bot comment), so checking for the comment would give false
+ * negatives on any repo where the smoke runner has write access.
+ *
+ * Set SMOKE_EXPECT=comment to fall back to the original bot-comment poll —
+ * useful when running smoke against a non-owner PR.
+ *
+ * Run via `pnpm run smoke`. Requires `gh` CLI auth and the GitHub App
+ * installed on the configured E2E_REPO.
  *
  * Env:
  *   E2E_REPO (default: lord007tn/oss-protector-e2e)
+ *   APP_URL (default: https://oss-protector.raedbahri90.workers.dev)
  *   SMOKE_BUDGET_MS (default: 25000)
  *   SMOKE_POLL_INTERVAL_MS (default: 3000)
+ *   SMOKE_EXPECT ("event" | "comment", default: "event")
  */
 import { spawnSync } from "node:child_process";
 
 const REPO = process.env.E2E_REPO ?? "lord007tn/oss-protector-e2e";
+const APP_URL =
+	process.env.APP_URL ?? "https://oss-protector.raedbahri90.workers.dev";
 const BUDGET_MS = Number(process.env.SMOKE_BUDGET_MS ?? 25_000);
 const POLL_INTERVAL_MS = Number(process.env.SMOKE_POLL_INTERVAL_MS ?? 3000);
+const SMOKE_EXPECT = (process.env.SMOKE_EXPECT ?? "event").toLowerCase();
 
 const BOT_LOGIN = "oss-protector[bot]";
 const NOW = new Date().toISOString().replace(/[:.]/g, "-");
@@ -50,6 +66,37 @@ const ghJson = <T>(args: string[], stdin?: string): T => {
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+interface RecentEvent {
+	action: null | string;
+	processedAt: number;
+	status: string;
+}
+
+const checkAppEventProcessed = async ({
+	since,
+}: {
+	since: number;
+}): Promise<boolean> => {
+	const url = `${APP_URL}/api/health/recent-webhook?repo=${encodeURIComponent(
+		REPO
+	)}&since=${since}`;
+	try {
+		const response = await fetch(url);
+		if (!response.ok) {
+			return false;
+		}
+		const payload = (await response.json()) as { events?: RecentEvent[] };
+		const events = payload.events ?? [];
+		return events.some(
+			(row) =>
+				row.action === "opened" &&
+				(row.status === "processed" || row.status === "pending")
+		);
+	} catch {
+		return false;
+	}
+};
 
 const main = async () => {
 	console.log(`[smoke] repo=${REPO} budget=${BUDGET_MS}ms`);
@@ -106,23 +153,29 @@ const main = async () => {
 	);
 	console.log(`[smoke] opened PR #${pr.number}`);
 
-	// 4. Poll for the bot's analysis comment.
+	// 4. Poll for either a webhook AppEvent (default) or the bot's analysis
+	// comment (legacy mode).
 	const deadline = Date.now() + BUDGET_MS;
 	let landed = false;
 	let attempts = 0;
+	const since = Math.floor((Date.now() - 2 * BUDGET_MS) / 1000);
 	while (Date.now() < deadline) {
 		attempts += 1;
-		const comments = ghJson<Array<{ user: { login: string }; body: string }>>([
-			"api",
-			`repos/${REPO}/issues/${pr.number}/comments`,
-		]);
-		if (
-			comments.some(
-				(c) =>
-					c.user.login === BOT_LOGIN &&
-					c.body.includes("oss-protector:auto-review:")
-			)
-		) {
+		if (SMOKE_EXPECT === "comment") {
+			const comments = ghJson<Array<{ user: { login: string }; body: string }>>(
+				["api", `repos/${REPO}/issues/${pr.number}/comments`]
+			);
+			if (
+				comments.some(
+					(c) =>
+						c.user.login === BOT_LOGIN &&
+						c.body.includes("oss-protector:auto-review:")
+				)
+			) {
+				landed = true;
+				break;
+			}
+		} else if (await checkAppEventProcessed({ since })) {
 			landed = true;
 			break;
 		}
@@ -142,13 +195,17 @@ const main = async () => {
 	gh(["api", "-X", "DELETE", `repos/${REPO}/git/refs/heads/${BRANCH}`]);
 
 	if (!landed) {
+		const target =
+			SMOKE_EXPECT === "comment" ? "bot comment" : "webhook AppEvent";
 		console.error(
-			`[smoke] FAIL: no bot comment after ${attempts} polls in ${BUDGET_MS}ms`
+			`[smoke] FAIL: no ${target} after ${attempts} polls in ${BUDGET_MS}ms`
 		);
 		process.exit(1);
 	}
+	const target =
+		SMOKE_EXPECT === "comment" ? "bot comment" : "webhook AppEvent";
 	console.log(
-		`[smoke] OK: bot comment landed after ~${attempts * POLL_INTERVAL_MS}ms`
+		`[smoke] OK: ${target} landed after ~${attempts * POLL_INTERVAL_MS}ms`
 	);
 };
 
