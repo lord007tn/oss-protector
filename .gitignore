@@ -1,16 +1,44 @@
+# Dependencies
 node_modules
-.DS_Store
+
+# Build output
 dist
 dist-ssr
-*.local
-.env
+.output
 .nitro
+.vinxi
+
+# Framework caches
 .tanstack
 .wrangler
-.output
-.vinxi
-__unconfig*
+
+# Local env
+.env
+.env.local
+.env.*.local
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea
+.claude/
+
+# Local todos / unconfig
 todos.json
+__unconfig*
+
+# Agent / tool runtime logs
 .codex-*.log
 .playwright-mcp
-.claude/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Coverage / test artifacts
+coverage
+*.lcov

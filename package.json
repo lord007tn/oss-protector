@@ -70,6 +70,28 @@
     "wrangler": "^4.90.1"
   },
   "name": "oss-protector",
+  "version": "0.0.1",
+  "description": "Shared abuse intelligence for suspicious GitHub pull request activity. One GitHub App, one public directory, one scoring engine.",
+  "license": "MIT",
+  "homepage": "https://github.com/lord007tn/oss-protector#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lord007tn/oss-protector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lord007tn/oss-protector/issues"
+  },
+  "keywords": [
+    "github-app",
+    "oss",
+    "open-source",
+    "abuse",
+    "moderation",
+    "pull-requests",
+    "bounty-farming",
+    "cloudflare-workers",
+    "tanstack-start"
+  ],
   "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "vite dev --port 3000",
