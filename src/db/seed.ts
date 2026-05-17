@@ -21,8 +21,7 @@ interface ClankerEntry {
 const args = process.argv.slice(2);
 const remoteMode = args.includes("--remote");
 const printOnly = args.includes("--print");
-const databaseName =
-	process.env.CLOUDFLARE_D1_DATABASE_NAME ?? "clankers-list-db";
+const databaseName = process.env.CLOUDFLARE_D1_DATABASE_NAME ?? "oss-protector";
 
 const sqlString = (value: null | number | string) => {
 	if (value === null) {

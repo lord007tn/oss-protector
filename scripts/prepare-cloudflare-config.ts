@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 
 const wranglerConfigPath = resolve("wrangler.json");
 const d1BindingName = "clankers_db";
-const placeholderDatabaseId = "00000000-0000-0000-0000-000000000000";
+const defaultDatabaseId = "bbf2be1c-7746-4b46-be6a-4363ea5f4a71";
+const zeroPlaceholderDatabaseId = "00000000-0000-0000-0000-000000000000";
 const legacyPlaceholderDatabaseId = "REPLACE_WITH_YOUR_D1_DATABASE_ID";
 const uuidPattern =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -78,21 +79,36 @@ const writeDatabaseId = (
 	writeFileSync(wranglerConfigPath, updatedSource);
 };
 
-const getTargetDatabaseId = (): string => {
+const isPlaceholderDatabaseId = (databaseId: string): boolean =>
+	databaseId === legacyPlaceholderDatabaseId ||
+	databaseId === zeroPlaceholderDatabaseId;
+
+const getTargetDatabaseId = (currentDatabaseId: string): string => {
 	if (restorePlaceholder) {
-		return placeholderDatabaseId;
+		return defaultDatabaseId;
 	}
 
 	const databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID?.trim();
 
 	if (!databaseId) {
+		if (
+			uuidPattern.test(currentDatabaseId) &&
+			!isPlaceholderDatabaseId(currentDatabaseId)
+		) {
+			return currentDatabaseId;
+		}
+
+		if (isPlaceholderDatabaseId(currentDatabaseId)) {
+			return defaultDatabaseId;
+		}
+
 		if (requireDatabaseId) {
 			throw new Error(
 				"CLOUDFLARE_D1_DATABASE_ID must be set to the Cloudflare D1 database UUID before production builds or deploys."
 			);
 		}
 
-		return placeholderDatabaseId;
+		return defaultDatabaseId;
 	}
 
 	if (!uuidPattern.test(databaseId)) {
@@ -104,17 +120,17 @@ const getTargetDatabaseId = (): string => {
 
 const { config, source } = readWranglerConfig();
 const d1Binding = getD1Binding(config);
-const targetDatabaseId = getTargetDatabaseId();
 
 if (typeof d1Binding.database_id !== "string") {
 	throw new Error("wrangler.json D1 database_id must be a string.");
 }
 
 const currentDatabaseId = d1Binding.database_id;
+const targetDatabaseId = getTargetDatabaseId(currentDatabaseId);
 
 if (
 	currentDatabaseId !== targetDatabaseId ||
-	currentDatabaseId === legacyPlaceholderDatabaseId
+	isPlaceholderDatabaseId(currentDatabaseId)
 ) {
 	writeDatabaseId(source, currentDatabaseId, targetDatabaseId);
 }

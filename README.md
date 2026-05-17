@@ -71,7 +71,9 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | --- | --- | --- |
 | `VITE_APP_URL` | always | Public origin. Defaults to `http://localhost:3000`. |
 | `VITE_ENABLE_GITHUB_AUTH` | UI sign-in | Set to `true` to enable the GitHub login button. |
-| `CLOUDFLARE_D1_DATABASE_NAME` | D1 | Defaults to `clankers-list-db`. |
+| `CLOUDFLARE_D1_DATABASE_NAME` | D1 | Defaults to `oss-protector`. |
+| `CLOUDFLARE_D1_DATABASE_ID` | self-hosted D1 | Optional override for the committed hosted D1 UUID. |
+| `VITE_GITHUB_STARS` | build | Optional override for the generated GitHub star count. |
 | `BETTER_AUTH_SECRET` | sign-in | Required to enable Better Auth sessions. |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | sign-in | GitHub OAuth credentials for Better Auth. |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | webhooks | The GitHub App's identity, used for installation tokens. |
@@ -167,7 +169,7 @@ CI runs the same chain on every push and PR.
 
 ## Deploy
 
-Set `CLOUDFLARE_D1_DATABASE_ID` to the Cloudflare D1 database UUID in Cloudflare's build variables and secrets. The production prebuild step injects it into `wrangler.json` before Vite/Nitro read the Wrangler config, so the committed config can keep a non-secret placeholder.
+The hosted Worker is bound to the `oss-protector` D1 database in `wrangler.json`. Self-hosted deploys can set `CLOUDFLARE_D1_DATABASE_ID` to override that binding during the prebuild step.
 
 ```bash
 pnpm run deploy
