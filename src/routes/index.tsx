@@ -18,7 +18,7 @@ export const Route = createFileRoute("/")({
 			{ title: "OSS Protector | Shared OSS Abuse Intelligence" },
 			{
 				content:
-					"OSS Protector helps open-source maintainers review risky GitHub pull request activity with a shared GitHub App and public JSON feed.",
+					"OSS Protector helps open-source maintainers review risky GitHub pull request activity with a shared GitHub App and a public review directory.",
 				name: "description",
 			},
 			{
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
 			},
 			{
 				content:
-					"Install a shared GitHub App and query a public review feed for suspicious OSS contribution patterns.",
+					"Install a shared GitHub App and browse the public review directory for suspicious OSS contribution patterns.",
 				property: "og:description",
 			},
 			{

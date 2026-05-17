@@ -33,7 +33,7 @@ import { EmptyState, ScoreMeter, StatusBadge } from "./shared";
 import type { Protector, RiskProfile } from "./types";
 
 export function RiskProfilesCard({
-	description = "Clankers currently published in the public review feed.",
+	description = "Clankers currently published in the public directory.",
 	profiles,
 	title = "Clankers",
 }: {

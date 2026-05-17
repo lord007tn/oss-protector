@@ -80,9 +80,9 @@ function PrivacyRoute() {
 
 				<PolicySection title="Who can see what">
 					<p>
-						The public clanker feed (<a href="/api/clankers">/api/clankers</a>,{" "}
-						<a href="/api/risky-users.json">/api/risky-users.json</a>) and the{" "}
-						<a href="/clankers">/clankers</a> page expose only:
+						The public clanker directory (
+						<a href="/api/clankers">/api/clankers</a> and the{" "}
+						<a href="/clankers">/clankers</a> page) expose only:
 					</p>
 					<ul className="list-disc space-y-1 pl-4">
 						<li>Login, avatar URL, GitHub profile URL.</li>
@@ -103,8 +103,8 @@ function PrivacyRoute() {
 						Risk profile rows are retained as long as the listing is published.
 						If your listing is removed via the{" "}
 						<a href="/contest">contest path</a>, the profile score drops to 0
-						and the entry disappears from the public feed, but the audit log of
-						the underlying events stays.
+						and the entry disappears from the public directory, but the audit
+						log of the underlying events stays.
 					</p>
 				</PolicySection>
 

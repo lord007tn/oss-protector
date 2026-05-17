@@ -51,7 +51,7 @@ export const Route = createFileRoute("/api-docs")({
 			{ content: "API Documentation | OSS Protector", property: "og:title" },
 			{
 				content:
-					"Integrate the OSS Protector clanker feed into repository automation and dashboards.",
+					"Integrate the OSS Protector clanker directory into repository automation and dashboards.",
 				property: "og:description",
 			},
 			{
@@ -125,7 +125,7 @@ function ApiDocsRoute() {
 						API
 					</span>
 					<h1 className="mt-2 text-balance font-semibold text-2xl tracking-tight md:text-3xl">
-						Use the clanker feed in your own tooling.
+						Use the clanker directory in your own tooling.
 					</h1>
 					<p className="mt-2 text-muted-foreground text-sm leading-6 md:text-[15px]">
 						JSON endpoints with query-param filters. Use them for pre-merge
@@ -139,12 +139,11 @@ function ApiDocsRoute() {
 					<AlertDescription>
 						Public read endpoints (
 						<code className="font-mono text-[11px]">/api/clankers</code>,{" "}
-						<code className="font-mono text-[11px]">/api/protectors</code>,{" "}
-						<code className="font-mono text-[11px]">/api/risky-users.json</code>
-						) are throttled at{" "}
-						<strong>60 requests per minute per client IP</strong> (IPv6 clients
-						bucketed by <code className="font-mono text-[11px]">/64</code>{" "}
-						prefix). Webhooks are not throttled. Over-limit responses return{" "}
+						<code className="font-mono text-[11px]">/api/protectors</code>) are
+						throttled at <strong>60 requests per minute per client IP</strong>{" "}
+						(IPv6 clients bucketed by{" "}
+						<code className="font-mono text-[11px]">/64</code> prefix). Webhooks
+						are not throttled. Over-limit responses return{" "}
 						<code className="font-mono text-[11px]">HTTP 429</code> with{" "}
 						<code className="font-mono text-[11px]">Retry-After: 60</code>.
 					</AlertDescription>

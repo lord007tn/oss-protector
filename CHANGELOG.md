@@ -16,7 +16,7 @@ First public release. Tags the state of the MVP that has been running on the hos
 - Automatic PR analysis with file/patch inspection and assessment comments.
 - OpenRouter validation chain for maintainer reports and PR risk scoring, with deterministic fallback when no API key is configured.
 - Public directory pages for risky accounts (`/clankers`), individual clanker profiles (`/clankers/<login>`), and maintainer protectors (`/protectors`).
-- Public JSON feed at `/api/risky-users.json` (and `/api/feed.json` compatibility alias).
+- Filterable read APIs at `/api/clankers` and `/api/protectors`.
 - Maintainer commands: `@oss-protector review|flag|recommend block|dismiss|confirm|allow|reset`.
 - Scoring engine with age decay, AI weighting, report-bombing cap, and reporter trust.
 - Per-IP rate limiting on public read endpoints via Cloudflare Rate Limiting.

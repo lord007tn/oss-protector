@@ -17,8 +17,7 @@
     "src/components/ui/separator.tsx",
     "src/components/ui/skeleton.tsx",
     "src/components/ui/tabs.tsx",
-    "src/data/demo.ts",
-    "src/hooks/api/feed/use-public-feed.ts"
+    "src/data/demo.ts"
   ],
   "ignoreIssues": {
     "src/components/ui/**": ["exports", "types"],

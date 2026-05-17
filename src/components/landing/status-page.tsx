@@ -154,7 +154,7 @@ export function ErrorPage({
 				},
 			]}
 			code="500"
-			description="OSS Protector hit an unexpected error rendering this page. Webhook ingestion and the public feed are unaffected — try reloading, or open an issue if it persists."
+			description="OSS Protector hit an unexpected error rendering this page. Webhook ingestion and the public directory are unaffected — try reloading, or open an issue if it persists."
 			footnote={
 				<>
 					{digest ? (
