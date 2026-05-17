@@ -46,7 +46,7 @@ import { REASON_LABELS, type ReasonCode } from "@/constants/reason-codes";
 import { REPORT_STATUS_LABELS } from "@/constants/report-statuses";
 import { getClankerProfileFn } from "@/functions/clanker-profile";
 
-export const Route = createFileRoute("/clankers/$login")({
+export const Route = createFileRoute("/clankers_/$login")({
 	component: ClankerProfileRoute,
 	head: ({ params }) => ({
 		links: [
