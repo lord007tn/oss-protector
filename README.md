@@ -167,7 +167,7 @@ CI runs the same chain on every push and PR.
 
 ## Deploy
 
-Set the Cloudflare D1 `database_id` in `wrangler.json`, then:
+Set `CLOUDFLARE_D1_DATABASE_ID` to the Cloudflare D1 database UUID in Cloudflare's build variables and secrets. The production prebuild step injects it into `wrangler.json` before Vite/Nitro read the Wrangler config, so the committed config can keep a non-secret placeholder.
 
 ```bash
 pnpm run deploy
