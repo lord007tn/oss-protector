@@ -46,6 +46,7 @@ export interface CorrectionAcknowledgementInput {
 }
 
 export interface PullRequestAnalysisCommentInput {
+	authorLogin?: null | string;
 	causes: string[];
 	confidence: number;
 	evidenceSummary?: null | string;
@@ -59,6 +60,8 @@ export interface PullRequestAnalysisCommentInput {
 	scoreBreakdown?: null | ScoreBreakdown;
 	verdict: "likely_abuse" | "not_enough_evidence" | "unclear";
 }
+
+const PUBLIC_APP_URL = "https://oss-protector.raedbahri90.workers.dev";
 
 interface ScoreBreakdown {
 	aiQuality: number;
@@ -247,6 +250,12 @@ const pullRequestAnalysisBody = (input: PullRequestAnalysisCommentInput) => {
 		isAllowed: false,
 		score: input.confidence,
 	});
+	// Show two scopes so maintainers can tell a one-PR signal apart from a
+	// repeat-offender profile. The "Risk score" above is THIS PR only; the
+	// link points to the cumulative profile view in the public directory.
+	const profileLink = input.authorLogin
+		? `\n\n> The score above reflects **this pull request only**. To see whether @${input.authorLogin} has a cumulative profile score (across all OSS Protector signals + maintainer reports), check the public directory: ${PUBLIC_APP_URL}/clankers?q=${encodeURIComponent(input.authorLogin)}`
+		: "";
 	return `${marker}
 OSS Protector PR assessment: ${assessmentSummary(input.verdict)}
 
@@ -254,7 +263,7 @@ OSS Protector PR assessment: ${assessmentSummary(input.verdict)}
 | --- | --- |
 | Verdict | \`${input.verdict}\` |
 | Review status | ${RISK_STATUS_LABELS[riskStatus]} |
-| Risk score | ${input.confidence}/100 |
+| Risk score (this PR) | ${input.confidence}/100 |
 | Reason | ${REASON_LABELS[input.reasonCode]} |
 | Files reviewed | ${input.fileCount} |
 
@@ -271,7 +280,7 @@ ${scoreBreakdownMarkdown(input.scoreBreakdown)}
 Reason context: ${REASON_DESCRIPTIONS[input.reasonCode]}
 
 Score guide:
-${scoreBandMarkdown()}
+${scoreBandMarkdown()}${profileLink}
 
 This comment is a review aid, not a final judgment. Maintainers should inspect the diff, account history, and repository context before taking action.`;
 };
