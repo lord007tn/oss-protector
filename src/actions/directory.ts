@@ -262,25 +262,6 @@ export type DirectoryDashboard = Awaited<
 	ReturnType<typeof listDirectoryDashboard>
 >;
 
-export const listPublicFeed = async () => {
-	const dashboard = await listDirectoryDashboard();
-	const riskyUsers = dashboard.riskProfiles
-		.filter((profile) => profile.status !== "allow")
-		.map(publicUser);
-
-	return {
-		credits: CLANKER_LEADERBOARD_CREDIT,
-		delisting: DELISTING,
-		directory_url: PUBLIC_APP_URL,
-		generated_at: new Date().toISOString(),
-		protectors: dashboard.protectors.map(publicProtector),
-		risky_users: riskyUsers,
-		schema_version: "2026-05-15",
-		source: "oss-protector",
-		users: riskyUsers,
-	};
-};
-
 export const listClankersApi = async (filters: ClankerFilters) => {
 	const dashboard = await listDirectoryDashboard();
 	const clankers = filterClankers(dashboard.riskProfiles, filters);

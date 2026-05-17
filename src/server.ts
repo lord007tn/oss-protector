@@ -2,7 +2,6 @@ import handler from "@tanstack/react-start/server-entry";
 import {
 	listClankersApi,
 	listProtectorsApi,
-	listPublicFeed,
 	recentWebhookEvents,
 } from "./actions/directory";
 import { handleGithubWebhook } from "./actions/github";
@@ -144,17 +143,6 @@ const authResponse = (request: Request, env: RuntimeBindings | undefined) => {
 	return withSecurityHeaders(createAuth({ env, request }).handler(request));
 };
 
-const publicFeedResponse = async (
-	request: Request,
-	env: RuntimeBindings | undefined
-) => {
-	const limited = await enforcePublicRateLimit(request, env);
-	if (limited) {
-		return limited;
-	}
-	return withSecurityHeaders(Response.json(await listPublicFeed()));
-};
-
 const clankersResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined,
@@ -260,9 +248,6 @@ const routeFetch = (
 	}
 	if (path.startsWith("/api/auth")) {
 		return authResponse(request, env);
-	}
-	if (path === "/api/feed.json" || path === "/api/risky-users.json") {
-		return publicFeedResponse(request, env);
 	}
 	if (path === "/api/clankers") {
 		return clankersResponse(request, env, url.searchParams);

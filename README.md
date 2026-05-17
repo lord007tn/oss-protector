@@ -12,7 +12,7 @@ A single GitHub App + public directory that helps maintainers spot bounty-farmin
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[Hosted instance](https://oss-protector.raedbahri90.workers.dev) · [Install the App](https://github.com/apps/oss-protector/installations/new) · [Public feed](https://oss-protector.raedbahri90.workers.dev/api/risky-users.json) · [Contributing](CONTRIBUTING.md)
+[Hosted instance](https://oss-protector.raedbahri90.workers.dev) · [Install the App](https://github.com/apps/oss-protector/installations/new) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -26,7 +26,7 @@ When you install the OSS Protector GitHub App on a repository, it:
 2. **Analyzes the PR.** Changed files, patch snippets, and metadata are inspected for known abuse patterns — fake bounty farming, duplicate low-effort PRs, AI-filler, credential phishing, malicious code, dependency-script abuse, obfuscation, and backdoor indicators.
 3. **Scores the contributor.** A scoring engine combines signals from this PR, prior reports across all installed repos, reporter trust, and age decay. AI validation (via OpenRouter) sanity-checks the result; deterministic fallback runs when no API key is configured.
 4. **Comments.** Strong evidence gets posted as a PR assessment. Weaker signals stay in a review queue. Maintainers can confirm, dismiss, allow, or reset with `@oss-protector` commands.
-5. **Publishes.** Confirmed risky accounts show up on the public directory and the [JSON feed](https://oss-protector.raedbahri90.workers.dev/api/risky-users.json) so other maintainers benefit too.
+5. **Publishes.** Confirmed risky accounts show up on the public directory so other maintainers can review them before merging.
 
 It's one GitHub App, one database, one feed — maintainers don't each have to run their own.
 
@@ -80,17 +80,14 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | `ALLOW_UNSIGNED_GITHUB_WEBHOOKS` | dev only | Bypasses signature check for local testing. |
 | `OPENROUTER_API_KEY` | AI scoring | If unset, the deterministic fallback runs. |
 
-## Public feed
+## Public read endpoints
 
-Other projects can consume the directory:
+Other projects can query the directory through filterable JSON endpoints (see [`/api-docs`](https://oss-protector.raedbahri90.workers.dev/api-docs) for the full reference):
 
-```bash
-curl https://oss-protector.raedbahri90.workers.dev/api/risky-users.json
-```
+- `/api/clankers` — risky accounts with status / score / reason / search filters.
+- `/api/protectors` — maintainers who submitted review signals.
 
-The payload contains `risky_users` (accounts to review or ban) and `protectors` (maintainers who submitted reports). `/api/feed.json` returns the same payload for older clients.
-
-Public read endpoints are rate-limited per client IP via the Cloudflare Rate Limiting binding configured in `wrangler.json`.
+Both endpoints are rate-limited per client IP (60 req/min) via the Cloudflare Rate Limiting binding configured in `wrangler.json`. Webhooks are not throttled.
 
 ## Database
 

@@ -40,13 +40,13 @@ export const Route = createFileRoute("/clankers")({
 			},
 		],
 		meta: [
-			{ title: "Clanker Review Feed | OSS Protector" },
+			{ title: "Clanker Directory | OSS Protector" },
 			{
 				content:
-					"Search the OSS Protector public review feed for risky GitHub accounts, statuses, scores, and evidence reasons.",
+					"Search the OSS Protector public directory for risky GitHub accounts, statuses, scores, and evidence reasons.",
 				name: "description",
 			},
-			{ content: "Clanker Review Feed | OSS Protector", property: "og:title" },
+			{ content: "Clanker Directory | OSS Protector", property: "og:title" },
 			{
 				content:
 					"Filter risky GitHub accounts by review status, score, and OSS abuse reason.",

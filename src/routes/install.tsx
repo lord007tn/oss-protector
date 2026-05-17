@@ -129,7 +129,7 @@ function InstallSuccess({
 
 				<div className="flex flex-wrap gap-2">
 					<a className={buttonVariants({ size: "sm" })} href="/clankers">
-						Browse the public clanker feed
+						Browse the public clanker directory
 						<ArrowRight data-icon="inline-end" />
 					</a>
 					<a

@@ -21,7 +21,7 @@ export function siteJsonLd() {
 				"@id": `${publicAppUrl}/#website`,
 				"@type": "WebSite",
 				description:
-					"OSS Protector publishes a review feed for suspicious open-source contribution patterns.",
+					"OSS Protector publishes a public review directory of suspicious open-source contribution patterns.",
 				name: appName,
 				publisher: { "@id": `${publicAppUrl}/#organization` },
 				url: `${publicAppUrl}/`,
@@ -31,7 +31,7 @@ export function siteJsonLd() {
 				"@type": "SoftwareApplication",
 				applicationCategory: "SecurityApplication",
 				description:
-					"A GitHub App and public JSON feed for maintainer review of suspicious OSS contribution activity.",
+					"A GitHub App and public directory for maintainer review of suspicious OSS contribution activity.",
 				name: appName,
 				operatingSystem: "Web",
 				url: publicAppUrl,
