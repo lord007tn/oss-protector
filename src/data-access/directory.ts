@@ -560,26 +560,36 @@ const reportAggregatesQuery = (targetUserId: string) =>
 		.from(BotReport)
 		.where(eq(BotReport.targetUserId, targetUserId));
 
-// Per-reporter MAX validated contribution for this target. Caps report-
-// bombing: a single reporter filing N validated reports on the same target
-// counts the same as 1. Each row is one reporter's best single contribution.
+// Linear age decay applied at query time. Mirrors lib/scoring.ts ageDecay:
+//   - Full weight for 30 days (2592000s).
+//   - Linear decay to floor of 0.2 at 365 days (31536000s).
+//   - Stays at floor forever after.
+const AGE_DECAY_SQL = (createdAtColumn: ReturnType<typeof sql.raw>) =>
+	sql`MAX(0.2, MIN(1.0, 1.0 - (MAX(0, (unixepoch() - ${createdAtColumn}) - 2592000) * 1.0 / 28944000.0) * 0.8))`;
+
+// Per-reporter MAX validated contribution for this target, age-decayed.
+// Caps report-bombing: a single reporter filing N validated reports on the
+// same target counts the same as 1 (the highest-scoring one × decay).
+//
 // `validatedScore` mirrors the original per-report formula:
-//   base + ai-boost + 12,  where
+//   base + ai-boost + 12, where
 //   base = 28 if reporterIsMaintainer else 6
 //   ai-boost = 14 if likely_abuse, 4 if unclear, else 0
+// Then multiplied by ageDecay(createdAt).
 const perReporterContributionQuery = (targetUserId: string) =>
 	database
 		.select({
 			reporterLogin: BotReport.reporterLogin,
 			validatedScore: sql<number>`COALESCE(MAX(CASE
 				WHEN ${BotReport.status} = 'validated' THEN
-					(CASE WHEN ${BotReport.reporterIsMaintainer} = 1 THEN 28 ELSE 6 END)
-					+ (CASE
-						WHEN ${BotReport.aiVerdict} = 'likely_abuse' THEN 14
-						WHEN ${BotReport.aiVerdict} = 'unclear' THEN 4
-						ELSE 0
-					END)
-					+ 12
+					((CASE WHEN ${BotReport.reporterIsMaintainer} = 1 THEN 28 ELSE 6 END)
+						+ (CASE
+							WHEN ${BotReport.aiVerdict} = 'likely_abuse' THEN 14
+							WHEN ${BotReport.aiVerdict} = 'unclear' THEN 4
+							ELSE 0
+						END)
+						+ 12)
+					* ${AGE_DECAY_SQL(sql.raw(`"BotReport"."createdAt"`))}
 				ELSE 0
 			END), 0)`,
 		})
@@ -615,14 +625,18 @@ const reporterTrust = (validated: number, total: number) => {
 	return Math.max(TRUST_FLOOR, raw);
 };
 
-// SQL aggregate of signal score. maintainer_report signals only contribute
-// when their linked BotReport is validated, matching the original JS reducer.
+// SQL aggregate of signal score, age-decayed. maintainer_report signals
+// only contribute when their linked BotReport is validated, matching the
+// original JS reducer. Each contributing signal's weight is multiplied by
+// the ageDecay factor based on observedAt.
 const signalAggregatesQuery = (targetUserId: string) =>
 	database
 		.select({
 			signalScore: sql<number>`COALESCE(SUM(CASE
-				WHEN ${BotSignal.signalType} != 'maintainer_report' THEN ${BotSignal.weight}
-				WHEN ${BotReport.status} = 'validated' THEN ${BotSignal.weight}
+				WHEN ${BotSignal.signalType} != 'maintainer_report'
+					THEN ${BotSignal.weight} * ${AGE_DECAY_SQL(sql.raw(`"BotSignal"."observedAt"`))}
+				WHEN ${BotReport.status} = 'validated'
+					THEN ${BotSignal.weight} * ${AGE_DECAY_SQL(sql.raw(`"BotSignal"."observedAt"`))}
 				ELSE 0
 			END), 0)`,
 			maxObservedAt: max(BotSignal.observedAt),
@@ -885,14 +899,41 @@ export const dismissReportsForUser = async (
 		)
 		.returning();
 
+	// Also zero out any ai_pr_review signals on this PR — a maintainer saying
+	// "this PR is a false positive" should fully clear the AI's footprint on
+	// this PR, not just the report row. Other PRs from the same author keep
+	// their own AI analysis untouched.
+	let neutralizedSignals = 0;
+	if (input.pullRequestId) {
+		const neutralized = await database
+			.update(BotSignal)
+			.set({ weight: 0 })
+			.where(
+				and(
+					eq(BotSignal.targetUserId, input.targetUserId),
+					eq(BotSignal.pullRequestId, input.pullRequestId),
+					eq(BotSignal.signalType, "ai_pr_review")
+				)
+			)
+			.returning({ id: BotSignal.id });
+		neutralizedSignals = neutralized.length;
+	}
+
 	await recordCorrectionSignal({
 		input,
 		kind: "dismiss",
-		metadata: { dismissedReportIds: updated.map((row) => row.id) },
+		metadata: {
+			dismissedReportIds: updated.map((row) => row.id),
+			neutralizedAiSignals: neutralizedSignals,
+		},
 		weight: -30,
 	});
 	const profile = await recalculateRiskProfile(input.targetUserId);
-	return { dismissedCount: updated.length, profile };
+	return {
+		dismissedCount: updated.length,
+		neutralizedSignals,
+		profile,
+	};
 };
 
 export const validateLatestReportForUser = async (
