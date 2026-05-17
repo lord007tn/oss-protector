@@ -16,7 +16,7 @@
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-router-ssr-query": "latest",
     "@tanstack/react-start": "latest",
-    "@tanstack/router-plugin": "^1.132.0",
+    "@tanstack/router-plugin": "^1.168.5",
     "better-auth": "^1.6.11",
     "better-auth-cloudflare": "^0.3.0",
     "class-variance-authority": "^0.7.1",
