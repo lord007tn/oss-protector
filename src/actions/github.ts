@@ -41,6 +41,7 @@ import {
 	validatePullRequestWithOpenRouter,
 	validateReportWithOpenRouter,
 } from "@/integrations/openrouter/validation";
+import { aiPrSignalWeight } from "@/lib/scoring";
 
 const acknowledgeReport = async ({
 	confidence,
@@ -132,6 +133,7 @@ const fetchPullRequestFiles = async ({
 
 const postPullRequestAnalysis = async ({
 	analysis,
+	authorLogin,
 	fileCount,
 	headSha,
 	installationId,
@@ -139,6 +141,7 @@ const postPullRequestAnalysis = async ({
 	repositoryFullName,
 }: {
 	analysis: Awaited<ReturnType<typeof validatePullRequestWithOpenRouter>>;
+	authorLogin?: null | string;
 	fileCount: number;
 	headSha?: null | string;
 	installationId?: null | number;
@@ -147,6 +150,7 @@ const postPullRequestAnalysis = async ({
 }) => {
 	try {
 		await createPullRequestAnalysisComment({
+			authorLogin,
 			causes: analysis.causes,
 			confidence: analysis.confidence,
 			evidenceSummary: analysis.evidenceSummary,
@@ -290,13 +294,18 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		});
 		await postPullRequestAnalysis({
 			analysis,
+			authorLogin: author.login,
 			fileCount: files.length || (payload.pull_request.changed_files ?? 0),
 			headSha: payload.pull_request.head?.sha,
 			installationId: payload.installation?.id,
 			issueNumber: payload.pull_request.number,
 			repositoryFullName: payload.repository.full_name,
 		});
-		if (analysis.verdict === "likely_abuse" && analysis.confidence >= 65) {
+		const aiSignalWeight =
+			analysis.verdict === "likely_abuse"
+				? aiPrSignalWeight(analysis.confidence)
+				: 0;
+		if (aiSignalWeight > 0) {
 			await recordSignal({
 				metadata: {
 					aiConfidence: analysis.confidence,
@@ -313,7 +322,7 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 				source: "openrouter",
 				sourceUrl: payload.pull_request.html_url,
 				targetUserId: author.id,
-				weight: analysis.confidence >= 80 ? 22 : 12,
+				weight: aiSignalWeight,
 			});
 			await recalculateRiskProfile(author.id);
 		}
