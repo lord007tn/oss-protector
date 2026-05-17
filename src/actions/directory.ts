@@ -11,7 +11,10 @@ import {
 	RISK_STATUS_LABELS,
 	riskStatusForScore,
 } from "@/constants/risk-statuses";
-import { fetchDirectoryDashboardRecords } from "@/data-access/directory";
+import {
+	fetchDirectoryDashboardRecords,
+	recentWebhookEventsQuery,
+} from "@/data-access/directory";
 import { isMissingBindingError } from "@/db/errors";
 import {
 	type ClankerFilters,
@@ -298,6 +301,23 @@ export const listClankersApi = async (filters: ClankerFilters) => {
 		total_available: dashboard.riskProfiles.filter(
 			(profile) => profile.status !== "allow"
 		).length,
+	};
+};
+
+// Public smoke-check helper: returns recent pull_request AppEvent rows for a
+// given repo. Used by the post-deploy smoke script to confirm a webhook
+// landed without needing wrangler. Capped server-side to a 10-minute window
+// so this isn't a general audit-log endpoint.
+export const recentWebhookEvents = async (input: {
+	repositoryFullName: string;
+	sinceSeconds: number;
+}) => {
+	const events = await recentWebhookEventsQuery(input);
+	return {
+		events,
+		generated_at: new Date().toISOString(),
+		repository_full_name: input.repositoryFullName,
+		since: input.sinceSeconds,
 	};
 };
 

@@ -21,6 +21,7 @@ export interface GithubRepositoryPayload {
 
 export interface GithubPullRequestPayload {
 	additions?: null | number;
+	author_association?: null | string;
 	base?: { ref?: null | string };
 	body?: null | string;
 	changed_files?: null | number;

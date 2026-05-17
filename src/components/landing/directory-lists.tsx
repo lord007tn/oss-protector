@@ -258,16 +258,23 @@ function AccountCell({
 			<div className="min-w-0">
 				<a
 					className="inline-flex max-w-40 items-center gap-1 truncate font-medium text-sm hover:underline md:max-w-52"
-					href={profile.htmlUrl ?? "#"}
-					rel="noopener noreferrer"
-					target="_blank"
+					href={`/clankers/${profile.login}`}
 				>
 					@{profile.login}
-					<ExternalLink className="size-3 shrink-0 text-muted-foreground" />
 				</a>
 				{compact ? null : (
-					<p className="text-[11px] text-muted-foreground">
-						{profile.importedSource ?? "Live webhook signal"}
+					<p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+						<a
+							className="inline-flex items-center gap-0.5 hover:text-foreground hover:underline"
+							href={profile.htmlUrl ?? `https://github.com/${profile.login}`}
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							GitHub
+							<ExternalLink className="size-2.5" />
+						</a>
+						<span>·</span>
+						<span>{profile.importedSource ?? "Live webhook signal"}</span>
 					</p>
 				)}
 			</div>
