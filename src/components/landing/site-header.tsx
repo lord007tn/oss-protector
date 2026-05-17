@@ -1,13 +1,17 @@
-import { FileJson, Github } from "lucide-react";
+import { FileJson, Github, Star } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatStarCount, useGithubStars } from "@/hooks/use-github-stars";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 import {
 	apiDocsPath,
 	appName,
 	githubAppInstallUrl,
 	githubAuthEnabled,
+	githubRepoUrl,
 } from "./constants";
 
 export function SiteHeader() {
@@ -53,6 +57,7 @@ export function SiteHeader() {
 						<FileJson data-icon="inline-start" />
 						API
 					</a>
+					<GithubStarButton />
 					<a
 						className={buttonVariants({ size: "sm" })}
 						href={githubAppInstallUrl}
@@ -74,5 +79,35 @@ export function SiteHeader() {
 				</nav>
 			</div>
 		</header>
+	);
+}
+
+function GithubStarButton() {
+	const { data: stars, isLoading } = useGithubStars();
+
+	return (
+		<a
+			aria-label="Star OSS Protector on GitHub"
+			className={cn(
+				buttonVariants({ size: "sm", variant: "outline" }),
+				"gap-0 overflow-hidden p-0"
+			)}
+			href={githubRepoUrl}
+			rel="noopener noreferrer"
+			target="_blank"
+		>
+			<span className="flex items-center gap-1.5 px-2.5">
+				<Github className="size-3.5" />
+				<span className="hidden sm:inline">Star</span>
+			</span>
+			<span className="flex h-full items-center gap-1 border-l bg-muted/40 px-2.5 font-mono text-muted-foreground text-xs tabular-nums">
+				<Star aria-hidden className="size-3 text-amber-500" />
+				{isLoading ? (
+					<Skeleton className="h-3 w-6" />
+				) : (
+					<span>{formatStarCount(stars ?? 0)}</span>
+				)}
+			</span>
+		</a>
 	);
 }
