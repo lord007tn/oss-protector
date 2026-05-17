@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-	AlertTriangle,
 	ArrowLeft,
 	ExternalLink,
 	Github,
@@ -8,6 +7,7 @@ import {
 	History,
 	Lock,
 	ShieldQuestion,
+	UserSearch,
 } from "lucide-react";
 
 import type { ClankerProfileResult } from "@/actions/clanker-profile";
@@ -15,6 +15,7 @@ import { publicAppUrl } from "@/components/landing/constants";
 import { Footer } from "@/components/landing/footer";
 import { ScoreMeter, StatusBadge } from "@/components/landing/shared";
 import { SiteHeader } from "@/components/landing/site-header";
+import { StatusPage } from "@/components/landing/status-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -80,26 +81,27 @@ function ClankerProfileRoute() {
 
 function NotFoundView({ login }: { login: string }) {
 	return (
-		<main className="min-h-screen bg-background text-foreground">
-			<SiteHeader />
-			<div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-12 md:px-6 md:py-16">
-				<BackLink />
-				<Empty className="rounded-md border border-dashed bg-muted/15 py-12">
-					<EmptyHeader>
-						<EmptyMedia variant="icon">
-							<AlertTriangle />
-						</EmptyMedia>
-						<EmptyTitle>No profile for @{login}</EmptyTitle>
-						<EmptyDescription>
-							OSS Protector hasn&apos;t observed this GitHub account on any
-							covered repository yet. If you expected to see them here, the bot
-							may not be installed on the repo where they contributed.
-						</EmptyDescription>
-					</EmptyHeader>
-				</Empty>
-			</div>
-			<Footer />
-		</main>
+		<StatusPage
+			actions={[
+				{ href: "/clankers", label: "Browse all clankers", tone: "primary" },
+				{
+					href: `https://github.com/${login}`,
+					label: "View on GitHub",
+					tone: "outline",
+				},
+				{ href: "/contest", label: "Contest a listing", tone: "ghost" },
+			]}
+			code="Not in the directory"
+			description={`OSS Protector hasn't observed @${login} on any repository where the bot is installed. If you expected to see them, the bot may not be installed on the repo where they contributed yet.`}
+			footnote={
+				<>
+					Requested:{" "}
+					<code className="font-mono text-[11px]">/clankers/{login}</code>
+				</>
+			}
+			icon={UserSearch}
+			title={`No profile for @${login}.`}
+		/>
 	);
 }
 

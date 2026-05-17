@@ -2,7 +2,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import type { ReactNode } from "react";
-
+import { ErrorPage, NotFoundPage } from "@/components/landing/status-page";
 import { JsonLd, siteJsonLd } from "@/components/seo/json-ld";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RootProvider } from "@/integrations/tanstack-query/root-provider";
@@ -10,6 +10,16 @@ import { RootProvider } from "@/integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
+	errorComponent: ({ error, reset }) => (
+		<ErrorPage
+			digest={
+				error && typeof error === "object" && "digest" in error
+					? String((error as { digest: unknown }).digest ?? "")
+					: undefined
+			}
+			onReset={reset}
+		/>
+	),
 	head: () => ({
 		links: [
 			{
@@ -38,6 +48,13 @@ export const Route = createRootRoute({
 			},
 		],
 	}),
+	notFoundComponent: () => (
+		<NotFoundPage
+			pathname={
+				typeof window === "undefined" ? undefined : window.location.pathname
+			}
+		/>
+	),
 	shellComponent: RootDocument,
 });
 
