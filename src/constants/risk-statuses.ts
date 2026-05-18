@@ -16,13 +16,15 @@ export const RISK_STATUS_LABELS: Record<RiskStatus, string> = {
 	watch: "Watch",
 };
 
-export const RISK_STATUS_WEIGHTS: Record<RiskStatus, number> = {
+const RISK_STATUS_WEIGHTS: Record<RiskStatus, number> = {
 	allow: -100,
 	watch: 1,
 	review: 55,
 	high_risk: 75,
 	block: 90,
 };
+
+export const MAX_RISK_SCORE = 100;
 
 export const RISK_STATUS_DESCRIPTIONS: Record<RiskStatus, string> = {
 	allow: "Known safe automation or explicitly allowed account.",
@@ -38,7 +40,7 @@ export const RISK_STATUS_DESCRIPTIONS: Record<RiskStatus, string> = {
 
 export const RISK_SCORE_BANDS = [
 	{
-		max: 100,
+		max: MAX_RISK_SCORE,
 		min: RISK_STATUS_WEIGHTS.block,
 		status: "block",
 	},

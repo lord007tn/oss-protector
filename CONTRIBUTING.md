@@ -30,7 +30,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-The app runs at <http://localhost:3000>. Most UI/scoring work doesn't need D1 — `pnpm dev` runs Vite with in-memory state.
+The app runs at <http://localhost:3000>. Most UI/scoring work doesn't need D1; database-backed directory data stays empty until D1 is configured or seeded.
 
 For full Worker/D1 testing:
 
@@ -87,4 +87,4 @@ src/
 
 ## Questions
 
-Open a [discussion](https://github.com/lord007tn/oss-protector/discussions) or comment on an existing issue. Drive-by drive-throughs welcome.
+Open a [discussion](https://github.com/lord007tn/oss-protector/discussions) or comment on an existing issue. Drive-by contributions welcome.

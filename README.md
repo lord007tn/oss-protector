@@ -30,6 +30,14 @@ When you install the OSS Protector GitHub App on a repository, it:
 
 It's one GitHub App, one database, one feed — maintainers don't each have to run their own.
 
+## Key features
+
+- **Maintainer-first review lifecycle** — PR webhooks are tracked, external contributors are reviewed, maintainers can correct outcomes from PR comments, and public scores update from validated evidence.
+- **Grounded abuse signals** — lifecycle-script execution, token exfiltration, obfuscation, privileged `pull_request_target` workflow patterns, duplicate cross-repo campaigns, and maintainer reports are handled separately.
+- **False-positive guardrails** — repo insiders are skipped, non-maintainer reports stay in review until a maintainer confirms them, command-only reports are capped, and harmless docs about webhooks/secrets are not treated as credential phishing.
+- **Repo-local policy** — projects can add `.github/oss-protector.json` to disable analysis, trust local automation accounts, ignore path-only changes, or raise the confidence threshold for likely-abuse results.
+- **Auditable profiles** — public profile pages show recent public PRs, reports, and a decision timeline of the signals that affected the score while hiding private-repo source links.
+
 ## Stack
 
 - **Frontend** — TanStack Start (file-based routing, SSR), React 19, shadcn/ui on Base UI primitives, Tailwind 4.
@@ -37,7 +45,7 @@ It's one GitHub App, one database, one feed — maintainers don't each have to r
 - **Data** — Drizzle ORM `1.0.0-beta.24` on Cloudflare D1.
 - **Auth** — Better Auth (GitHub user sign-in) + `@octokit/auth-app` (App installation tokens).
 - **AI** — OpenRouter chat completions, free-tier model chain with a paid fallback.
-- **Lint/format** — Ultracite (oxlint + oxfmt), Biome, Knip.
+- **Lint/format** — Ultracite (oxlint + oxfmt), Biome.
 - **Tests** — Vitest.
 
 ## Quick start
@@ -50,7 +58,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-Open <http://localhost:3000>. Most UI and scoring work can be done without D1 or a GitHub App — `pnpm dev` runs the Vite app with in-memory state.
+Open <http://localhost:3000>. Most UI and scoring work can be done without D1 or a GitHub App. Database-backed directory data stays empty until D1 is configured or seeded.
 
 For full Worker + D1 testing locally:
 
@@ -71,8 +79,11 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | --- | --- | --- |
 | `VITE_APP_URL` | always | Public origin. Defaults to `http://localhost:3000`. |
 | `VITE_ENABLE_GITHUB_AUTH` | UI sign-in | Set to `true` to enable the GitHub login button. |
+| `VITE_ENABLE_DEVTOOLS` | local debugging | Set to `true` to enable TanStack, React Query, and React Scan devtools in development. |
+| `CLOUDFLARE_ACCOUNT_ID` | deploy / D1 | Required by Wrangler when your Cloudflare login has access to more than one account. |
 | `CLOUDFLARE_D1_DATABASE_NAME` | D1 | Defaults to `oss-protector`. |
 | `CLOUDFLARE_D1_DATABASE_ID` | self-hosted D1 | Optional override for the committed hosted D1 UUID. |
+| `CLOUDFLARE_D1_TOKEN` | Drizzle Kit | API token for `drizzle-kit push` against remote D1, if you use that workflow. |
 | `VITE_GITHUB_STARS` | build | Optional override for the generated GitHub star count. |
 | `BETTER_AUTH_SECRET` | sign-in | Required to enable Better Auth sessions. |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | sign-in | GitHub OAuth credentials for Better Auth. |
@@ -134,6 +145,24 @@ wrangler secret put OPENROUTER_API_KEY
 Better Auth handles GitHub user sign-in at `/api/auth/*` once `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` are set. The webhook + installation-token flow still uses `@octokit/auth-app` — Better Auth does not replace GitHub App installation authentication.
 
 The internal OpenRouter model chain only uses model IDs that end in `:free`, with a paid fallback when free-tier models hallucinate.
+
+## Repository policy
+
+Each repository can tune OSS Protector with an optional `.github/oss-protector.json` file. See [Repository policy](./docs/repository-policy.md) for the full lifecycle, examples, and field reference.
+
+```json
+{
+  "enabled": true,
+  "minimumLikelyAbuseConfidence": 80,
+  "trustedAuthors": ["dependabot[bot]", "renovate[bot]"],
+  "ignoredPaths": ["docs/", "examples/"]
+}
+```
+
+- `enabled: false` tracks PR metadata but skips automatic abuse review for that repo.
+- `minimumLikelyAbuseConfidence` is clamped between `65` and `95`; lower-confidence likely-abuse findings become review-needed.
+- `trustedAuthors` skips automatic review for known local automation accounts.
+- `ignoredPaths` skips automatic review when every changed file starts with one of the configured prefixes.
 
 ## Maintainer commands
 

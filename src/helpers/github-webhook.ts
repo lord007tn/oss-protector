@@ -19,7 +19,7 @@ export interface GithubRepositoryPayload {
 	private?: boolean;
 }
 
-export interface GithubPullRequestPayload {
+interface GithubPullRequestPayload {
 	additions?: null | number;
 	author_association?: null | string;
 	base?: { ref?: null | string };
@@ -173,7 +173,7 @@ export const parseCommand = (body: string) => {
 	return command || body.trim();
 };
 
-export type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
+type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
 
 export interface CorrectionCommand {
 	command: string;
@@ -231,7 +231,7 @@ export const inferReasonCode = (command: string): ReasonCode => {
 		return "impersonation";
 	}
 	if (normalized.includes("ai slope") || normalized.includes("ai slop")) {
-		return "ai_slope";
+		return "ai_slop";
 	}
 	if (normalized.includes("ai") || normalized.includes("low quality")) {
 		return "low_quality_ai";

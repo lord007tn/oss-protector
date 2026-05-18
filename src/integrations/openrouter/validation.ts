@@ -22,7 +22,7 @@ export const ReviewVerdict = {
 } as const;
 
 const ReviewSignalKind = {
-	AiSlop: "ai_slope",
+	AiSlop: "ai_slop",
 	BroadScope: "broad_scope",
 	ContributionFarming: "contribution_farming",
 	CredentialRisk: "credential_risk",
@@ -389,10 +389,132 @@ const lowerText = (value: string) => value.toLowerCase();
 const includesAny = (text: string, keywords: readonly string[]) =>
 	keywords.some((keyword) => text.includes(keyword));
 
+const CREDENTIAL_TERMS = [
+	"api key",
+	"api_key",
+	"apikey",
+	"auth token",
+	"bearer",
+	"client secret",
+	"client_secret",
+	"credential",
+	"oauth",
+	"password",
+	"private key",
+	"private_key",
+	"refresh token",
+	"secret",
+	"session cookie",
+	"ssh-rsa",
+	"token",
+] as const;
+
+const CREDENTIAL_ABUSE_CONTEXT = [
+	"base64",
+	"curl ",
+	"curl -",
+	"curl http",
+	"exfil",
+	"fetch http",
+	"harvest",
+	"http.get",
+	"leak",
+	"phish",
+	"postinstall",
+	"preinstall",
+	"process.env",
+	"send to",
+	"secrets.",
+	"steal",
+	"upload",
+	"wget ",
+	"wget -",
+] as const;
+
+const PRIVILEGED_WORKFLOW_PATTERNS = [
+	"github.event.pull_request.head",
+	"pull_request_target",
+	"permissions:",
+	"contents: write",
+	"id-token: write",
+	"secrets.github_token",
+	"secrets.",
+] as const;
+
+const DANGEROUS_EXECUTION_KEYWORDS = [
+	"eval(",
+	"exec(",
+	"child_process",
+	"postinstall",
+	"preinstall",
+	"curl ",
+	"wget ",
+	"base64",
+	"atob(",
+	"backdoor",
+	"reverse shell",
+] as const;
+
+const hasGroundedCredentialRisk = (text: string): boolean =>
+	includesAny(text, CREDENTIAL_TERMS) &&
+	includesAny(text, CREDENTIAL_ABUSE_CONTEXT);
+
+const hasPrivilegedWorkflowRisk = (text: string): boolean =>
+	text.includes("pull_request_target") &&
+	includesAny(text, PRIVILEGED_WORKFLOW_PATTERNS) &&
+	(includesAny(text, [
+		"npm install",
+		"npm test",
+		"pnpm install",
+		"yarn install",
+	]) ||
+		text.includes("github.event.pull_request.head") ||
+		text.includes("secrets."));
+
 const pushSignal = (signals: EvidenceSignal[], signal: EvidenceSignal) => {
 	if (!signals.some((item) => item.cause === signal.cause)) {
 		signals.push(signal);
 	}
+};
+
+const pushDangerousExecutionSignals = (
+	signals: EvidenceSignal[],
+	text: string
+) => {
+	if (includesAny(text, DANGEROUS_EXECUTION_KEYWORDS)) {
+		pushSignal(signals, {
+			cause: "Potentially dangerous execution or obfuscation",
+			evidence:
+				"Patch references execution, lifecycle scripts, network commands, or obfuscation markers.",
+			kind: ReviewSignalKind.MaliciousCode,
+			score: 82,
+			severity: "high",
+		});
+	}
+	if (hasPrivilegedWorkflowRisk(text)) {
+		pushSignal(signals, {
+			cause: "Privileged workflow executes untrusted PR code",
+			evidence:
+				"Workflow uses pull_request_target or repository tokens with untrusted pull request code.",
+			kind: ReviewSignalKind.MaliciousCode,
+			score: 84,
+			severity: "high",
+		});
+	}
+};
+
+const pushCredentialRiskSignal = (signals: EvidenceSignal[], text: string) => {
+	if (!hasGroundedCredentialRisk(text)) {
+		return;
+	}
+	pushSignal(signals, {
+		cause: "Credential or secret handling risk",
+		evidence:
+			"Patch combines credentials, secrets, or tokens with exfiltration, lifecycle scripts, or privileged execution context.",
+		kind: ReviewSignalKind.CredentialRisk,
+		score: 78,
+		severity: "high",
+	});
 };
 
 const isDocLikeFile = (filename: string) =>
@@ -510,50 +632,8 @@ const buildStructuredPullRequestContext = (
 			severity: "medium",
 		});
 	}
-	if (
-		includesAny(text, [
-			"eval(",
-			"exec(",
-			"child_process",
-			"postinstall",
-			"preinstall",
-			"curl ",
-			"wget ",
-			"base64",
-			"atob(",
-			"backdoor",
-			"reverse shell",
-		])
-	) {
-		pushSignal(signals, {
-			cause: "Potentially dangerous execution or obfuscation",
-			evidence:
-				"Patch references execution, lifecycle scripts, network commands, or obfuscation markers.",
-			kind: ReviewSignalKind.MaliciousCode,
-			score: 82,
-			severity: "high",
-		});
-	}
-	if (
-		includesAny(text, [
-			"token",
-			"secret",
-			"password",
-			"private key",
-			"credential",
-			"webhook",
-			"exfil",
-		])
-	) {
-		pushSignal(signals, {
-			cause: "Credential or secret handling risk",
-			evidence:
-				"Patch references credentials, secrets, tokens, or exfiltration.",
-			kind: ReviewSignalKind.CredentialRisk,
-			score: 78,
-			severity: "high",
-		});
-	}
+	pushDangerousExecutionSignals(signals, text);
+	pushCredentialRiskSignal(signals, text);
 	if (
 		includesAny(text, ["duplicate", "same change", "template pr", "copied"])
 	) {
@@ -618,7 +698,7 @@ const reasonCodeForSignals = (
 		return "fake_bounty";
 	}
 	if (signals.some((signal) => signal.kind === ReviewSignalKind.AiSlop)) {
-		return "ai_slope";
+		return "ai_slop";
 	}
 	if (
 		signals.some((signal) => signal.kind === ReviewSignalKind.DuplicatePattern)
@@ -889,28 +969,9 @@ const fallbackValidateReport = (
 // are present forces the reason picker to fall through to the next-highest
 // grounded dimension.
 const CREDENTIAL_RISK_KEYWORDS = [
-	"api key",
-	"api_key",
-	"apikey",
-	"auth token",
 	"basic auth",
-	"bearer",
-	"client secret",
-	"client_secret",
-	"credential",
-	"exfil",
 	"login form",
-	"oauth",
-	"password",
-	"phish",
-	"private key",
-	"private_key",
-	"refresh token",
-	"secret",
-	"session cookie",
-	"ssh-rsa",
-	"token",
-	"webhook",
+	...CREDENTIAL_TERMS,
 ] as const;
 
 const MALICIOUS_CODE_KEYWORDS = [
@@ -990,7 +1051,7 @@ const reasonFromBreakdown = (breakdown: ScoreBreakdown): ReasonCode => {
 		{ code: "malicious_code", score: breakdown.maliciousRisk },
 		{ code: "credential_phishing", score: breakdown.credentialRisk },
 		{ code: "fake_bounty", score: breakdown.farmingRisk },
-		{ code: "ai_slope", score: breakdown.aiQuality },
+		{ code: "ai_slop", score: breakdown.aiQuality },
 	];
 	candidates.sort((a, b) => b.score - a.score);
 	if (candidates[0].score >= 40) {
@@ -1025,7 +1086,11 @@ const clampHallucinatedPrRisks = ({
 
 	if (
 		credentialRisk > 25 &&
-		!matchesAnyKeyword(haystack, CREDENTIAL_RISK_KEYWORDS)
+		!(
+			matchesAnyKeyword(haystack, CREDENTIAL_RISK_KEYWORDS) &&
+			(hasGroundedCredentialRisk(haystack) ||
+				hasPrivilegedWorkflowRisk(haystack))
+		)
 	) {
 		credentialRisk = 0;
 		clamped = true;
@@ -1057,7 +1122,7 @@ const clampHallucinatedPrRisks = ({
 	const reasonGotClamped =
 		(parsedReason === "credential_phishing" && credentialRisk === 0) ||
 		(parsedReason === "malicious_code" && maliciousRisk === 0) ||
-		((parsedReason === "ai_slope" || parsedReason === "low_quality_ai") &&
+		((parsedReason === "ai_slop" || parsedReason === "low_quality_ai") &&
 			aiQuality === 0) ||
 		(parsedReason === "fake_bounty" && farmingRisk === 0);
 
@@ -1122,6 +1187,30 @@ const capCommandOnlyReport = (
 	};
 };
 
+const capNonMaintainerReport = (
+	result: ReportValidationResult,
+	input: ReportValidationInput
+): ReportValidationResult => {
+	if (
+		input.reporterIsMaintainer ||
+		result.status === ReportReviewStatus.Dismissed ||
+		result.verdict === ReviewVerdict.NotEnoughEvidence
+	) {
+		return result;
+	}
+
+	return {
+		...result,
+		confidence: Math.min(result.confidence, 64),
+		rationale: `${result.rationale} Reports from non-maintainers stay in review until a repository maintainer confirms them.`,
+		status: ReportReviewStatus.NeedsReview,
+		verdict:
+			result.verdict === ReviewVerdict.LikelyAbuse
+				? ReviewVerdict.Unclear
+				: result.verdict,
+	};
+};
+
 const confidenceForVerdict = (
 	verdict: ReviewVerdictValue,
 	parsedConfidence: number
@@ -1160,6 +1249,9 @@ const statusForReportVerdict = ({
 		return parsedStatus === ReportReviewStatus.Submitted
 			? ReportReviewStatus.Submitted
 			: ReportReviewStatus.NeedsReview;
+	}
+	if (!input.reporterIsMaintainer) {
+		return ReportReviewStatus.NeedsReview;
 	}
 	if (
 		parsedStatus === ReportReviewStatus.Submitted &&
@@ -1347,11 +1439,14 @@ export const validateReportWithOpenRouter = async (
 		system: REPORT_VALIDATION_SYSTEM_PROMPT,
 	});
 	if (!aiResponse.parsed) {
-		return capCommandOnlyReport(
-			{
-				...fallback,
-				rationale: `${aiResponse.error} Fallback validation was used.`,
-			},
+		return capNonMaintainerReport(
+			capCommandOnlyReport(
+				{
+					...fallback,
+					rationale: `${aiResponse.error} Fallback validation was used.`,
+				},
+				input
+			),
 			input
 		);
 	}
@@ -1366,7 +1461,10 @@ export const validateReportWithOpenRouter = async (
 		parsedStatus: normalized.status,
 		verdict: normalized.verdict,
 	});
-	return capCommandOnlyReport({ ...normalized, status }, input);
+	return capNonMaintainerReport(
+		capCommandOnlyReport({ ...normalized, status }, input),
+		input
+	);
 };
 
 export const validatePullRequestWithOpenRouter = async (

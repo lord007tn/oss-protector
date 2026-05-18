@@ -109,6 +109,12 @@ export function StatusPage({
 // Pre-built variants. Each is a thin wrapper so route files stay terse.
 
 export function NotFoundPage({ pathname }: { pathname?: string }) {
+	const footnote = pathname ? (
+		<>
+			Requested: <code className="font-mono text-[11px]">{pathname}</code>
+		</>
+	) : undefined;
+
 	return (
 		<StatusPage
 			actions={[
@@ -118,13 +124,7 @@ export function NotFoundPage({ pathname }: { pathname?: string }) {
 			]}
 			code="404"
 			description="We couldn't find that page. The directory and API endpoints are still right where you left them."
-			footnote={
-				pathname ? (
-					<>
-						Requested: <code className="font-mono text-[11px]">{pathname}</code>
-					</>
-				) : null
-			}
+			footnote={footnote}
 			icon={ShieldQuestion}
 			title="Page not found."
 		/>
@@ -142,7 +142,7 @@ export function ErrorPage({
 		<StatusPage
 			actions={[
 				{
-					href: typeof window === "undefined" ? "/" : window.location.pathname,
+					href: "",
 					label: "Reload the page",
 					tone: "primary",
 				},

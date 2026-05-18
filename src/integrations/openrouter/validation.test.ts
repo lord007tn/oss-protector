@@ -47,6 +47,27 @@ describe("validateReportWithOpenRouter", () => {
 		expect(result.status).toBe("validated");
 		expect(result.verdict).toBe("likely_abuse");
 	});
+
+	it("keeps corroborated non-maintainer reports in review until a maintainer confirms", async () => {
+		const { validateReportWithOpenRouter } = await loadValidation();
+
+		const result = await validateReportWithOpenRouter({
+			commandText: "@oss-protector block this user malicious code",
+			pullRequest: {
+				body: "Patch adds a postinstall script that uploads process.env.NPM_TOKEN.",
+				title: "Improve install flow",
+				url: "https://github.com/nodejs/node/pull/12",
+			},
+			reasonText: "@oss-protector block this user malicious code",
+			reporterAssociation: "NONE",
+			reporterIsMaintainer: false,
+			targetLogin: "unknown-contributor",
+		});
+
+		expect(result.status).toBe("needs_review");
+		expect(result.verdict).toBe("unclear");
+		expect(result.confidence).toBeLessThanOrEqual(64);
+	});
 });
 
 describe("validatePullRequestWithOpenRouter", () => {
@@ -124,5 +145,62 @@ describe("validatePullRequestWithOpenRouter", () => {
 
 		expect(result.verdict).toBe("not_enough_evidence");
 		expect(result.confidence).toBe(0);
+	});
+
+	it("does not treat harmless webhook documentation as credential phishing", async () => {
+		const { validatePullRequestWithOpenRouter } = await loadValidation();
+
+		const result = await validatePullRequestWithOpenRouter({
+			body: "Adds docs for webhook signature verification.",
+			files: [
+				{
+					additions: 8,
+					changes: 8,
+					deletions: 0,
+					filename: "docs/webhooks.md",
+					patch:
+						"+ Configure a webhook endpoint in GitHub settings.\n+ Store the webhook secret in your deployment provider.\n+ The endpoint validates signatures before processing events.",
+					status: "modified",
+				},
+			],
+			targetLogin: "docs-contributor",
+			title: "docs: explain webhook setup",
+			url: "https://github.com/expressjs/express/pull/23",
+		});
+
+		expect(result.verdict).toBe("not_enough_evidence");
+		expect(result.reasonCode).not.toBe("credential_phishing");
+		expect(result.scoreBreakdown?.credentialRisk).toBe(0);
+	});
+
+	it("flags pull_request_target workflows that run untrusted fork code with repo token context", async () => {
+		const { validatePullRequestWithOpenRouter } = await loadValidation();
+
+		const result = await validatePullRequestWithOpenRouter({
+			body: "Unblocks tests from forks.",
+			files: [
+				{
+					additions: 14,
+					changes: 14,
+					deletions: 0,
+					filename: ".github/workflows/ci.yml",
+					patch:
+						"+on: pull_request_target\n+jobs:\n+  test:\n+    permissions:\n+      contents: write\n+    steps:\n+      - uses: actions/checkout@v4\n+        with:\n+          ref: $" +
+						"{{ github.event.pull_request.head.sha }}\n+      - run: npm install && npm test\n+        env:\n+          GITHUB_TOKEN: $" +
+						"{{ secrets.GITHUB_TOKEN }}",
+					status: "modified",
+				},
+			],
+			targetLogin: "workflow-attacker",
+			title: "ci: make PR checks run with repository token",
+			url: "https://github.com/nodejs/node/pull/24",
+		});
+
+		expect(result.verdict).toBe("likely_abuse");
+		expect(result.reasonCode).toBe("malicious_code");
+		expect(result.confidence).toBeGreaterThanOrEqual(80);
+		expect(result.causes).toContain(
+			"Privileged workflow executes untrusted PR code"
+		);
 	});
 });

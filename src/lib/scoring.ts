@@ -15,8 +15,8 @@ import { riskStatusForScore } from "@/constants/risk-statuses";
 // 30 days, then linear decay down to a floor of 0.2 by the one-year mark.
 // Anything older than a year stays at the floor — old context still
 // counts, just not as much as fresh evidence.
-export const DECAY_FULL_WEIGHT_SECONDS = 30 * 86_400;
-export const DECAY_FLOOR_SECONDS = 365 * 86_400;
+const DECAY_FULL_WEIGHT_SECONDS = 30 * 86_400;
+const DECAY_FLOOR_SECONDS = 365 * 86_400;
 export const DECAY_FLOOR = 0.2;
 
 export const ageDecay = (createdAt: number, nowSeconds: number): number => {
@@ -37,9 +37,9 @@ export const ageDecay = (createdAt: number, nowSeconds: number): number => {
 // validated / max(total, 3) with a 0.2 floor. The prior of 3 stops new
 // reporters being scored unfairly low; the floor stops bad-faith reporters
 // being zeroed out entirely (some signal even from a noisy reporter).
-export const TRUST_PRIOR = 3;
-export const TRUST_NEUTRAL = 0.5;
-export const TRUST_FLOOR = 0.2;
+const TRUST_PRIOR = 3;
+const TRUST_NEUTRAL = 0.5;
+const TRUST_FLOOR = 0.2;
 
 export const reporterTrust = (validated: number, total: number): number => {
 	if (total <= 0) {
@@ -80,7 +80,7 @@ export interface ScoreInputs {
 	signalScore: number;
 }
 
-export const boundedConfidence = (value: number): number =>
+const boundedConfidence = (value: number): number =>
 	Math.max(0, Math.min(100, Math.round(value)));
 
 export const composeProfileScore = ({
