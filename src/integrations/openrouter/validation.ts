@@ -1354,9 +1354,23 @@ const normalizePrResult = (
 		typeof parsed.rationale === "string"
 			? parsed.rationale.slice(0, 800)
 			: fallback.rationale;
+	const strongestGroundedRisk = Math.max(
+		scoreBreakdown.aiQuality,
+		scoreBreakdown.credentialRisk,
+		scoreBreakdown.farmingRisk,
+		scoreBreakdown.maliciousRisk
+	);
+	const normalizedVerdict =
+		clamped && verdict === "likely_abuse" && strongestGroundedRisk < 65
+			? "unclear"
+			: verdict;
+	const normalizedConfidence =
+		normalizedVerdict === verdict
+			? confidence
+			: confidenceForVerdict(normalizedVerdict, Math.min(confidence, 64));
 	return {
 		causes: normalizeCauses(parsed.causes, fallback.causes),
-		confidence,
+		confidence: normalizedConfidence,
 		evidenceSummary:
 			typeof parsed.evidenceSummary === "string"
 				? parsed.evidenceSummary.slice(0, 500)
@@ -1366,7 +1380,7 @@ const normalizePrResult = (
 			: rationale,
 		reasonCode,
 		scoreBreakdown,
-		verdict,
+		verdict: normalizedVerdict,
 	};
 };
 

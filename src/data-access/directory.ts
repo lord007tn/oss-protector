@@ -5,7 +5,9 @@ import {
 	desc,
 	eq,
 	inArray,
+	isNull,
 	max,
+	or,
 	sql,
 } from "drizzle-orm";
 
@@ -28,7 +30,6 @@ import {
 	RiskProfile,
 	SourceImport,
 } from "@/db/schema";
-import { parseJsonArray } from "@/lib/json";
 import { toUnixSeconds, unixNow } from "@/lib/time";
 
 export interface GithubAccountInput {
@@ -336,17 +337,12 @@ export const upsertPullRequest = async ({
 		targetUserId: author.id,
 		weight: 0,
 	});
-	await recordDuplicateCampaignSignal({
-		author,
-		currentPullRequest: created,
-		repository,
-	});
 	await recalculateRiskProfile(author.id);
 
 	return created;
 };
 
-const recordDuplicateCampaignSignal = async ({
+export const recordDuplicateCampaignSignal = async ({
 	author,
 	currentPullRequest,
 	repository,
@@ -471,7 +467,7 @@ export const createRiskReport = async (input: CreateRiskReportInput) => {
 		evidenceJson: json(input.evidence),
 		issueNumber: input.issueNumber ?? null,
 		pullRequestId: input.pullRequestId ?? null,
-		rawPayloadJson: input.rawPayload ? json(input.rawPayload) : null,
+		rawPayloadJson: null,
 		reasonCode: input.reasonCode,
 		reasonText: input.reasonText ?? null,
 		reporterAssociation: input.reporterAssociation,
@@ -498,6 +494,14 @@ export const createRiskReport = async (input: CreateRiskReportInput) => {
 
 	const signalWeight = reportSignalWeight(input);
 	if (signalWeight > 0) {
+		await database
+			.delete(BotSignal)
+			.where(
+				and(
+					eq(BotSignal.reportId, created.id),
+					eq(BotSignal.signalType, "maintainer_report")
+				)
+			);
 		await recordSignal({
 			metadata: {
 				aiVerdict: input.aiVerdict ?? null,
@@ -671,7 +675,7 @@ export const recordAppEvent = async (input: {
 		installationGithubId: input.installationGithubId
 			? asTextId(input.installationGithubId)
 			: null,
-		rawPayloadJson: input.rawPayload ? json(input.rawPayload) : null,
+		rawPayloadJson: null,
 		repositoryFullName: input.repositoryFullName ?? null,
 		status: input.status ?? "processed",
 	};
@@ -692,14 +696,20 @@ export const recordAppEvent = async (input: {
 const reportAggregatesQuery = (targetUserId: string) =>
 	database
 		.select({
-			reasonCodesCsv: sql<string>`COALESCE(GROUP_CONCAT(DISTINCT ${BotReport.reasonCode}), '')`,
+			reasonCodesCsv: sql<string>`COALESCE(GROUP_CONCAT(DISTINCT CASE WHEN ${BotReport.status} = 'validated' THEN ${BotReport.reasonCode} ELSE NULL END), '')`,
 			reportCount: count(),
 			reporterCount: countDistinct(BotReport.reporterLogin),
 			validatedReportCount: sql<number>`COALESCE(SUM(CASE WHEN ${BotReport.status} = 'validated' THEN 1 ELSE 0 END), 0)`,
 			maxReportAt: max(BotReport.createdAt),
 		})
 		.from(BotReport)
-		.where(eq(BotReport.targetUserId, targetUserId));
+		.leftJoin(Repository, eq(Repository.id, BotReport.repositoryId))
+		.where(
+			and(
+				eq(BotReport.targetUserId, targetUserId),
+				or(isNull(BotReport.repositoryId), eq(Repository.isPrivate, false))
+			)
+		);
 
 // Linear age decay applied at query time. Mirrors lib/scoring.ts ageDecay:
 //   - Full weight for 30 days (2592000s).
@@ -735,7 +745,13 @@ const perReporterContributionQuery = (targetUserId: string) =>
 			END), 0)`,
 		})
 		.from(BotReport)
-		.where(eq(BotReport.targetUserId, targetUserId))
+		.leftJoin(Repository, eq(Repository.id, BotReport.repositoryId))
+		.where(
+			and(
+				eq(BotReport.targetUserId, targetUserId),
+				or(isNull(BotReport.repositoryId), eq(Repository.isPrivate, false))
+			)
+		)
 		.groupBy(BotReport.reporterLogin);
 
 // Global per-reporter accuracy used to weight new contributions. A reporter
@@ -751,7 +767,13 @@ const reporterTrustQuery = (logins: string[]) =>
 			validated: sql<number>`COALESCE(SUM(CASE WHEN ${BotReport.status} = 'validated' THEN 1 ELSE 0 END), 0)`,
 		})
 		.from(BotReport)
-		.where(inArray(BotReport.reporterLogin, logins))
+		.leftJoin(Repository, eq(Repository.id, BotReport.repositoryId))
+		.where(
+			and(
+				inArray(BotReport.reporterLogin, logins),
+				or(isNull(BotReport.repositoryId), eq(Repository.isPrivate, false))
+			)
+		)
 		.groupBy(BotReport.reporterLogin);
 
 const TRUST_PRIOR = 3;
@@ -794,7 +816,13 @@ const signalAggregatesQuery = (targetUserId: string) =>
 		})
 		.from(BotSignal)
 		.leftJoin(BotReport, eq(BotReport.id, BotSignal.reportId))
-		.where(eq(BotSignal.targetUserId, targetUserId));
+		.leftJoin(Repository, eq(Repository.id, BotSignal.repositoryId))
+		.where(
+			and(
+				eq(BotSignal.targetUserId, targetUserId),
+				or(isNull(BotSignal.repositoryId), eq(Repository.isPrivate, false))
+			)
+		);
 
 const pullRequestAggregatesQuery = (targetUserId: string) =>
 	database
@@ -805,7 +833,13 @@ const pullRequestAggregatesQuery = (targetUserId: string) =>
 			maxLastSeenAt: max(PullRequest.lastSeenAt),
 		})
 		.from(PullRequest)
-		.where(eq(PullRequest.authorUserId, targetUserId));
+		.innerJoin(Repository, eq(Repository.id, PullRequest.repositoryId))
+		.where(
+			and(
+				eq(PullRequest.authorUserId, targetUserId),
+				eq(Repository.isPrivate, false)
+			)
+		);
 
 type ReportAgg = Awaited<ReturnType<typeof reportAggregatesQuery>>[number];
 type SignalAgg = Awaited<ReturnType<typeof signalAggregatesQuery>>[number];
@@ -827,9 +861,10 @@ const mergeReasonCodes = (
 	reportAgg: ReportAgg | undefined,
 	signalAgg: SignalAgg | undefined
 ) => {
-	const codes = new Set<ReasonCode>(
-		parseJsonArray<ReasonCode>(existing?.reasonCodesJson)
-	);
+	const codes = new Set<ReasonCode>();
+	if (existing?.importedSource) {
+		codes.add("external_blocklist");
+	}
 	for (const code of [
 		...(reportAgg?.reasonCodesCsv ?? "").split(","),
 		...(signalAgg?.reasonCodesCsv ?? "").split(","),
@@ -1268,14 +1303,18 @@ export const fetchDirectoryDashboardRecords = async () => {
 			}),
 			database.query.BotReport.findMany({
 				orderBy: { createdAt: "desc" },
-				with: { targetUser: true },
+				with: { repository: true, targetUser: true },
 			}),
 			database.query.Repository.findMany(),
 			database.query.SourceImport.findMany({
 				orderBy: { importedAt: "desc" },
 			}),
-			database.query.BotSignal.findMany(),
-			database.query.PullRequest.findMany(),
+			database.query.BotSignal.findMany({
+				with: { repository: true },
+			}),
+			database.query.PullRequest.findMany({
+				with: { repository: true },
+			}),
 		]);
 
 	return { imports, profiles, pullRequests, reports, repositories, signals };

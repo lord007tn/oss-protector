@@ -21,6 +21,7 @@ export interface RuntimeBindings {
 	GITHUB_WEBHOOK_SECRET?: string;
 	OPENROUTER_API_KEY?: string;
 	PUBLIC_RL?: RateLimitBinding;
+	SMOKE_HEALTH_TOKEN?: string;
 	VITE_APP_URL?: string;
 }
 
@@ -67,6 +68,7 @@ export const env = createEnv({
 		GITHUB_MANIFEST_TOKEN: z.string().optional(),
 		GITHUB_WEBHOOK_SECRET: z.string().optional(),
 		OPENROUTER_API_KEY: z.string().optional(),
+		SMOKE_HEALTH_TOKEN: z.string().optional(),
 	},
 });
 

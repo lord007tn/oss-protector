@@ -20,19 +20,23 @@
  *
  * Env:
  *   E2E_REPO (default: lord007tn/oss-protector-e2e)
+ *   E2E_BASE_BRANCH (default: repo default branch)
  *   APP_URL (default: https://oss-protector.raedbahri90.workers.dev)
  *   SMOKE_BUDGET_MS (default: 25000)
  *   SMOKE_POLL_INTERVAL_MS (default: 3000)
  *   SMOKE_EXPECT ("event" | "comment", default: "event")
+ *   SMOKE_HEALTH_TOKEN (required for SMOKE_EXPECT=event on production)
  */
 import { spawnSync } from "node:child_process";
 
 const REPO = process.env.E2E_REPO ?? "lord007tn/oss-protector-e2e";
+const CONFIGURED_BASE_BRANCH = process.env.E2E_BASE_BRANCH;
 const APP_URL =
 	process.env.APP_URL ?? "https://oss-protector.raedbahri90.workers.dev";
 const BUDGET_MS = Number(process.env.SMOKE_BUDGET_MS ?? 25_000);
 const POLL_INTERVAL_MS = Number(process.env.SMOKE_POLL_INTERVAL_MS ?? 3000);
 const SMOKE_EXPECT = (process.env.SMOKE_EXPECT ?? "event").toLowerCase();
+const SMOKE_HEALTH_TOKEN = process.env.SMOKE_HEALTH_TOKEN;
 
 const BOT_LOGIN = "oss-protector[bot]";
 const NOW = new Date().toISOString().replace(/[:.]/g, "-");
@@ -82,16 +86,18 @@ const checkAppEventProcessed = async ({
 		REPO
 	)}&since=${since}`;
 	try {
-		const response = await fetch(url);
+		const response = await fetch(url, {
+			headers: SMOKE_HEALTH_TOKEN
+				? { Authorization: `Bearer ${SMOKE_HEALTH_TOKEN}` }
+				: undefined,
+		});
 		if (!response.ok) {
 			return false;
 		}
 		const payload = (await response.json()) as { events?: RecentEvent[] };
 		const events = payload.events ?? [];
 		return events.some(
-			(row) =>
-				row.action === "opened" &&
-				(row.status === "processed" || row.status === "pending")
+			(row) => row.action === "opened" && row.status === "processed"
 		);
 	} catch {
 		return false;
@@ -101,25 +107,33 @@ const checkAppEventProcessed = async ({
 const main = async () => {
 	console.log(`[smoke] repo=${REPO} budget=${BUDGET_MS}ms`);
 
-	// 1. Branch from main.
-	const mainRef = ghJson<{ object: { sha: string } }>([
+	const repository = ghJson<{ default_branch: string }>([
 		"api",
-		`repos/${REPO}/git/refs/heads/main`,
+		`repos/${REPO}`,
 	]);
-	const mainSha = mainRef.object.sha;
-	console.log(`[smoke] main sha=${mainSha.slice(0, 7)}, creating ${BRANCH}`);
+	const baseBranch = CONFIGURED_BASE_BRANCH ?? repository.default_branch;
+
+	// 1. Branch from the target repo default branch.
+	const baseRef = ghJson<{ object: { sha: string } }>([
+		"api",
+		`repos/${REPO}/git/refs/heads/${baseBranch}`,
+	]);
+	const baseSha = baseRef.object.sha;
+	console.log(
+		`[smoke] ${baseBranch} sha=${baseSha.slice(0, 7)}, creating ${BRANCH}`
+	);
 	gh(
 		["api", "-X", "POST", `repos/${REPO}/git/refs`, "--input", "-"],
 		JSON.stringify({
 			ref: `refs/heads/${BRANCH}`,
-			sha: mainSha,
+			sha: baseSha,
 		})
 	);
 
 	// 2. Update README on the branch with a benign change.
 	const readme = ghJson<{ sha: string }>([
 		"api",
-		`repos/${REPO}/contents/${README_PATH}?ref=main`,
+		`repos/${REPO}/contents/${README_PATH}?ref=${baseBranch}`,
 	]);
 	const content = Buffer.from(
 		`# OSS Protector smoke test\n\nFixture commit at ${NOW}.\n`
@@ -145,7 +159,7 @@ const main = async () => {
 	const pr = ghJson<{ number: number; html_url: string }>(
 		["api", "-X", "POST", `repos/${REPO}/pulls`, "--input", "-"],
 		JSON.stringify({
-			base: "main",
+			base: baseBranch,
 			body: "Automated post-deploy smoke test. Will be closed and the branch deleted at end of run.",
 			head: BRANCH,
 			title: `smoke: ${NOW}`,

@@ -34,7 +34,7 @@ function PrivacyRoute() {
 						<li>
 							<strong>GitHub-public account data</strong> for accounts that show
 							up in webhook payloads or imported sources: login, GitHub user ID,
-							avatar URL, account type. No private email or private repo data.
+							avatar URL, account type. We do not store private email addresses.
 						</li>
 						<li>
 							<strong>Maintainer report text</strong> — the body of any
@@ -45,13 +45,12 @@ function PrivacyRoute() {
 						</li>
 						<li>
 							<strong>Pull request metadata</strong>: title, body, base ref,
-							changed-file counts, head SHA, and short patch excerpts (truncated
-							to 1.8 KB per file) used by the analysis model.
+							changed-file counts, and head SHA. Public repositories may also
+							store short patch excerpts used by the analysis model.
 						</li>
 						<li>
-							<strong>Webhook event log</strong> (
-							<code className="font-mono text-[12px]">AppEvent</code>): one row
-							per GitHub delivery, retained for debugging and abuse audit.
+							<strong>Webhook event log</strong>: one minimized row per GitHub
+							delivery, retained for debugging and abuse audit.
 						</li>
 						<li>
 							<strong>Imported external sources</strong>: name, URL, and
@@ -91,8 +90,8 @@ function PrivacyRoute() {
 						<li>Reason codes and aggregate counts.</li>
 					</ul>
 					<p>
-						Maintainer report bodies and webhook payloads are stored server-side
-						for audit and review but are not exposed via the public API.
+						Maintainer report bodies, private repository names, private PR
+						links, and webhook payloads are not exposed via the public API.
 					</p>
 				</PolicySection>
 
@@ -124,10 +123,12 @@ function PrivacyRoute() {
 				<PolicySection title="Infrastructure">
 					<p>
 						OSS Protector runs on Cloudflare Workers and Cloudflare D1. AI
-						classification uses OpenRouter's free model endpoints; PR titles,
-						bodies, and short patch excerpts are sent to OpenRouter for scoring.
-						No persistent training is performed by OSS Protector and
-						OpenRouter's own data policy governs upstream model use.
+						classification uses OpenRouter. Public repository PR titles, bodies,
+						file names, and short patch excerpts may be sent to OpenRouter for
+						scoring. Private repositories are not sent to OpenRouter unless
+						their repo-local policy explicitly opts in. No persistent training
+						is performed by OSS Protector and OpenRouter's own data policy
+						governs upstream model use.
 					</p>
 				</PolicySection>
 

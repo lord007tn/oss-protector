@@ -186,7 +186,21 @@ const protectorsResponse = async (
 	);
 };
 
-const recentWebhookResponse = async (params: URLSearchParams) => {
+const recentWebhookResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined,
+	params: URLSearchParams
+) => {
+	const configuredToken = env?.SMOKE_HEALTH_TOKEN?.trim();
+	const authorization = request.headers.get("authorization") ?? "";
+	const suppliedToken = authorization.startsWith("Bearer ")
+		? authorization.slice("Bearer ".length).trim()
+		: "";
+	if (!configuredToken || suppliedToken !== configuredToken) {
+		return withSecurityHeaders(
+			Response.json({ error: "Not found" }, { status: 404 })
+		);
+	}
 	const repo = params.get("repo") ?? "";
 	const since = Number(params.get("since") ?? "0");
 	if (!repo) {
@@ -271,7 +285,7 @@ const routeFetch = (
 		return protectorsResponse(request, env, url.searchParams);
 	}
 	if (path === "/api/health/recent-webhook") {
-		return recentWebhookResponse(url.searchParams);
+		return recentWebhookResponse(request, env, url.searchParams);
 	}
 	if (path === "/api/github/manifest") {
 		return withSecurityHeaders(Response.json(githubAppManifest()));

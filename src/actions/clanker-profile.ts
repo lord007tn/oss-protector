@@ -132,6 +132,7 @@ export const getClankerProfile = async (
 					confidence: BotReport.confidence,
 					createdAt: BotReport.createdAt,
 					reasonCode: BotReport.reasonCode,
+					reporterIsMaintainer: BotReport.reporterIsMaintainer,
 					reporterLogin: BotReport.reporterLogin,
 					sourceUrl: BotReport.sourceUrl,
 					status: BotReport.status,
@@ -176,21 +177,21 @@ export const getClankerProfile = async (
 		]);
 
 		const publicPrs = prs.filter((row) => !row.isPrivate).slice(0, PR_LIMIT);
-		const privatePrCount =
-			prs.length - prs.filter((row) => !row.isPrivate).length;
 
 		// Hide source URLs that point at private repos. Public commenters
 		// browsing the directory don't need to know a report was filed inside
 		// a private repo — that's privileged context for the maintainer.
-		const sanitizedReports: ClankerReport[] = reports.map((row) => ({
-			aiVerdict: row.aiVerdict,
-			confidence: row.confidence,
-			createdAt: row.createdAt,
-			reasonCode: row.reasonCode,
-			reporterLogin: row.reporterLogin,
-			sourceUrl: row.repositoryIsPrivate ? null : row.sourceUrl,
-			status: row.status,
-		}));
+		const sanitizedReports: ClankerReport[] = reports
+			.filter((row) => row.reporterIsMaintainer && !row.repositoryIsPrivate)
+			.map((row) => ({
+				aiVerdict: row.aiVerdict,
+				confidence: row.confidence,
+				createdAt: row.createdAt,
+				reasonCode: row.reasonCode,
+				reporterLogin: row.reporterLogin,
+				sourceUrl: row.sourceUrl,
+				status: row.status,
+			}));
 
 		const reasonCodes = parseJsonArray<ReasonCode>(profile?.reasonCodesJson);
 		const sanitizedSignals: ClankerSignal[] = signals.map((row) => {
@@ -212,6 +213,12 @@ export const getClankerProfile = async (
 				weight: row.weight,
 			};
 		});
+		const publishedPrCount = profile?.importedSource
+			? Math.max(profile.prCount, publicPrs.length)
+			: publicPrs.length;
+		const validatedReportCount = sanitizedReports.filter(
+			(report) => report.status === "validated"
+		).length;
 		const score = profile?.score ?? 0;
 		const status =
 			profile?.status ??
@@ -225,8 +232,8 @@ export const getClankerProfile = async (
 			lastSeenAt: profile?.lastSeenAt ?? user.lastSeenAt,
 			login: user.login,
 			notFound: false,
-			privatePrCount,
-			prCount: profile?.prCount ?? prs.length,
+			privatePrCount: 0,
+			prCount: publishedPrCount,
 			publicPrs: publicPrs.map((row) => ({
 				htmlUrl: row.htmlUrl,
 				lastSeenAt: row.lastSeenAt,
@@ -237,13 +244,13 @@ export const getClankerProfile = async (
 			})),
 			reasonCodes,
 			reports: sanitizedReports,
-			reportCount: profile?.reportCount ?? reports.length,
+			reportCount: sanitizedReports.length,
 			score,
 			signals: sanitizedSignals,
 			status,
 			summary: profile?.summary ?? null,
-			totalPrs: prs.length,
-			validatedReportCount: profile?.validatedReportCount ?? 0,
+			totalPrs: publishedPrCount,
+			validatedReportCount,
 		};
 	} catch (caught) {
 		if (isMissingBindingError(caught) || isGithubUserLookupError(caught)) {

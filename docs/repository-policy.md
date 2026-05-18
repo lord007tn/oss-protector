@@ -13,6 +13,7 @@ Example:
 ```json
 {
   "enabled": true,
+  "analyzePrivateRepositories": false,
   "minimumLikelyAbuseConfidence": 85,
   "trustedAuthors": ["dependabot[bot]", "renovate[bot]"],
   "ignoredPaths": ["docs/", "examples/", ".github/ISSUE_TEMPLATE/"]
@@ -26,8 +27,9 @@ Example:
 3. OSS Protector tries to read `.github/oss-protector.json` from the target repository.
 4. If the file is missing or invalid JSON, the default policy is used.
 5. If the policy disables review, trusts the author, or ignores every changed path, automatic abuse analysis is skipped.
-6. Otherwise, OSS Protector analyzes the PR.
-7. If the model says `likely_abuse` but the confidence is below the repository threshold, the result is downgraded to review-needed instead of being treated as likely abuse.
+6. Private repositories skip third-party AI analysis unless `analyzePrivateRepositories` is explicitly set to `true`.
+7. Otherwise, OSS Protector analyzes the PR.
+8. If the model says `likely_abuse` but the confidence is below the repository threshold, the result is downgraded to review-needed instead of being treated as likely abuse.
 
 ## Fields
 
@@ -62,6 +64,22 @@ This controls how confident OSS Protector must be before a PR can be treated as 
 ```
 
 If analysis returns `likely_abuse` with `78` confidence and the repository threshold is `90`, OSS Protector downgrades the result to review-needed.
+
+### `analyzePrivateRepositories`
+
+Type: `boolean`
+
+Default: `false`
+
+Private repositories are tracked for webhook delivery and local maintainer correction commands, but their PR patches are not sent to OpenRouter unless this is explicitly enabled.
+
+```json
+{
+  "analyzePrivateRepositories": true
+}
+```
+
+Only enable this if the repository owner accepts that PR title, body, changed file names, and short patch excerpts may be sent to the configured OpenRouter models for abuse analysis.
 
 ### `trustedAuthors`
 
@@ -102,6 +120,7 @@ For most projects, start conservative:
 ```json
 {
   "enabled": true,
+  "analyzePrivateRepositories": false,
   "minimumLikelyAbuseConfidence": 85,
   "trustedAuthors": ["dependabot[bot]", "renovate[bot]"],
   "ignoredPaths": ["docs/", "examples/"]

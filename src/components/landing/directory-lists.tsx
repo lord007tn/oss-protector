@@ -131,7 +131,7 @@ export function ProtectorsCard({
 					</ul>
 				) : (
 					<EmptyState
-						description="Maintainer review signals appear after reports are submitted from GitHub issues or pull requests."
+						description="Install the GitHub App, then mention @oss-protector in a PR comment to submit the first maintainer review signal."
 						icon={UsersRound}
 						title="No review signals yet"
 					/>

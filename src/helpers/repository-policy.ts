@@ -1,6 +1,7 @@
 import type { PullRequestAnalysisResult } from "@/integrations/openrouter/validation";
 
 export interface RepositoryPolicy {
+	analyzePrivateRepositories: boolean;
 	enabled: boolean;
 	ignoredPaths: string[];
 	minimumLikelyAbuseConfidence: number;
@@ -8,6 +9,7 @@ export interface RepositoryPolicy {
 }
 
 export const DEFAULT_REPOSITORY_POLICY: RepositoryPolicy = {
+	analyzePrivateRepositories: false,
 	enabled: true,
 	ignoredPaths: [],
 	minimumLikelyAbuseConfidence: 70,
@@ -39,6 +41,10 @@ export const parseRepositoryPolicy = (source: string): RepositoryPolicy => {
 	try {
 		const parsed = JSON.parse(source) as Record<string, unknown>;
 		return {
+			analyzePrivateRepositories:
+				typeof parsed.analyzePrivateRepositories === "boolean"
+					? parsed.analyzePrivateRepositories
+					: DEFAULT_REPOSITORY_POLICY.analyzePrivateRepositories,
 			enabled:
 				typeof parsed.enabled === "boolean"
 					? parsed.enabled
@@ -60,12 +66,17 @@ export const shouldSkipPullRequestAnalysis = ({
 	authorLogin,
 	filenames,
 	policy,
+	repositoryIsPrivate = false,
 }: {
 	authorLogin: string;
 	filenames: string[];
 	policy: RepositoryPolicy;
+	repositoryIsPrivate?: boolean;
 }): boolean => {
 	if (!policy.enabled) {
+		return true;
+	}
+	if (repositoryIsPrivate && !policy.analyzePrivateRepositories) {
 		return true;
 	}
 	if (policy.trustedAuthors.includes(authorLogin.toLowerCase())) {
