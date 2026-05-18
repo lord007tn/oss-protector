@@ -123,6 +123,83 @@ export function Footer() {
 								width={212}
 							/>
 						</a>
+						<a
+							href="https://www.tinystartups.com/startup/oss-protector"
+							rel="noopener noreferrer"
+							style={{
+								alignItems: "center",
+								background:
+									"linear-gradient(#fff,#fff) padding-box,linear-gradient(90deg,#3525E6,#D81FE0,#22B8F0) border-box",
+								border: "2px solid transparent",
+								borderRadius: "14px",
+								color: "#0E0B1F",
+								display: "inline-flex",
+								fontFamily: "'Inter',system-ui,sans-serif",
+								gap: "14px",
+								padding: "14px 22px 14px 18px",
+								textDecoration: "none",
+							}}
+							target="_blank"
+						>
+							<svg
+								aria-hidden="true"
+								height="56"
+								viewBox="0 0 100 100"
+								width="56"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<title>Tiny Startups</title>
+								<defs>
+									<linearGradient id="tsg" x1=".1" x2=".9" y1="0" y2="1">
+										<stop offset="0%" stopColor="#3525E6" />
+										<stop offset="55%" stopColor="#D81FE0" />
+										<stop offset="100%" stopColor="#22B8F0" />
+									</linearGradient>
+								</defs>
+								<path
+									d="M50 6C52 32 68 48 94 50C68 52 52 68 50 94C48 68 32 52 6 50C32 48 48 32 50 6Z"
+									fill="url(#tsg)"
+								/>
+							</svg>
+							<span
+								style={{
+									display: "flex",
+									flexDirection: "column",
+									lineHeight: 1.15,
+								}}
+							>
+								<span
+									style={{
+										color: "#6A6585",
+										fontFamily: "monospace",
+										fontSize: "9px",
+										fontWeight: 600,
+										letterSpacing: "0.18em",
+										textTransform: "uppercase",
+									}}
+								>
+									Launched on
+								</span>
+								<span
+									style={{
+										fontSize: "22px",
+										fontWeight: 800,
+										letterSpacing: "-0.025em",
+									}}
+								>
+									Tiny Startups
+								</span>
+								<span
+									style={{
+										color: "#6A6585",
+										fontSize: "11px",
+										marginTop: "4px",
+									}}
+								>
+									tinystartups.com
+								</span>
+							</span>
+						</a>
 					</div>
 				</div>
 			</div>
