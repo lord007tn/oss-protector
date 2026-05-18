@@ -204,7 +204,7 @@ The hosted Worker is bound to the `oss-protector` D1 database in `wrangler.json`
 pnpm run deploy
 ```
 
-Deploys are wired through Cloudflare's Git integration on the hosted instance — every push to `main` triggers a Cloudflare-managed build and deploy. Run `pnpm run deploy` locally only for out-of-cycle hotfixes.
+Deploys are wired through Cloudflare's Git integration on the hosted instance — every push to `master` triggers a Cloudflare-managed build and deploy. Run `pnpm run deploy` locally only for out-of-cycle hotfixes.
 
 ## Contributing
 

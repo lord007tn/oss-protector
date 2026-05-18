@@ -62,7 +62,7 @@ src/
 
 ## Workflow
 
-1. **Fork & branch** — branch from `main`, name it after the change (`fix/scoring-decay-overflow`, `feat/discord-webhook`).
+1. **Fork & branch** — branch from `master`, name it after the change (`fix/scoring-decay-overflow`, `feat/discord-webhook`).
 2. **Code with the linter on** — `pnpm check` (ultracite/oxlint/oxfmt). The pre-commit hook also runs tests.
 3. **Add tests** for anything in `lib/scoring.ts`, `helpers/`, or `integrations/openrouter/`.
 4. **Verify locally** before opening a PR:
@@ -72,7 +72,7 @@ src/
    pnpm test
    pnpm build
    ```
-5. **Open the PR** against `main`. The PR template will ask you to describe what changed and how to test it.
+5. **Open the PR** against `master`. The PR template will ask you to describe what changed and how to test it.
 
 ## Commit & PR style
 
