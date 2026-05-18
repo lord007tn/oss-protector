@@ -46,7 +46,9 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "commitizen": "^4.3.1",
     "cross-env": "^10.1.0",
+    "cz-git": "^1.13.1",
     "dotenv": "^17.4.2",
     "drizzle-kit": "1.0.0-beta.24",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -134,6 +136,11 @@
   },
   "type": "module",
   "private": true,
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@openrouter/sdk",

@@ -47,6 +47,19 @@ skills:
     use: "@tanstack/router-plugin#router-plugin"
 <!-- intent-skills:end -->
 
+# Git Flow and Pull Requests
+
+- Treat `master` as the protected integration branch. Do not commit or push directly to `master` unless the user explicitly asks for a direct hotfix.
+- Use short-lived topic branches for all feature, fix, refactor, and documentation work. Prefer branch names like `feat/<short-scope>`, `fix/<short-scope>`, `refactor/<short-scope>`, `docs/<short-scope>`, or `chore/<short-scope>`.
+- Before committing, review the diff, keep the commit focused, and run `pnpm fix --unsafe`. Also run the relevant tests or checks for the files changed when practical.
+- Use Commitizen for commit messages, for example `pnpm exec cz`, and follow the repository's Conventional Commits configuration.
+- When asked to push completed work, push the topic branch and open a pull request unless the user explicitly says not to. Do not merge the pull request unless the user explicitly asks.
+- When asked to merge a pull request, use a normal merge commit. Do not squash merge or rebase merge unless the user explicitly asks for that strategy.
+- Do not delete pull request source branches after merge unless the user explicitly asks for branch cleanup.
+- Pull request titles should match the change scope and follow the same style as commits. Pull request descriptions should include: summary, key changes, validation performed, risks or follow-up notes, and linked issues when available.
+- Keep pull requests reviewable. Split unrelated backend, frontend, migration, and infrastructure changes into separate PRs when they can be validated independently.
+- For release work, create tags only after the release PR has merged. Use semantic version tags like `v1.4.0`, and include a concise changelog or release notes summary.
+
 
 # Ultracite Code Standards
 
