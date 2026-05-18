@@ -73,7 +73,7 @@ export function Footer() {
 						or{" "}
 						<code className="font-mono text-[11px]">@oss-protector allow</code>.
 					</p>
-					<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
 						<a
 							className="inline-flex items-center gap-1.5 hover:text-foreground"
 							href={githubRepoUrl}
@@ -94,6 +94,20 @@ export function Footer() {
 						>
 							<Scale className="size-3.5" />
 							MIT licensed
+						</a>
+						<a
+							className="inline-flex items-center"
+							href="https://startupfa.me/s/oss-protector?utm_source=oss-protector.raedbahri90.workers.dev"
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							<img
+								alt="OSS Protector - Featured on Startup Fame"
+								height={36}
+								loading="lazy"
+								src="https://startupfa.me/badges/featured-badge-small.webp"
+								width={224}
+							/>
 						</a>
 					</div>
 				</div>
