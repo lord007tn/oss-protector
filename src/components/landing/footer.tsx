@@ -109,6 +109,20 @@ export function Footer() {
 								width={224}
 							/>
 						</a>
+						<a
+							className="inline-flex items-center"
+							href="https://launchigniter.com/product/oss-protector?ref=badge-oss-protector"
+							rel="noopener noreferrer"
+							target="_blank"
+						>
+							<img
+								alt="Featured on LaunchIgniter"
+								height={55}
+								loading="lazy"
+								src="https://launchigniter.com/api/badge/oss-protector?theme=light"
+								width={212}
+							/>
+						</a>
 					</div>
 				</div>
 			</div>
