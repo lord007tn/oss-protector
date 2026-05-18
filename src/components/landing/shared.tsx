@@ -1,9 +1,8 @@
-import { type LucideIcon, Terminal } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
 	Card,
-	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
@@ -74,33 +73,6 @@ export function ProcessStep({
 					{description}
 				</CardDescription>
 			</CardHeader>
-		</Card>
-	);
-}
-
-export function CodePanel({
-	description,
-	lines,
-	title,
-}: {
-	description: string;
-	lines: string[];
-	title: string;
-}) {
-	return (
-		<Card className="rounded-lg">
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<Terminal className="size-5 text-primary" />
-					{title}
-				</CardTitle>
-				<CardDescription>{description}</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<pre className="overflow-x-auto rounded-lg border bg-foreground p-4 text-background text-sm">
-					<code>{lines.join("\n")}</code>
-				</pre>
-			</CardContent>
 		</Card>
 	);
 }

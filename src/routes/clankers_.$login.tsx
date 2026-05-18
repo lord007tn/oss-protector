@@ -10,7 +10,10 @@ import {
 	UserSearch,
 } from "lucide-react";
 
-import type { ClankerProfileResult } from "@/actions/clanker-profile";
+import {
+	type ClankerProfileResult,
+	emptyClankerProfile,
+} from "@/actions/clanker-profile";
 import { publicAppUrl } from "@/components/landing/constants";
 import { Footer } from "@/components/landing/footer";
 import { ScoreMeter, StatusBadge } from "@/components/landing/shared";
@@ -47,6 +50,8 @@ import { REASON_LABELS, type ReasonCode } from "@/constants/reason-codes";
 import { REPORT_STATUS_LABELS } from "@/constants/report-statuses";
 import { getClankerProfileFn } from "@/functions/clanker-profile";
 
+const GITHUB_LOGIN_PATTERN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+
 export const Route = createFileRoute("/clankers_/$login")({
 	component: ClankerProfileRoute,
 	head: ({ params }) => ({
@@ -64,8 +69,12 @@ export const Route = createFileRoute("/clankers_/$login")({
 			},
 		],
 	}),
-	loader: async ({ params }) =>
-		getClankerProfileFn({ data: { login: params.login } }),
+	loader: ({ params }) => {
+		if (!GITHUB_LOGIN_PATTERN.test(params.login)) {
+			return emptyClankerProfile(params.login);
+		}
+		return getClankerProfileFn({ data: { login: params.login } });
+	},
 });
 
 function ClankerProfileRoute() {
@@ -80,15 +89,23 @@ function ClankerProfileRoute() {
 }
 
 function NotFoundView({ login }: { login: string }) {
+	const githubHref = GITHUB_LOGIN_PATTERN.test(login)
+		? `https://github.com/${login}`
+		: null;
+
 	return (
 		<StatusPage
 			actions={[
 				{ href: "/clankers", label: "Browse all clankers", tone: "primary" },
-				{
-					href: `https://github.com/${login}`,
-					label: "View on GitHub",
-					tone: "outline",
-				},
+				...(githubHref
+					? [
+							{
+								href: githubHref,
+								label: "View on GitHub",
+								tone: "outline" as const,
+							},
+						]
+					: []),
 				{ href: "/contest", label: "Contest a listing", tone: "ghost" },
 			]}
 			code="Not in the directory"
@@ -133,6 +150,7 @@ function ProfileView({ profile }: { profile: ClankerProfileResult }) {
 				<ContestAlert />
 
 				<PublicPullRequestsCard profile={profile} />
+				<DecisionTimelineCard profile={profile} />
 				<ReportsCard profile={profile} />
 			</div>
 			<Footer />
@@ -471,6 +489,97 @@ function ReportsCard({ profile }: { profile: ClankerProfileResult }) {
 						<Separator className="my-3" />
 						<p className="text-muted-foreground text-xs">
 							Showing 10 of {profile.reports.length} reports.
+						</p>
+					</>
+				) : null}
+			</CardContent>
+		</Card>
+	);
+}
+
+const SIGNAL_LABELS: Record<string, string> = {
+	ai_pr_review: "Automatic PR review",
+	duplicate_campaign: "Duplicate campaign",
+	maintainer_correction_allow: "Maintainer allow",
+	maintainer_correction_confirm: "Maintainer confirm",
+	maintainer_correction_dismiss: "Maintainer dismiss",
+	maintainer_correction_reset: "Maintainer reset",
+	maintainer_report: "Maintainer report",
+	pull_request_seen: "PR observed",
+};
+
+function DecisionTimelineCard({ profile }: { profile: ClankerProfileResult }) {
+	if (profile.signals.length === 0) {
+		return null;
+	}
+	return (
+		<Card className="rounded-md border-muted/60">
+			<CardHeader className="space-y-1 pb-3">
+				<CardTitle className="flex items-center gap-2 font-medium text-base">
+					<History className="size-4 text-muted-foreground" />
+					Decision timeline
+				</CardTitle>
+				<CardDescription className="text-xs leading-5">
+					Signals that changed or explained this profile. Private repository
+					links are withheld, but signal type, source, and score weight remain
+					visible for auditability.
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<ul className="grid gap-2">
+					{profile.signals.slice(0, 12).map((signal) => (
+						<li
+							className="grid gap-1 rounded-md border border-muted/60 bg-muted/15 px-3 py-2"
+							key={`${signal.observedAt}-${signal.signalType}-${signal.sourceUrl ?? signal.source}`}
+						>
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<div className="flex flex-wrap items-center gap-2 text-sm">
+									<span className="font-medium">
+										{SIGNAL_LABELS[signal.signalType] ?? signal.signalType}
+									</span>
+									<Badge variant={signal.weight > 0 ? "secondary" : "outline"}>
+										{signal.weight > 0 ? "+" : ""}
+										{signal.weight}
+									</Badge>
+									{signal.reasonCode ? (
+										<Badge variant="outline">
+											{REASON_LABELS[signal.reasonCode] ?? signal.reasonCode}
+										</Badge>
+									) : null}
+								</div>
+								<span className="font-mono text-muted-foreground text-xs tabular-nums">
+									{new Date(signal.observedAt * 1000).toLocaleDateString("en", {
+										day: "numeric",
+										month: "short",
+										year: "numeric",
+									})}
+								</span>
+							</div>
+							<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs">
+								<span>Source: {signal.source.replaceAll("_", " ")}</span>
+								{signal.repositoryFullName ? (
+									<span className="font-mono">{signal.repositoryFullName}</span>
+								) : null}
+								{signal.sourceUrl ? (
+									<a
+										className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
+										href={signal.sourceUrl}
+										rel="noopener noreferrer"
+										target="_blank"
+									>
+										Source
+										<ExternalLink className="size-3" />
+									</a>
+								) : null}
+							</div>
+						</li>
+					))}
+				</ul>
+				{profile.signals.length > 12 ? (
+					<>
+						<Separator className="my-3" />
+						<p className="text-muted-foreground text-xs">
+							Showing 12 of {profile.signals.length} signals.
 						</p>
 					</>
 				) : null}

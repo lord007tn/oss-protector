@@ -32,6 +32,12 @@ import {
 	verifyGithubSignature,
 } from "@/helpers/github-webhook";
 import {
+	applyRepositoryPolicy,
+	DEFAULT_REPOSITORY_POLICY,
+	parseRepositoryPolicy,
+	shouldSkipPullRequestAnalysis,
+} from "@/helpers/repository-policy";
+import {
 	createCorrectionAcknowledgementComment,
 	createInstallationClient,
 	createPullRequestAnalysisComment,
@@ -91,6 +97,52 @@ const acknowledgeReport = async ({
 		});
 	} catch (caught) {
 		console.warn("Failed to create GitHub report acknowledgement", caught);
+	}
+};
+
+const decodeBase64Text = (value: string): string => {
+	const compact = value.replace(/\s+/g, "");
+	if (typeof atob === "function") {
+		return atob(compact);
+	}
+	return Buffer.from(compact, "base64").toString("utf8");
+};
+
+const fetchRepositoryPolicy = async ({
+	installationId,
+	repositoryFullName,
+}: {
+	installationId?: null | number;
+	repositoryFullName: string;
+}) => {
+	const repository = parseRepositoryFullName(repositoryFullName);
+	if (!repository) {
+		return DEFAULT_REPOSITORY_POLICY;
+	}
+	const octokit = await createInstallationClient({ installationId });
+	if (!octokit) {
+		return DEFAULT_REPOSITORY_POLICY;
+	}
+	try {
+		const response = await octokit.rest.repos.getContent({
+			owner: repository.owner,
+			path: ".github/oss-protector.json",
+			repo: repository.repo,
+		});
+		const data = response.data;
+		if (!("content" in data) || data.type !== "file") {
+			return DEFAULT_REPOSITORY_POLICY;
+		}
+		return parseRepositoryPolicy(decodeBase64Text(data.content));
+	} catch (caught) {
+		const status =
+			typeof caught === "object" && caught !== null && "status" in caught
+				? (caught as { status?: unknown }).status
+				: null;
+		if (status !== 404) {
+			console.warn("Failed to fetch OSS Protector repository policy", caught);
+		}
+		return DEFAULT_REPOSITORY_POLICY;
 	}
 };
 
@@ -299,13 +351,32 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			pullNumber: payload.pull_request.number,
 			repositoryFullName: payload.repository.full_name,
 		});
-		const analysis = await validatePullRequestWithOpenRouter({
-			body: payload.pull_request.body,
-			files,
-			targetLogin: author.login,
-			title: payload.pull_request.title,
-			url: payload.pull_request.html_url,
+		const policy = await fetchRepositoryPolicy({
+			installationId: payload.installation?.id,
+			repositoryFullName: payload.repository.full_name,
 		});
+		if (
+			shouldSkipPullRequestAnalysis({
+				authorLogin: author.login,
+				filenames: files.map((file) => file.filename),
+				policy,
+			})
+		) {
+			console.log(
+				`pr-analysis: skipped by repo policy pr=${payload.repository.full_name}#${payload.pull_request.number}`
+			);
+			return;
+		}
+		const analysis = applyRepositoryPolicy(
+			await validatePullRequestWithOpenRouter({
+				body: payload.pull_request.body,
+				files,
+				targetLogin: author.login,
+				title: payload.pull_request.title,
+				url: payload.pull_request.html_url,
+			}),
+			policy
+		);
 		await postPullRequestAnalysis({
 			analysis,
 			authorLogin: author.login,

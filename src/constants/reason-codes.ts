@@ -1,6 +1,6 @@
 export const REASON_CODES = [
 	"fake_bounty",
-	"ai_slope",
+	"ai_slop",
 	"spam_pr",
 	"duplicate_pr",
 	"low_quality_ai",
@@ -15,7 +15,7 @@ export const REASON_CODES = [
 export type ReasonCode = (typeof REASON_CODES)[number];
 
 export const REASON_LABELS: Record<ReasonCode, string> = {
-	ai_slope: "AI slop",
+	ai_slop: "AI slop",
 	credential_phishing: "Credential phishing",
 	duplicate_pr: "Duplicate PR pattern",
 	external_blocklist: "External blocklist",
@@ -29,7 +29,7 @@ export const REASON_LABELS: Record<ReasonCode, string> = {
 };
 
 export const REASON_DESCRIPTIONS: Record<ReasonCode, string> = {
-	ai_slope:
+	ai_slop:
 		"Submission appears to contain low-context generated text or mechanical edits that do not match the project.",
 	credential_phishing:
 		"Signal references credential collection, token exfiltration, suspicious links, or secret harvesting.",
@@ -54,7 +54,7 @@ export const REASON_DESCRIPTIONS: Record<ReasonCode, string> = {
 };
 
 export const REASON_CAUSES: Record<ReasonCode, string[]> = {
-	ai_slope: [
+	ai_slop: [
 		"Generic generated wording",
 		"Mechanical edits without project context",
 		"Mismatch between description and code change",

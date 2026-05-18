@@ -11,10 +11,8 @@
   "ignoreFiles": [
     "src/components/ui/chart.tsx",
     "src/components/ui/dropdown-menu.tsx",
-    "src/components/ui/input.tsx",
     "src/components/ui/scroll-area.tsx",
     "src/components/ui/select.tsx",
-    "src/components/ui/separator.tsx",
     "src/components/ui/skeleton.tsx",
     "src/components/ui/tabs.tsx",
     "src/data/demo.ts"
@@ -25,6 +23,7 @@
     "src/db/index.ts": ["exports", "types"],
     "src/env.ts": ["exports", "types"],
     "src/hooks/api/dashboard/use-dashboard.ts": ["exports", "types"],
+    "src/generated/github-stars.ts": ["exports"],
     "src/lib/json.ts": ["exports", "types"],
     "src/lib/time.ts": ["exports", "types"]
   },

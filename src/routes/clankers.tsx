@@ -14,7 +14,7 @@ import { SiteHeader } from "@/components/landing/site-header";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { REASON_CODES } from "@/constants/reason-codes";
-import { RISK_STATUSES } from "@/constants/risk-statuses";
+import { MAX_RISK_SCORE, RISK_STATUSES } from "@/constants/risk-statuses";
 import { getDashboardFn } from "@/functions/dashboard";
 import type {
 	ClankerFilters as ClankerFilterValues,
@@ -186,7 +186,7 @@ function numberSearch(value: unknown) {
 	if (!Number.isFinite(parsed)) {
 		return;
 	}
-	const normalized = Math.max(0, Math.round(parsed));
+	const normalized = Math.min(MAX_RISK_SCORE, Math.max(0, Math.round(parsed)));
 	return normalized > 0 ? normalized : undefined;
 }
 

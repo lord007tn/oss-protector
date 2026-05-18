@@ -5,12 +5,12 @@ import type { RiskStatus } from "@/constants/risk-statuses";
 export type RiskProfile = DirectoryDashboard["riskProfiles"][number];
 export type Protector = DirectoryDashboard["protectors"][number];
 
-export interface ReasonCount {
+interface ReasonCount {
 	count: number;
 	reason: ReasonCode | string;
 }
 
-export interface StatusCount {
+interface StatusCount {
 	count: number;
 	status: RiskStatus;
 }

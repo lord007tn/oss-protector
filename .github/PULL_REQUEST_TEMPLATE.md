@@ -27,4 +27,4 @@ Thanks for the PR! A few quick asks:
 - [ ] `pnpm test` passes
 - [ ] Added/updated tests for new scoring signals or helpers (if applicable)
 - [ ] Updated `CHANGELOG.md` under `## [Unreleased]` (for user-facing changes)
-- [ ] No secrets, account IDs, or personal URLs introduced
+- [ ] No secrets or private credentials introduced

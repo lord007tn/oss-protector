@@ -105,6 +105,35 @@ const asTextId = (value: number | string) => String(value);
 
 const json = (value: unknown) => JSON.stringify(value);
 
+const DUPLICATE_CAMPAIGN_WINDOW_SECONDS = 90 * 86_400;
+const DUPLICATE_CAMPAIGN_MIN_PRS = 3;
+const DUPLICATE_CAMPAIGN_MIN_REPOSITORIES = 2;
+
+const COMMON_TITLE_WORDS = new Set([
+	"a",
+	"add",
+	"and",
+	"chore",
+	"docs",
+	"fix",
+	"for",
+	"in",
+	"of",
+	"readme",
+	"the",
+	"to",
+	"update",
+]);
+
+const normalizeCampaignTitle = (title: string) =>
+	title
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, " ")
+		.split(" ")
+		.filter((word) => word.length > 2 && !COMMON_TITLE_WORDS.has(word))
+		.slice(0, 8)
+		.join(" ");
+
 export const upsertGithubUser = async (input: GithubAccountInput) => {
 	const now = unixNow();
 	const [created] = await database
@@ -307,9 +336,90 @@ export const upsertPullRequest = async ({
 		targetUserId: author.id,
 		weight: 0,
 	});
+	await recordDuplicateCampaignSignal({
+		author,
+		currentPullRequest: created,
+		repository,
+	});
 	await recalculateRiskProfile(author.id);
 
 	return created;
+};
+
+const recordDuplicateCampaignSignal = async ({
+	author,
+	currentPullRequest,
+	repository,
+}: {
+	author: GithubUserSelect;
+	currentPullRequest: PullRequestSelect;
+	repository: RepositorySelect;
+}) => {
+	const normalizedTitle = normalizeCampaignTitle(currentPullRequest.title);
+	if (normalizedTitle.split(" ").length < 2) {
+		return;
+	}
+	const [existingSignal] = await database
+		.select({ id: BotSignal.id })
+		.from(BotSignal)
+		.where(
+			and(
+				eq(BotSignal.pullRequestId, currentPullRequest.id),
+				eq(BotSignal.signalType, "duplicate_campaign")
+			)
+		)
+		.limit(1);
+	if (existingSignal) {
+		return;
+	}
+
+	const recentCutoff = unixNow() - DUPLICATE_CAMPAIGN_WINDOW_SECONDS;
+	const recentPullRequests = await database
+		.select({
+			htmlUrl: PullRequest.htmlUrl,
+			lastSeenAt: PullRequest.lastSeenAt,
+			repositoryFullName: Repository.fullName,
+			title: PullRequest.title,
+		})
+		.from(PullRequest)
+		.innerJoin(Repository, eq(Repository.id, PullRequest.repositoryId))
+		.where(eq(PullRequest.authorUserId, author.id))
+		.orderBy(desc(PullRequest.lastSeenAt))
+		.limit(100);
+
+	const matches = recentPullRequests.filter(
+		(row) =>
+			row.lastSeenAt >= recentCutoff &&
+			normalizeCampaignTitle(row.title) === normalizedTitle
+	);
+	const repositoryCount = new Set(matches.map((row) => row.repositoryFullName))
+		.size;
+	if (
+		matches.length < DUPLICATE_CAMPAIGN_MIN_PRS ||
+		repositoryCount < DUPLICATE_CAMPAIGN_MIN_REPOSITORIES
+	) {
+		return;
+	}
+
+	await recordSignal({
+		metadata: {
+			matchedPullRequests: matches.slice(0, 8).map((row) => ({
+				repositoryFullName: row.repositoryFullName,
+				title: row.title,
+				url: row.htmlUrl,
+			})),
+			normalizedTitle,
+			reasonCode: "duplicate_pr",
+			repositoryCount,
+		},
+		pullRequestId: currentPullRequest.id,
+		repositoryId: repository.id,
+		signalType: "duplicate_campaign",
+		source: "cross_repo_pattern",
+		sourceUrl: currentPullRequest.htmlUrl,
+		targetUserId: author.id,
+		weight: 55,
+	});
 };
 
 export const recordSignal = async (input: {
@@ -663,6 +773,16 @@ const reporterTrust = (validated: number, total: number) => {
 const signalAggregatesQuery = (targetUserId: string) =>
 	database
 		.select({
+			reasonCodesCsv: sql<string>`COALESCE(GROUP_CONCAT(DISTINCT CASE
+				WHEN ${BotSignal.signalType} = 'duplicate_campaign' THEN 'duplicate_pr'
+				WHEN ${BotSignal.signalType} = 'ai_pr_review' AND ${BotSignal.metadataJson} LIKE '%"reasonCode":"credential_phishing"%' THEN 'credential_phishing'
+				WHEN ${BotSignal.signalType} = 'ai_pr_review' AND ${BotSignal.metadataJson} LIKE '%"reasonCode":"malicious_code"%' THEN 'malicious_code'
+				WHEN ${BotSignal.signalType} = 'ai_pr_review' AND ${BotSignal.metadataJson} LIKE '%"reasonCode":"duplicate_pr"%' THEN 'duplicate_pr'
+				WHEN ${BotSignal.signalType} = 'ai_pr_review' AND ${BotSignal.metadataJson} LIKE '%"reasonCode":"spam_pr"%' THEN 'spam_pr'
+				WHEN ${BotSignal.signalType} = 'ai_pr_review' AND ${BotSignal.metadataJson} LIKE '%"reasonCode":"ai_slop"%' THEN 'ai_slop'
+				WHEN ${BotSignal.signalType} = 'ai_pr_review' AND ${BotSignal.metadataJson} LIKE '%"reasonCode":"fake_bounty"%' THEN 'fake_bounty'
+				ELSE NULL
+			END), '')`,
 			signalScore: sql<number>`COALESCE(SUM(CASE
 				WHEN ${BotSignal.signalType} != 'maintainer_report'
 					THEN ${BotSignal.weight} * ${AGE_DECAY_SQL(sql.raw(`"BotSignal"."observedAt"`))}
@@ -704,12 +824,16 @@ type ExistingProfile =
 
 const mergeReasonCodes = (
 	existing: ExistingProfile,
-	reportAgg: ReportAgg | undefined
+	reportAgg: ReportAgg | undefined,
+	signalAgg: SignalAgg | undefined
 ) => {
 	const codes = new Set<ReasonCode>(
 		parseJsonArray<ReasonCode>(existing?.reasonCodesJson)
 	);
-	for (const code of (reportAgg?.reasonCodesCsv ?? "").split(",")) {
+	for (const code of [
+		...(reportAgg?.reasonCodesCsv ?? "").split(","),
+		...(signalAgg?.reasonCodesCsv ?? "").split(","),
+	]) {
 		const trimmed = code.trim();
 		if (trimmed) {
 			codes.add(trimmed as ReasonCode);
@@ -773,7 +897,9 @@ const buildProfileValues = ({
 		lastSignalAt:
 			Number(signalAgg?.maxObservedAt ?? existing?.lastSignalAt ?? 0) || null,
 		prCount: Math.max(existing?.prCount ?? 0, prCount),
-		reasonCodesJson: json([...mergeReasonCodes(existing, reportAgg)]),
+		reasonCodesJson: json([
+			...mergeReasonCodes(existing, reportAgg, signalAgg),
+		]),
 		reportCount,
 		repositoryCount: repositoryCount || existing?.repositoryCount || 0,
 		score,
@@ -859,7 +985,7 @@ export interface MaintainerCorrectionInput {
 	targetUserId: string;
 }
 
-export type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
+type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
 
 const correctionSignalType = (kind: CorrectionKind) =>
 	`maintainer_correction_${kind}` as const;

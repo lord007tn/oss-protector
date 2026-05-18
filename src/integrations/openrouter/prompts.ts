@@ -15,7 +15,7 @@ Evidence classes to consider:
 - malicious_code: backdoors, obfuscation, unexpected process/network execution, credential exfiltration, dependency lifecycle abuse.
 - credential_phishing: token harvesting, suspicious links, prompts for secrets, credential-looking workflows.
 - fake_bounty: reward/bounty farming language paired with low-value or repeated patches.
-- ai_slope or low_quality_ai: generated generic text, invented context, broad mechanical edits, low project understanding.
+- ai_slop or low_quality_ai: generated generic text, invented context, broad mechanical edits, low project understanding.
 - spam_pr: irrelevant, promotional, noisy, or unrelated pull request.
 - duplicate_pr: copied patches or repeated PR shape across repos.
 - maintainer_report: local context that is useful but still needs validation.
@@ -39,7 +39,7 @@ Review the title, body, file metadata, and patch snippets. Score what is actuall
 Detect these patterns:
 - malicious_code: backdoors, obfuscation, credential exfiltration, unexpected network/process execution, dangerous dependency lifecycle scripts, suspicious eval/base64/curl/wget usage.
 - credential_phishing: token collection, secret harvesting, suspicious external links, misleading auth prompts.
-- ai_slope: low-context generated filler, hallucinated project details, generic AI prose, summary that does not match the diff.
+- ai_slop: low-context generated filler, hallucinated project details, generic AI prose, summary that does not match the diff.
 - low_quality_ai: broad mechanical edits, generated wording, shallow refactors, poor project understanding without malicious evidence.
 - fake_bounty: bounty/reward/contribution farming, especially low-value edits with reward-seeking framing.
 - spam_pr: irrelevant, promotional, noisy, or unrelated changes.

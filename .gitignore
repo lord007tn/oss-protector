@@ -23,6 +23,7 @@ dist-ssr
 Thumbs.db
 .idea
 .claude/
+.agents/
 
 # Local todos / unconfig
 todos.json
@@ -31,6 +32,7 @@ __unconfig*
 # Agent / tool runtime logs
 .codex-*.log
 .playwright-mcp
+dogfood-output/
 
 # Logs
 *.log

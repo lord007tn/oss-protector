@@ -11,6 +11,7 @@ import {
 import { SectionHeading } from "@/components/landing/shared";
 import { SiteHeader } from "@/components/landing/site-header";
 import { JsonLd } from "@/components/seo/json-ld";
+import { MAX_RISK_SCORE } from "@/constants/risk-statuses";
 import { getDashboardFn } from "@/functions/dashboard";
 import { filterProtectors } from "@/helpers/directory-filters";
 import { useDashboard } from "@/hooks/api/dashboard/use-dashboard";
@@ -51,7 +52,7 @@ export const Route = createFileRoute("/protectors")({
 	}),
 	loader: async () => getDashboardFn(),
 	validateSearch: (search) => ({
-		min_reports: numberSearch(search.min_reports),
+		min_reports: reportsSearch(search.min_reports),
 		min_score: numberSearch(search.min_score),
 		page: pageSearch(search.page),
 		q: stringSearch(search.q),
@@ -162,7 +163,19 @@ function numberSearch(value: unknown) {
 	if (!Number.isFinite(parsed)) {
 		return;
 	}
-	const normalized = Math.max(0, Math.round(parsed));
+	const normalized = Math.min(MAX_RISK_SCORE, Math.max(0, Math.round(parsed)));
+	return normalized > 0 ? normalized : undefined;
+}
+
+function reportsSearch(value: unknown) {
+	if (typeof value === "string" && value.trim() === "") {
+		return;
+	}
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed)) {
+		return;
+	}
+	const normalized = Math.min(500, Math.max(0, Math.round(parsed)));
 	return normalized > 0 ? normalized : undefined;
 }
 

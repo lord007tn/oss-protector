@@ -35,6 +35,20 @@ const SECURITY_HEADERS = {
 	"X-Frame-Options": "DENY",
 } as const;
 
+const GITHUB_LOGIN_PATTERN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+
+const isInvalidClankerProfilePath = (path: string) => {
+	if (!path.startsWith("/clankers/")) {
+		return false;
+	}
+	const login = path.slice("/clankers/".length);
+	try {
+		return !GITHUB_LOGIN_PATTERN.test(decodeURIComponent(login));
+	} catch {
+		return true;
+	}
+};
+
 const sitemap = () =>
 	[
 		'<?xml version="1.0" encoding="UTF-8"?>',
@@ -52,7 +66,8 @@ const sitemap = () =>
 async function withSecurityHeaders(
 	responseOrPromise: Promise<Response> | Response
 ) {
-	const response = await responseOrPromise;
+	const original = await responseOrPromise;
+	const response = new Response(original.body, original);
 	for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(key, value);
 	}
@@ -266,6 +281,11 @@ const routeFetch = (
 	}
 	if (path === "/api/github/webhook" && method === "POST") {
 		return webhookResponse(request, context);
+	}
+	if (isInvalidClankerProfilePath(path)) {
+		return withSecurityHeaders(
+			Response.redirect(new URL("/clankers", request.url))
+		);
 	}
 	return withSecurityHeaders(handler.fetch(request));
 };

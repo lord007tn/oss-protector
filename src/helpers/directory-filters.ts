@@ -2,7 +2,7 @@ import type { DirectoryDashboard } from "@/actions/directory";
 import type { ReasonCode } from "@/constants/reason-codes";
 import { REASON_CODES } from "@/constants/reason-codes";
 import type { RiskStatus } from "@/constants/risk-statuses";
-import { RISK_STATUSES } from "@/constants/risk-statuses";
+import { MAX_RISK_SCORE, RISK_STATUSES } from "@/constants/risk-statuses";
 
 export type ClankerStatusFilter = Exclude<RiskStatus, "allow"> | "all";
 
@@ -32,19 +32,12 @@ const VALID_CLANKER_STATUSES = new Set<string>([
 ]);
 const VALID_REASONS = new Set<string>(["all", ...REASON_CODES]);
 
-export const defaultClankerFilters: ClankerFilters = {
+const defaultClankerFilters: ClankerFilters = {
 	limit: DEFAULT_LIMIT,
 	minScore: 0,
 	q: "",
 	reason: "all",
 	status: "all",
-};
-
-export const defaultProtectorFilters: ProtectorFilters = {
-	limit: DEFAULT_LIMIT,
-	minReports: 0,
-	minScore: 0,
-	q: "",
 };
 
 export function parseClankerFilters(
@@ -54,8 +47,18 @@ export function parseClankerFilters(
 	const reason = searchParams.get("reason") ?? defaultClankerFilters.reason;
 
 	return {
-		limit: parseBoundedNumber(searchParams.get("limit"), DEFAULT_LIMIT, 1),
-		minScore: parseBoundedNumber(searchParams.get("min_score"), 0, 0),
+		limit: parseBoundedNumber(
+			searchParams.get("limit"),
+			DEFAULT_LIMIT,
+			1,
+			MAX_LIMIT
+		),
+		minScore: parseBoundedNumber(
+			searchParams.get("min_score"),
+			0,
+			0,
+			MAX_RISK_SCORE
+		),
 		q: (searchParams.get("q") ?? "").trim(),
 		reason: VALID_REASONS.has(reason)
 			? (reason as ClankerFilters["reason"])
@@ -70,9 +73,24 @@ export function parseProtectorFilters(
 	searchParams: URLSearchParams
 ): ProtectorFilters {
 	return {
-		limit: parseBoundedNumber(searchParams.get("limit"), DEFAULT_LIMIT, 1),
-		minReports: parseBoundedNumber(searchParams.get("min_reports"), 0, 0),
-		minScore: parseBoundedNumber(searchParams.get("min_score"), 0, 0),
+		limit: parseBoundedNumber(
+			searchParams.get("limit"),
+			DEFAULT_LIMIT,
+			1,
+			MAX_LIMIT
+		),
+		minReports: parseBoundedNumber(
+			searchParams.get("min_reports"),
+			0,
+			0,
+			MAX_LIMIT
+		),
+		minScore: parseBoundedNumber(
+			searchParams.get("min_score"),
+			0,
+			0,
+			MAX_RISK_SCORE
+		),
 		q: (searchParams.get("q") ?? "").trim(),
 	};
 }
@@ -121,7 +139,8 @@ export function filterProtectors(
 function parseBoundedNumber(
 	value: null | string,
 	fallback: number,
-	min: number
+	min: number,
+	max: number
 ) {
 	if (value === null || value.trim() === "") {
 		return fallback;
@@ -130,5 +149,5 @@ function parseBoundedNumber(
 	if (!Number.isFinite(parsed)) {
 		return fallback;
 	}
-	return Math.min(MAX_LIMIT, Math.max(min, Math.round(parsed)));
+	return Math.min(max, Math.max(min, Math.round(parsed)));
 }

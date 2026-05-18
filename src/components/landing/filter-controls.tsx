@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { REASON_CODES, REASON_LABELS } from "@/constants/reason-codes";
-import { RISK_STATUS_LABELS, RISK_STATUSES } from "@/constants/risk-statuses";
+import {
+	MAX_RISK_SCORE,
+	RISK_STATUS_LABELS,
+	RISK_STATUSES,
+} from "@/constants/risk-statuses";
 import type { ClankerStatusFilter } from "@/helpers/directory-filters";
 
 interface ClankerSearchState {
@@ -35,19 +39,20 @@ const clankerStatuses: ClankerStatusFilter[] = [
 ];
 
 const DEBOUNCE_MS = 350;
+const MAX_MIN_REPORTS = 500;
 
 const emptyish = (value: number | string) =>
 	value === "" || value === 0 || value === "all" ? undefined : value;
 
-const positiveOrUndefined = (raw: string): number | undefined => {
+const boundedDraftValue = (raw: string, max: number): number | "" => {
 	if (raw === "") {
-		return;
+		return "";
 	}
 	const parsed = Number(raw);
-	if (!Number.isFinite(parsed) || parsed <= 0) {
-		return;
+	if (!Number.isFinite(parsed)) {
+		return "";
 	}
-	return Math.round(parsed);
+	return Math.max(0, Math.min(max, Math.round(parsed)));
 };
 
 export function ClankerFilters({ search }: { search: ClankerSearchState }) {
@@ -100,8 +105,9 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 
 	const handleScoreChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const raw = event.target.value;
-		setDraftScore(raw === "" ? "" : Number(raw));
-		pushScore(positiveOrUndefined(raw));
+		const value = boundedDraftValue(raw, MAX_RISK_SCORE);
+		setDraftScore(value);
+		pushScore(value === "" || value === 0 ? undefined : value);
 	};
 
 	const handleStatusChange = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -182,6 +188,7 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 						aria-label="Minimum clanker score"
 						autoComplete="off"
 						inputMode="numeric"
+						max={MAX_RISK_SCORE}
 						min={0}
 						onChange={handleScoreChange}
 						placeholder="Min score"
@@ -290,11 +297,13 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 						aria-label="Minimum reports"
 						autoComplete="off"
 						inputMode="numeric"
+						max={MAX_MIN_REPORTS}
 						min={0}
 						onChange={(event) => {
 							const raw = event.target.value;
-							setDraftReports(raw === "" ? "" : Number(raw));
-							pushReports(positiveOrUndefined(raw));
+							const value = boundedDraftValue(raw, MAX_MIN_REPORTS);
+							setDraftReports(value);
+							pushReports(value === "" || value === 0 ? undefined : value);
 						}}
 						placeholder="Min reports"
 						type="number"
@@ -304,11 +313,13 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 						aria-label="Minimum validated score"
 						autoComplete="off"
 						inputMode="numeric"
+						max={MAX_RISK_SCORE}
 						min={0}
 						onChange={(event) => {
 							const raw = event.target.value;
-							setDraftScore(raw === "" ? "" : Number(raw));
-							pushScore(positiveOrUndefined(raw));
+							const value = boundedDraftValue(raw, MAX_RISK_SCORE);
+							setDraftScore(value);
+							pushScore(value === "" || value === 0 ? undefined : value);
 						}}
 						placeholder="Min validated score"
 						type="number"

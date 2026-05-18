@@ -48,18 +48,13 @@ export const Route = createRootRoute({
 			},
 		],
 	}),
-	notFoundComponent: () => (
-		<NotFoundPage
-			pathname={
-				typeof window === "undefined" ? undefined : window.location.pathname
-			}
-		/>
-	),
+	notFoundComponent: () => <NotFoundPage />,
 	shellComponent: RootDocument,
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
-	const showDevtools = import.meta.env.DEV;
+	const showDevtools =
+		import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEVTOOLS === "true";
 
 	return (
 		<html lang="en" suppressHydrationWarning>
@@ -77,7 +72,9 @@ function RootDocument({ children }: { children: ReactNode }) {
 				{showDevtools ? (
 					<TanStackDevtools
 						config={{
+							hideUntilHover: true,
 							position: "bottom-right",
+							requireUrlFlag: true,
 						}}
 						plugins={[
 							{

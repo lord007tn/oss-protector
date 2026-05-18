@@ -126,10 +126,7 @@
     "knip": "knip",
     "ultracite": "ultracite check",
     "ultracite:fix": "ultracite fix",
-    "oxlint": "oxlint -c oxlint.config.mjs --tsconfig tsconfig.json .",
-    "oxlint:perf": "oxlint -c oxlint.config.mjs --tsconfig tsconfig.json -W perf -W suspicious .",
-    "oxfmt": "oxfmt -c oxfmt.config.mjs --write \"src/**/*.{ts,tsx}\" \"*.ts\"",
-    "toolchain": "pnpm check && pnpm oxlint && pnpm knip && pnpm doctor",
+    "toolchain": "pnpm check && pnpm run typecheck && pnpm test && pnpm build && pnpm doctor",
     "fix": "ultracite fix",
     "prepare": "husky"
   },

@@ -4,16 +4,17 @@ import type { ReasonCode } from "@/constants/reason-codes";
 import type { ReportStatus } from "@/constants/report-statuses";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { riskStatusForScore } from "@/constants/risk-statuses";
-import { database } from "@/db";
+import { database, hasDatabaseBinding } from "@/db";
 import { isMissingBindingError } from "@/db/errors";
 import {
 	BotReport,
+	BotSignal,
 	GithubUser,
 	PullRequest,
 	Repository,
 	RiskProfile,
 } from "@/db/schema";
-import { parseJsonArray } from "@/lib/json";
+import { parseJsonArray, parseJsonObject } from "@/lib/json";
 
 export interface PublicPullRequest {
 	htmlUrl: string;
@@ -34,6 +35,16 @@ export interface ClankerReport {
 	status: ReportStatus;
 }
 
+export interface ClankerSignal {
+	observedAt: number;
+	reasonCode: ReasonCode | null;
+	repositoryFullName: null | string;
+	signalType: string;
+	source: string;
+	sourceUrl: null | string;
+	weight: number;
+}
+
 export interface ClankerProfileResult {
 	avatarUrl: null | string;
 	confidence: number;
@@ -49,6 +60,7 @@ export interface ClankerProfileResult {
 	reportCount: number;
 	reports: ClankerReport[];
 	score: number;
+	signals: ClankerSignal[];
 	status: RiskStatus;
 	summary: null | string;
 	totalPrs: number;
@@ -57,8 +69,14 @@ export interface ClankerProfileResult {
 
 const PR_LIMIT = 40;
 const REPORT_LIMIT = 40;
+const SIGNAL_LIMIT = 40;
 
-const emptyProfile = (login: string): ClankerProfileResult => ({
+const isGithubUserLookupError = (caught: unknown) =>
+	caught instanceof Error &&
+	caught.message.startsWith("Failed query:") &&
+	caught.message.includes('from "GithubUser"');
+
+export const emptyClankerProfile = (login: string): ClankerProfileResult => ({
 	avatarUrl: null,
 	confidence: 0,
 	htmlUrl: `https://github.com/${login}`,
@@ -73,6 +91,7 @@ const emptyProfile = (login: string): ClankerProfileResult => ({
 	reports: [],
 	reportCount: 0,
 	score: 0,
+	signals: [],
 	status: "watch",
 	summary: null,
 	totalPrs: 0,
@@ -84,7 +103,10 @@ export const getClankerProfile = async (
 ): Promise<ClankerProfileResult> => {
 	const login = rawLogin.trim();
 	if (!login) {
-		return emptyProfile(rawLogin);
+		return emptyClankerProfile(rawLogin);
+	}
+	if (!hasDatabaseBinding) {
+		return emptyClankerProfile(login);
 	}
 
 	try {
@@ -95,10 +117,10 @@ export const getClankerProfile = async (
 			.limit(1);
 
 		if (!user) {
-			return emptyProfile(login);
+			return emptyClankerProfile(login);
 		}
 
-		const [[profile], reports, prs] = await Promise.all([
+		const [[profile], reports, prs, signals] = await Promise.all([
 			database
 				.select()
 				.from(RiskProfile)
@@ -135,6 +157,22 @@ export const getClankerProfile = async (
 				.where(eq(PullRequest.authorUserId, user.id))
 				.orderBy(desc(PullRequest.lastSeenAt))
 				.limit(200),
+			database
+				.select({
+					isPrivate: Repository.isPrivate,
+					metadataJson: BotSignal.metadataJson,
+					observedAt: BotSignal.observedAt,
+					repositoryFullName: Repository.fullName,
+					signalType: BotSignal.signalType,
+					source: BotSignal.source,
+					sourceUrl: BotSignal.sourceUrl,
+					weight: BotSignal.weight,
+				})
+				.from(BotSignal)
+				.leftJoin(Repository, eq(Repository.id, BotSignal.repositoryId))
+				.where(eq(BotSignal.targetUserId, user.id))
+				.orderBy(desc(BotSignal.observedAt))
+				.limit(SIGNAL_LIMIT),
 		]);
 
 		const publicPrs = prs.filter((row) => !row.isPrivate).slice(0, PR_LIMIT);
@@ -155,6 +193,25 @@ export const getClankerProfile = async (
 		}));
 
 		const reasonCodes = parseJsonArray<ReasonCode>(profile?.reasonCodesJson);
+		const sanitizedSignals: ClankerSignal[] = signals.map((row) => {
+			const metadata = parseJsonObject<{ reasonCode: ReasonCode }>(
+				row.metadataJson
+			);
+			return {
+				observedAt: row.observedAt,
+				reasonCode:
+					metadata.reasonCode && reasonCodes.includes(metadata.reasonCode)
+						? metadata.reasonCode
+						: null,
+				repositoryFullName: row.isPrivate
+					? null
+					: (row.repositoryFullName ?? null),
+				signalType: row.signalType,
+				source: row.source,
+				sourceUrl: row.isPrivate ? null : row.sourceUrl,
+				weight: row.weight,
+			};
+		});
 		const score = profile?.score ?? 0;
 		const status =
 			profile?.status ??
@@ -182,14 +239,15 @@ export const getClankerProfile = async (
 			reports: sanitizedReports,
 			reportCount: profile?.reportCount ?? reports.length,
 			score,
+			signals: sanitizedSignals,
 			status,
 			summary: profile?.summary ?? null,
 			totalPrs: prs.length,
 			validatedReportCount: profile?.validatedReportCount ?? 0,
 		};
 	} catch (caught) {
-		if (isMissingBindingError(caught)) {
-			return emptyProfile(login);
+		if (isMissingBindingError(caught) || isGithubUserLookupError(caught)) {
+			return emptyClankerProfile(login);
 		}
 		throw caught;
 	}
