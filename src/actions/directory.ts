@@ -157,6 +157,9 @@ const buildDirectoryDashboard = ({
 	const publicReports = reports.filter(
 		(report) => report.reporterIsMaintainer && !report.repository?.isPrivate
 	);
+	const publishedProfiles = profiles.filter(
+		(profile) => profile.status !== "allow"
+	);
 	const publicPrCountByUser = new Map<string, number>();
 	for (const pullRequest of publicPullRequests) {
 		publicPrCountByUser.set(
@@ -178,7 +181,7 @@ const buildDirectoryDashboard = ({
 			);
 		}
 	}
-	const riskProfiles = profiles.map((profile) => {
+	const riskProfiles = publishedProfiles.map((profile) => {
 		const status = riskStatusForScore({
 			isAllowed: profile.status === "allow",
 			score: profile.score,
@@ -228,17 +231,17 @@ const buildDirectoryDashboard = ({
 			highRiskUsers: riskProfiles.filter(
 				(profile) => profile.status === "high_risk"
 			).length,
-			importedUsers: profiles.filter((profile) => profile.importedSource)
+			importedUsers: riskProfiles.filter((profile) => profile.importedSource)
 				.length,
 			openReports: publicReports.filter(
 				(report) =>
 					report.status === "pending" || report.status === "needs_review"
 			).length,
-			reviewUsers: profiles.filter((profile) => profile.status === "review")
+			reviewUsers: riskProfiles.filter((profile) => profile.status === "review")
 				.length,
 			signals: publicSignals.length,
 			trackedPrs: publicPullRequests.length,
-			trackedUsers: profiles.length,
+			trackedUsers: riskProfiles.length,
 		},
 	};
 };

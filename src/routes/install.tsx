@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { GithubManifestConversion } from "@/actions/github-manifest";
+import {
+	githubAppInstallUrl,
+	githubRepoUrl,
+} from "@/components/landing/constants";
 import { Footer } from "@/components/landing/footer";
 import { SiteHeader } from "@/components/landing/site-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -95,13 +99,51 @@ function InstallSuccess({
 
 				<Alert>
 					<CheckCircle2 />
-					<AlertTitle>You don't need to do anything else.</AlertTitle>
+					<AlertTitle>First run checklist</AlertTitle>
 					<AlertDescription>
-						Open a pull request on any of the repositories you selected during
-						install. Within ~20 seconds the bot will post a verdict comment with
-						a risk score, reason code, and scoring breakdown.
+						Open a pull request on a selected repository to trigger the first
+						assessment. Public repositories can be analyzed immediately; private
+						repositories keep patch content out of AI review unless your repo
+						policy explicitly opts in.
 					</AlertDescription>
 				</Alert>
+
+				<Card className="rounded-md border-muted/60">
+					<CardHeader className="space-y-1 pb-3">
+						<CardTitle className="font-medium text-base">
+							What should happen next
+						</CardTitle>
+						<CardDescription className="text-xs leading-5">
+							The bot records the webhook, reviews supported PR events, and
+							posts a comment with confidence, reason code, and scoring
+							breakdown when there is enough signal.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<ul className="grid gap-2 text-muted-foreground text-sm leading-6">
+							<li>
+								Check that the repository you expect was selected in GitHub.
+							</li>
+							<li>
+								Use{" "}
+								<code className="font-mono text-xs">
+									@oss-protector dismiss
+								</code>{" "}
+								or{" "}
+								<code className="font-mono text-xs">@oss-protector allow</code>{" "}
+								on false positives.
+							</li>
+							<li>
+								Add{" "}
+								<code className="font-mono text-xs">
+									.github/oss-protector.json
+								</code>{" "}
+								if the repo needs stricter thresholds, trusted bots, or ignored
+								paths.
+							</li>
+						</ul>
+					</CardContent>
+				</Card>
 
 				<Card className="rounded-md border-muted/60">
 					<CardHeader className="space-y-1 pb-3">
@@ -129,14 +171,16 @@ function InstallSuccess({
 
 				<div className="flex flex-wrap gap-2">
 					<a className={buttonVariants({ size: "sm" })} href="/clankers">
-						Browse the public clanker directory
+						Browse the public review feed
 						<ArrowRight data-icon="inline-end" />
 					</a>
 					<a
 						className={buttonVariants({ size: "sm", variant: "outline" })}
-						href="/api-docs"
+						href={`${githubRepoUrl}/blob/master/docs/repository-policy.md`}
+						rel="noopener noreferrer"
+						target="_blank"
 					>
-						API docs
+						Repository policy
 					</a>
 					<a
 						className={buttonVariants({ size: "sm", variant: "ghost" })}
@@ -172,7 +216,7 @@ function NoParamsLanding() {
 				<div className="flex flex-wrap gap-2">
 					<a
 						className={buttonVariants({ size: "sm" })}
-						href="https://github.com/apps/oss-protector/installations/new"
+						href={githubAppInstallUrl}
 					>
 						<Github data-icon="inline-start" />
 						Install on GitHub

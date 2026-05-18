@@ -138,11 +138,13 @@ export function ErrorPage({
 	digest?: string;
 	onReset?: () => void;
 }) {
+	const reloadHref = typeof window === "undefined" ? "/" : window.location.href;
+
 	return (
 		<StatusPage
 			actions={[
 				{
-					href: "",
+					href: reloadHref,
 					label: "Reload the page",
 					tone: "primary",
 				},

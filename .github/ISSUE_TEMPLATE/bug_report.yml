@@ -7,6 +7,7 @@ body:
     attributes:
       value: |
         Thanks for filing a bug report. Please include enough detail for someone else to reproduce.
+        Do not paste secrets, auth headers, cookies, private repository names, private patch contents, full webhook payloads, or unredacted Wrangler logs into a public issue.
   - type: textarea
     id: what-happened
     attributes:
@@ -26,7 +27,7 @@ body:
     id: repro
     attributes:
       label: Steps to reproduce
-      description: Links to specific PRs, comments, or webhook payloads are extremely helpful.
+      description: Links to public PRs/comments or redacted webhook payload excerpts are extremely helpful.
       value: |
         1.
         2.
@@ -53,7 +54,7 @@ body:
     id: logs
     attributes:
       label: Relevant logs or screenshots
-      description: Wrangler tail output, browser console, or screenshots of the bot's comment.
+      description: Redacted Wrangler tail output, browser console logs, or screenshots of the bot's comment.
       render: shell
   - type: checkboxes
     id: terms

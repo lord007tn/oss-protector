@@ -33,9 +33,9 @@ import { EmptyState, ScoreMeter, StatusBadge } from "./shared";
 import type { Protector, RiskProfile } from "./types";
 
 export function RiskProfilesCard({
-	description = "Clankers currently published in the public directory.",
+	description = "Accounts currently published for maintainer review.",
 	profiles,
-	title = "Clankers",
+	title = "Accounts for review",
 }: {
 	description?: string;
 	profiles: RiskProfile[];
@@ -59,9 +59,9 @@ export function RiskProfilesCard({
 				) : (
 					<div className="px-4 pb-4">
 						<EmptyState
-							description="No accounts match the current filters. Try clearing filters or installing the app on more repositories."
+							description="No accounts match the current filters. Clear filters, seed local demo data, or install the app on a repository to collect live review signals."
 							icon={AlertTriangle}
-							title="No clankers listed"
+							title="No accounts listed"
 						/>
 					</div>
 				)}
@@ -170,7 +170,7 @@ function MobileRiskList({ profiles }: { profiles: RiskProfile[] }) {
 function DesktopRiskTable({ profiles }: { profiles: RiskProfile[] }) {
 	return (
 		<div className="hidden md:block">
-			<Table aria-label="Clanker review feed">
+			<Table aria-label="Risk review feed">
 				<TableHeader>
 					<TableRow>
 						<TableHead className="pl-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">
