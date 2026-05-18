@@ -60,6 +60,20 @@ export function Hero({
 							<ArrowRight data-icon="inline-end" />
 						</a>
 					</div>
+					<a
+						className="mt-2 inline-flex items-center"
+						href="https://www.producthunt.com/products/oss-protector?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-oss-protector"
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						<img
+							alt="OSS Protector - Shared abuse intelligence for GitHub maintainers | Product Hunt"
+							height={54}
+							loading="lazy"
+							src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1149639&theme=light"
+							width={250}
+						/>
+					</a>
 				</div>
 
 				<div className="mx-auto grid w-full max-w-3xl gap-3 sm:grid-cols-3">

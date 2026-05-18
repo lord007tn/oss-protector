@@ -27,7 +27,7 @@ type RequestWithWaitUntil = Request & {
 
 const SECURITY_HEADERS = {
 	"Content-Security-Policy":
-		"default-src 'self'; base-uri 'self'; connect-src 'self' https://api.github.com https://openrouter.ai; form-action 'self' https://github.com; frame-ancestors 'none'; img-src 'self' https://github.com https://avatars.githubusercontent.com https://startupfa.me https://launchigniter.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+		"default-src 'self'; base-uri 'self'; connect-src 'self' https://api.github.com https://openrouter.ai; form-action 'self' https://github.com; frame-ancestors 'none'; img-src 'self' https://github.com https://avatars.githubusercontent.com https://startupfa.me https://launchigniter.com https://api.producthunt.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
 	"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 	"Referrer-Policy": "strict-origin-when-cross-origin",
 	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
