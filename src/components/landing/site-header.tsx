@@ -37,21 +37,30 @@ export function SiteHeader() {
 						{appName}
 					</span>
 				</a>
-				<nav className="flex items-center gap-1">
+				<nav className="-mx-1 flex w-full items-center gap-1 overflow-x-auto px-1 sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
 					<a
-						className={buttonVariants({ size: "sm", variant: "ghost" })}
+						className={cn(
+							buttonVariants({ size: "sm", variant: "ghost" }),
+							"shrink-0"
+						)}
 						href="/clankers"
 					>
 						Clankers
 					</a>
 					<a
-						className={buttonVariants({ size: "sm", variant: "ghost" })}
+						className={cn(
+							buttonVariants({ size: "sm", variant: "ghost" }),
+							"shrink-0"
+						)}
 						href="/protectors"
 					>
 						Signals
 					</a>
 					<a
-						className={buttonVariants({ size: "sm", variant: "ghost" })}
+						className={cn(
+							buttonVariants({ size: "sm", variant: "ghost" }),
+							"shrink-0"
+						)}
 						href={apiDocsPath}
 					>
 						<FileJson data-icon="inline-start" />
@@ -59,7 +68,7 @@ export function SiteHeader() {
 					</a>
 					<GithubStarButton />
 					<a
-						className={buttonVariants({ size: "sm" })}
+						className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
 						href={githubAppInstallUrl}
 					>
 						<Github data-icon="inline-start" />
@@ -88,7 +97,7 @@ function GithubStarButton() {
 			aria-label="Star OSS Protector on GitHub"
 			className={cn(
 				buttonVariants({ size: "sm", variant: "outline" }),
-				"gap-0 overflow-hidden p-0"
+				"shrink-0 gap-0 overflow-hidden p-0"
 			)}
 			href={githubRepoUrl}
 			rel="noopener noreferrer"

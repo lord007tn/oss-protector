@@ -14,8 +14,12 @@ dist-ssr
 
 # Local env
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
 *.local
 
 # OS / editor

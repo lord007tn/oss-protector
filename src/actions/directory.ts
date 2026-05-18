@@ -148,6 +148,36 @@ const buildDirectoryDashboard = ({
 	repositories,
 	signals,
 }: DashboardRecords) => {
+	const publicPullRequests = pullRequests.filter(
+		(pr) => !pr.repository?.isPrivate
+	);
+	const publicSignals = signals.filter(
+		(signal) => !signal.repository?.isPrivate
+	);
+	const publicReports = reports.filter(
+		(report) => report.reporterIsMaintainer && !report.repository?.isPrivate
+	);
+	const publicPrCountByUser = new Map<string, number>();
+	for (const pullRequest of publicPullRequests) {
+		publicPrCountByUser.set(
+			pullRequest.authorUserId,
+			(publicPrCountByUser.get(pullRequest.authorUserId) ?? 0) + 1
+		);
+	}
+	const publicReportCountByUser = new Map<string, number>();
+	const publicValidatedReportCountByUser = new Map<string, number>();
+	for (const report of publicReports) {
+		publicReportCountByUser.set(
+			report.targetUserId,
+			(publicReportCountByUser.get(report.targetUserId) ?? 0) + 1
+		);
+		if (report.status === "validated") {
+			publicValidatedReportCountByUser.set(
+				report.targetUserId,
+				(publicValidatedReportCountByUser.get(report.targetUserId) ?? 0) + 1
+			);
+		}
+	}
 	const riskProfiles = profiles.map((profile) => {
 		const status = riskStatusForScore({
 			isAllowed: profile.status === "allow",
@@ -162,19 +192,20 @@ const buildDirectoryDashboard = ({
 			importedSource: profile.importedSource,
 			lastSeenAt: profile.lastSeenAt,
 			login: profile.targetUser.login,
-			prCount: profile.prCount,
+			prCount: publicPrCountByUser.get(profile.targetUserId) ?? 0,
 			reasonCodes: parseJsonArray<ReasonCode>(profile.reasonCodesJson),
-			reportCount: profile.reportCount,
+			reportCount: publicReportCountByUser.get(profile.targetUserId) ?? 0,
 			repositoryCount: profile.repositoryCount,
 			score: profile.score,
 			status,
 			summary: profile.summary,
-			validatedReportCount: profile.validatedReportCount,
+			validatedReportCount:
+				publicValidatedReportCountByUser.get(profile.targetUserId) ?? 0,
 		};
 	});
 
 	return {
-		protectors: buildProtectors(reports),
+		protectors: buildProtectors(publicReports),
 		imports: imports.map((item) => ({
 			importedAt: item.importedAt,
 			itemCount: item.itemCount,
@@ -182,24 +213,16 @@ const buildDirectoryDashboard = ({
 			sourceUrl: item.sourceUrl,
 			status: item.status,
 		})),
-		reports: reports.map((report) => ({
-			aiRationale: report.aiRationale,
-			aiVerdict: report.aiVerdict,
-			confidence: report.confidence,
+		reports: publicReports.map((report) => ({
 			createdAt: report.createdAt,
 			id: report.id,
-			reasonCode: report.reasonCode,
-			reasonText: report.reasonText,
-			reporterAssociation: report.reporterAssociation,
-			reporterIsMaintainer: report.reporterIsMaintainer,
-			reporterLogin: report.reporterLogin,
-			sourceUrl: report.sourceUrl,
 			status: report.status,
-			targetLogin: report.targetUser.login,
 		})),
 		riskProfiles,
 		stats: {
-			activeRepositories: repositories.filter((repo) => repo.isActive).length,
+			activeRepositories: repositories.filter(
+				(repo) => repo.isActive && !repo.isPrivate
+			).length,
 			blockedUsers: riskProfiles.filter((profile) => profile.status === "block")
 				.length,
 			highRiskUsers: riskProfiles.filter(
@@ -207,14 +230,14 @@ const buildDirectoryDashboard = ({
 			).length,
 			importedUsers: profiles.filter((profile) => profile.importedSource)
 				.length,
-			openReports: reports.filter(
+			openReports: publicReports.filter(
 				(report) =>
 					report.status === "pending" || report.status === "needs_review"
 			).length,
 			reviewUsers: profiles.filter((profile) => profile.status === "review")
 				.length,
-			signals: signals.length,
-			trackedPrs: pullRequests.length,
+			signals: publicSignals.length,
+			trackedPrs: publicPullRequests.length,
 			trackedUsers: profiles.length,
 		},
 	};

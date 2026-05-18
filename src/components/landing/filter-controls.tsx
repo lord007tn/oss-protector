@@ -1,7 +1,7 @@
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useNavigate } from "@tanstack/react-router";
 import { Search, X } from "lucide-react";
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +61,10 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 	const [draftScore, setDraftScore] = useState<number | "">(
 		search.min_score || ""
 	);
+	useEffect(() => {
+		setDraftQuery(search.q);
+		setDraftScore(search.min_score || "");
+	}, [search.min_score, search.q]);
 	const apiEndpoint = filteredEndpoint("/api/clankers", {
 		min_score: search.min_score,
 		q: search.q,
@@ -217,6 +221,11 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 	const [draftScore, setDraftScore] = useState<number | "">(
 		search.min_score || ""
 	);
+	useEffect(() => {
+		setDraftQuery(search.q);
+		setDraftReports(search.min_reports || "");
+		setDraftScore(search.min_score || "");
+	}, [search.min_reports, search.min_score, search.q]);
 	const apiEndpoint = filteredEndpoint("/api/protectors", {
 		min_reports: search.min_reports,
 		min_score: search.min_score,

@@ -22,6 +22,7 @@ interface WranglerConfig {
 const args = new Set(process.argv.slice(2));
 const requireDatabaseId = args.has("--required");
 const restorePlaceholder = args.has("--restore-placeholder");
+const isHostedDeploy = process.env.OSS_PROTECTOR_DEPLOY_TARGET === "hosted";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -91,6 +92,12 @@ const getTargetDatabaseId = (currentDatabaseId: string): string => {
 	const databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID?.trim();
 
 	if (!databaseId) {
+		if (requireDatabaseId && !isHostedDeploy) {
+			throw new Error(
+				"CLOUDFLARE_D1_DATABASE_ID must be set to the Cloudflare D1 database UUID before self-hosted production builds or deploys."
+			);
+		}
+
 		if (
 			uuidPattern.test(currentDatabaseId) &&
 			!isPlaceholderDatabaseId(currentDatabaseId)
@@ -100,12 +107,6 @@ const getTargetDatabaseId = (currentDatabaseId: string): string => {
 
 		if (isPlaceholderDatabaseId(currentDatabaseId)) {
 			return defaultDatabaseId;
-		}
-
-		if (requireDatabaseId) {
-			throw new Error(
-				"CLOUDFLARE_D1_DATABASE_ID must be set to the Cloudflare D1 database UUID before production builds or deploys."
-			);
 		}
 
 		return defaultDatabaseId;

@@ -2,11 +2,11 @@
 
 ## Supported versions
 
-OSS Protector ships from `main` and is deployed continuously to the hosted instance. There are no LTS branches. Fixes are applied to `main` and rolled out on the next deploy.
+OSS Protector ships from `master` and is deployed continuously to the hosted instance. There are no LTS branches. Fixes are applied to `master` and rolled out on the next deploy.
 
 | Version | Supported |
 | ------- | --------- |
-| `main`  | yes       |
+| `master` | yes      |
 | Older tags | no    |
 
 ## Reporting a vulnerability

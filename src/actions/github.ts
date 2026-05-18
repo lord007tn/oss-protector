@@ -8,6 +8,7 @@ import {
 	markRepositoryInactive,
 	recalculateRiskProfile,
 	recordAppEvent,
+	recordDuplicateCampaignSignal,
 	replacePullRequestAiSignal,
 	resetRiskProfile,
 	upsertGithubUser,
@@ -345,6 +346,12 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			);
 			return;
 		}
+		if (author.isKnownGithubBot) {
+			console.log(
+				`pr-analysis: skipped known bot author=${author.login} pr=${payload.repository.full_name}#${payload.pull_request.number}`
+			);
+			return;
+		}
 
 		const files = await fetchPullRequestFiles({
 			installationId: payload.installation?.id,
@@ -360,6 +367,7 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 				authorLogin: author.login,
 				filenames: files.map((file) => file.filename),
 				policy,
+				repositoryIsPrivate: repository.isPrivate,
 			})
 		) {
 			console.log(
@@ -367,6 +375,11 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			);
 			return;
 		}
+		await recordDuplicateCampaignSignal({
+			author,
+			currentPullRequest: pullRequestRecord,
+			repository,
+		});
 		const analysis = applyRepositoryPolicy(
 			await validatePullRequestWithOpenRouter({
 				body: payload.pull_request.body,

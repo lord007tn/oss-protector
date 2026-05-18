@@ -1,19 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import {
 	ArrowLeft,
 	ExternalLink,
 	Github,
 	GitPullRequest,
 	History,
-	Lock,
 	ShieldQuestion,
 	UserSearch,
 } from "lucide-react";
 
-import {
-	type ClankerProfileResult,
-	emptyClankerProfile,
-} from "@/actions/clanker-profile";
+import type { ClankerProfileResult } from "@/actions/clanker-profile";
 import { publicAppUrl } from "@/components/landing/constants";
 import { Footer } from "@/components/landing/footer";
 import { ScoreMeter, StatusBadge } from "@/components/landing/shared";
@@ -69,11 +65,21 @@ export const Route = createFileRoute("/clankers_/$login")({
 			},
 		],
 	}),
-	loader: ({ params }) => {
+	loader: async ({ params }) => {
 		if (!GITHUB_LOGIN_PATTERN.test(params.login)) {
-			return emptyClankerProfile(params.login);
+			throw notFound();
 		}
-		return getClankerProfileFn({ data: { login: params.login } });
+		const profile = await getClankerProfileFn({
+			data: { login: params.login },
+		});
+		if (profile.notFound) {
+			throw notFound();
+		}
+		return profile;
+	},
+	notFoundComponent: () => {
+		const { login } = Route.useParams();
+		return <NotFoundView login={login} />;
 	},
 });
 
@@ -132,8 +138,12 @@ function ProfileView({ profile }: { profile: ClankerProfileResult }) {
 				<div className="grid gap-4 md:grid-cols-3">
 					<StatCard
 						label="Public PRs observed"
-						sublabel={`${profile.totalPrs} total${profile.privatePrCount > 0 ? `, ${profile.privatePrCount} private` : ""}`}
-						value={profile.publicPrs.length}
+						sublabel={
+							profile.importedSource
+								? "From public/imported evidence"
+								: "Linked public repositories only"
+						}
+						value={profile.prCount}
 					/>
 					<StatCard
 						label="Reports"
@@ -172,11 +182,14 @@ function BackLink() {
 
 function ProfileHeader({ profile }: { profile: ClankerProfileResult }) {
 	const lastSeenLabel = profile.lastSeenAt
-		? new Date(profile.lastSeenAt * 1000).toLocaleString("en", {
+		? new Date(profile.lastSeenAt * 1000).toLocaleString("en-US", {
 				day: "numeric",
 				hour: "2-digit",
+				hour12: false,
 				minute: "2-digit",
 				month: "short",
+				timeZone: "UTC",
+				timeZoneName: "short",
 				year: "numeric",
 			})
 		: "—";
@@ -296,17 +309,6 @@ function PublicPullRequestsCard({
 					Pull requests authored by @{profile.login} on repositories where OSS
 					Protector is installed. Only public repos are linked. Click through to
 					inspect each PR on GitHub.
-					{profile.privatePrCount > 0 ? (
-						<>
-							{" "}
-							<span className="inline-flex items-center gap-1 align-middle">
-								<Lock className="size-3" />
-								<span className="tabular-nums">{profile.privatePrCount}</span>{" "}
-								additional private-repo PR
-								{profile.privatePrCount === 1 ? "" : "s"} hidden.
-							</span>
-						</>
-					) : null}
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="p-0 pb-2">
@@ -319,9 +321,7 @@ function PublicPullRequestsCard({
 								</EmptyMedia>
 								<EmptyTitle>No public PRs to show</EmptyTitle>
 								<EmptyDescription>
-									{profile.totalPrs > 0
-										? `All ${profile.totalPrs} observed PR${profile.totalPrs === 1 ? "" : "s"} are on private repositories.`
-										: "The bot hasn't observed any PRs from this account yet."}
+									The bot has not observed public PR links for this account yet.
 								</EmptyDescription>
 							</EmptyHeader>
 						</Empty>
@@ -476,9 +476,7 @@ function ReportsCard({ profile }: { profile: ClankerProfileResult }) {
 										<ExternalLink className="size-3" />
 									</a>
 								) : (
-									<span className="inline-flex items-center gap-1">
-										<Lock className="size-3" /> private-repo source
-									</span>
+									<span>No public source link</span>
 								)}
 							</div>
 						</li>

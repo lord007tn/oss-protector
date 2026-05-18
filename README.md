@@ -80,6 +80,7 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | `VITE_APP_URL` | always | Public origin. Defaults to `http://localhost:3000`. |
 | `VITE_ENABLE_GITHUB_AUTH` | UI sign-in | Set to `true` to enable the GitHub login button. |
 | `VITE_ENABLE_DEVTOOLS` | local debugging | Set to `true` to enable TanStack, React Query, and React Scan devtools in development. |
+| `ALLOW_UNSIGNED_GITHUB_WEBHOOKS` | local webhook testing | Keep `false` outside local development. Localhost can still run unsigned when no webhook secret is configured. |
 | `CLOUDFLARE_ACCOUNT_ID` | deploy / D1 | Required by Wrangler when your Cloudflare login has access to more than one account. |
 | `CLOUDFLARE_D1_DATABASE_NAME` | D1 | Defaults to `oss-protector`. |
 | `CLOUDFLARE_D1_DATABASE_ID` | self-hosted D1 | Optional override for the committed hosted D1 UUID. |
@@ -90,8 +91,8 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | webhooks | The GitHub App's identity, used for installation tokens. |
 | `GITHUB_APP_SLUG` | UI | Used to build the `installations/new` URL. |
 | `GITHUB_WEBHOOK_SECRET` | webhooks | Verifies inbound webhook signatures. |
-| `ALLOW_UNSIGNED_GITHUB_WEBHOOKS` | dev only | Bypasses signature check for local testing. |
 | `OPENROUTER_API_KEY` | AI scoring | If unset, the deterministic fallback runs. |
+| `SMOKE_HEALTH_TOKEN` | deploy smoke | Bearer token required by the private post-deploy webhook health endpoint. |
 
 ## Public read endpoints
 
@@ -138,8 +139,10 @@ wrangler secret put GITHUB_APP_ID
 wrangler secret put GITHUB_APP_PRIVATE_KEY
 wrangler secret put GITHUB_WEBHOOK_SECRET
 wrangler secret put BETTER_AUTH_SECRET
+wrangler secret put GITHUB_CLIENT_ID
 wrangler secret put GITHUB_CLIENT_SECRET
 wrangler secret put OPENROUTER_API_KEY
+wrangler secret put SMOKE_HEALTH_TOKEN
 ```
 
 Better Auth handles GitHub user sign-in at `/api/auth/*` once `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET` are set. The webhook + installation-token flow still uses `@octokit/auth-app` — Better Auth does not replace GitHub App installation authentication.
@@ -153,6 +156,7 @@ Each repository can tune OSS Protector with an optional `.github/oss-protector.j
 ```json
 {
   "enabled": true,
+  "analyzePrivateRepositories": false,
   "minimumLikelyAbuseConfidence": 80,
   "trustedAuthors": ["dependabot[bot]", "renovate[bot]"],
   "ignoredPaths": ["docs/", "examples/"]
@@ -160,6 +164,7 @@ Each repository can tune OSS Protector with an optional `.github/oss-protector.j
 ```
 
 - `enabled: false` tracks PR metadata but skips automatic abuse review for that repo.
+- `analyzePrivateRepositories: true` explicitly opts private repositories into third-party AI analysis. Private repos default to metadata tracking without OpenRouter review.
 - `minimumLikelyAbuseConfidence` is clamped between `65` and `95`; lower-confidence likely-abuse findings become review-needed.
 - `trustedAuthors` skips automatic review for known local automation accounts.
 - `ignoredPaths` skips automatic review when every changed file starts with one of the configured prefixes.
@@ -194,17 +199,17 @@ pnpm test           # vitest
 pnpm build          # vite build
 ```
 
-CI runs the same chain on every push and PR.
+CI runs the same chain on pushes to `master` and PRs targeting `master`.
 
 ## Deploy
 
-The hosted Worker is bound to the `oss-protector` D1 database in `wrangler.json`. Self-hosted deploys can set `CLOUDFLARE_D1_DATABASE_ID` to override that binding during the prebuild step.
+The hosted Worker is bound to the `oss-protector` D1 database in `wrangler.json`. Self-hosted deploys must set `CLOUDFLARE_D1_DATABASE_ID`, update the Worker name and public URL in `wrangler.json`, and store their own GitHub App/OpenRouter secrets before deploying. The deploy script refuses to publish the hosted configuration unless `OSS_PROTECTOR_DEPLOY_TARGET=hosted` is set.
 
 ```bash
 pnpm run deploy
 ```
 
-Deploys are wired through Cloudflare's Git integration on the hosted instance — every push to `master` triggers a Cloudflare-managed build and deploy. Run `pnpm run deploy` locally only for out-of-cycle hotfixes.
+Deploys are wired through Cloudflare's Git integration on the hosted instance — every push to `master` triggers a Cloudflare-managed build and deploy. Maintainers of the hosted instance can run `pnpm run deploy:hosted` locally only for out-of-cycle hotfixes.
 
 ## Contributing
 
