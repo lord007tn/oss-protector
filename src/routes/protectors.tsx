@@ -71,7 +71,7 @@ function ProtectorsRoute() {
 	const dashboardQuery = useDashboard({ initialData });
 	const dashboard = dashboardQuery.data ?? initialData;
 	const matchingProtectors = filterProtectors(dashboard.protectors, {
-		limit: 500,
+		limit: Number.MAX_SAFE_INTEGER,
 		minReports: filters.min_reports,
 		minScore: filters.min_score,
 		q: filters.q,
@@ -180,8 +180,12 @@ function reportsSearch(value: unknown) {
 }
 
 function pageSearch(value: unknown) {
-	const parsed = numberSearch(value);
-	return parsed && parsed > 1 ? parsed : undefined;
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed)) {
+		return;
+	}
+	const page = Math.max(1, Math.round(parsed));
+	return page > 1 ? page : undefined;
 }
 
 function stringSearch(value: unknown) {

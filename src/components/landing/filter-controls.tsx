@@ -145,7 +145,7 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 	return (
 		<Card className="rounded-md border-muted/60">
 			<CardHeader className="space-y-1 pb-3">
-				<CardTitle className="font-medium text-base">Filter clankers</CardTitle>
+				<CardTitle className="font-medium text-base">Filter accounts</CardTitle>
 				<CardDescription className="text-xs">
 					Page and API share the same query params. Filters apply as you type.
 				</CardDescription>
@@ -155,7 +155,7 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 					<div className="relative">
 						<Search className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
 						<Input
-							aria-label="Search clanker login or summary"
+							aria-label="Search account login or summary"
 							autoComplete="off"
 							className="pl-8"
 							onChange={handleQueryChange}
@@ -164,7 +164,7 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 						/>
 					</div>
 					<select
-						aria-label="Filter by clanker status"
+						aria-label="Filter by account status"
 						className="h-8 rounded-md border border-input bg-background px-2.5 text-sm"
 						onChange={handleStatusChange}
 						value={search.status}
@@ -176,7 +176,7 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 						))}
 					</select>
 					<select
-						aria-label="Filter by clanker reason"
+						aria-label="Filter by account reason"
 						className="h-8 rounded-md border border-input bg-background px-2.5 text-sm"
 						onChange={handleReasonChange}
 						value={search.reason}
@@ -189,7 +189,7 @@ export function ClankerFilters({ search }: { search: ClankerSearchState }) {
 						))}
 					</select>
 					<Input
-						aria-label="Minimum clanker score"
+						aria-label="Minimum account score"
 						autoComplete="off"
 						inputMode="numeric"
 						max={MAX_RISK_SCORE}

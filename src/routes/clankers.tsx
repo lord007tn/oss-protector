@@ -40,13 +40,13 @@ export const Route = createFileRoute("/clankers")({
 			},
 		],
 		meta: [
-			{ title: "Clanker Directory | OSS Protector" },
+			{ title: "Risk Review Feed | OSS Protector" },
 			{
 				content:
 					"Search the OSS Protector public directory for risky GitHub accounts, statuses, scores, and evidence reasons.",
 				name: "description",
 			},
-			{ content: "Clanker Directory | OSS Protector", property: "og:title" },
+			{ content: "Risk Review Feed | OSS Protector", property: "og:title" },
 			{
 				content:
 					"Filter risky GitHub accounts by review status, score, and OSS abuse reason.",
@@ -82,7 +82,7 @@ function ClankersRoute() {
 	const dashboardQuery = useDashboard({ initialData });
 	const dashboard = dashboardQuery.data ?? initialData;
 	const matchingProfiles = filterClankers(dashboard.riskProfiles, {
-		limit: 500,
+		limit: Number.MAX_SAFE_INTEGER,
 		minScore: filters.min_score,
 		q: filters.q,
 		reason: filters.reason,
@@ -143,10 +143,10 @@ function ClankersRoute() {
 			<SiteHeader />
 			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<SectionHeading
-					description="Every account currently published for review. Use the filters here or call the same filters through the API."
-					eyebrow="Clankers"
+					description="Every account currently published for maintainer review. Use the filters here or call the same filters through the API."
+					eyebrow="Review feed"
 					headingLevel={1}
-					title="All clankers."
+					title="Risk review feed."
 				/>
 				<Alert>
 					<ShieldQuestion />
@@ -162,9 +162,9 @@ function ClankersRoute() {
 				</Alert>
 				<ClankerFilters search={filters} />
 				<RiskProfilesCard
-					description={`Showing ${paginatedProfiles.start.toLocaleString()}-${paginatedProfiles.end.toLocaleString()} of ${paginatedProfiles.total.toLocaleString()} clankers matching the current filters.`}
+					description={`Showing ${paginatedProfiles.start.toLocaleString()}-${paginatedProfiles.end.toLocaleString()} of ${paginatedProfiles.total.toLocaleString()} accounts matching the current filters.`}
 					profiles={paginatedProfiles.items}
-					title="Clankers"
+					title="Accounts for review"
 				/>
 				<DirectoryPagination
 					basePath="/clankers"
@@ -191,8 +191,12 @@ function numberSearch(value: unknown) {
 }
 
 function pageSearch(value: unknown) {
-	const parsed = numberSearch(value);
-	return parsed && parsed > 1 ? parsed : undefined;
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed)) {
+		return;
+	}
+	const page = Math.max(1, Math.round(parsed));
+	return page > 1 ? page : undefined;
 }
 
 function stringSearch(value: unknown) {

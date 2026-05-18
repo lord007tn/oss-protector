@@ -13,7 +13,7 @@ import {
 } from "./constants";
 
 const FOOTER_LINKS = [
-	{ href: "/clankers", label: "Clankers" },
+	{ href: "/clankers", label: "Review feed" },
 	{ href: "/protectors", label: "Signals" },
 	{ href: apiDocsPath, label: "API" },
 	{ href: githubAppInstallUrl, label: "Install" },

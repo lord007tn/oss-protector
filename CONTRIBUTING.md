@@ -10,7 +10,7 @@ By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md
 
 Good first contributions, in rough order of impact:
 
-- **Bug reports** — file an [issue](https://github.com/lord007tn/oss-protector/issues/new/choose) with reproduction steps. Webhook payload samples are gold.
+- **Bug reports** — file an [issue](https://github.com/lord007tn/oss-protector/issues/new/choose) with reproduction steps. Webhook payload samples are helpful, but redact secrets, private repository names, private patch contents, auth headers, cookies, and Wrangler logs before posting publicly.
 - **New abuse signals** — propose a new pattern the scoring engine should detect (e.g. a fresh flavour of bounty farming). See `src/lib/scoring.ts` and `src/integrations/openrouter/prompts.ts`.
 - **False positive fixes** — if the bot flagged a legitimate PR, open an issue with the PR URL and the comment the bot posted.
 - **Reason-code improvements** — `src/constants/reason-codes.ts` and the corresponding UI copy.

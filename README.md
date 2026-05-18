@@ -86,10 +86,13 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | `CLOUDFLARE_D1_DATABASE_ID` | self-hosted D1 | Optional override for the committed hosted D1 UUID. |
 | `CLOUDFLARE_D1_TOKEN` | Drizzle Kit | API token for `drizzle-kit push` against remote D1, if you use that workflow. |
 | `VITE_GITHUB_STARS` | build | Optional override for the generated GitHub star count. |
+| `VITE_GITHUB_REPO_SLUG` | build | Optional `owner/repo` override for the generated GitHub star count. |
 | `BETTER_AUTH_SECRET` | sign-in | Required to enable Better Auth sessions. |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | sign-in | GitHub OAuth credentials for Better Auth. |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | webhooks | The GitHub App's identity, used for installation tokens. |
-| `GITHUB_APP_SLUG` | UI | Used to build the `installations/new` URL. |
+| `GITHUB_APP_SLUG` / `VITE_GITHUB_APP_SLUG` | server / UI | GitHub App slug. Set both for self-hosted installs so webhook code and browser install links point at the same app. |
+| `GITHUB_MANIFEST_TOKEN` | GitHub App setup | Optional token used to exchange a GitHub App manifest code from `/install`. |
+| `GITHUB_APP_CREATE_OWNER` | GitHub App setup | Optional owner slug for GitHub App manifest creation. |
 | `GITHUB_WEBHOOK_SECRET` | webhooks | Verifies inbound webhook signatures. |
 | `OPENROUTER_API_KEY` | AI scoring | If unset, the deterministic fallback runs. |
 | `SMOKE_HEALTH_TOKEN` | deploy smoke | Bearer token required by the private post-deploy webhook health endpoint. |

@@ -45,7 +45,7 @@ export function SiteHeader() {
 						)}
 						href="/clankers"
 					>
-						Clankers
+						Review feed
 					</a>
 					<a
 						className={cn(

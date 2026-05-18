@@ -3,6 +3,7 @@
   "entry": [
     "src/actions/**/*.ts",
     "src/functions/**/*.ts",
+    "src/**/*.test.ts",
     "src/router.tsx",
     "src/routes/**/*.tsx",
     "src/server.ts"

@@ -94,7 +94,7 @@
   ],
   "packageManager": "pnpm@10.30.3",
   "scripts": {
-    "prebuild": "tsx ./scripts/prepare-cloudflare-config.ts && tsx ./scripts/prepare-github-stars.ts",
+    "build:prepare": "tsx ./scripts/prepare-cloudflare-config.ts && tsx ./scripts/prepare-github-stars.ts",
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "prebuild:prod": "tsx ./scripts/prepare-cloudflare-config.ts --required && tsx ./scripts/prepare-github-stars.ts",

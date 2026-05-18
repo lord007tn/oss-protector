@@ -176,6 +176,10 @@ export const getClankerProfile = async (
 				.limit(SIGNAL_LIMIT),
 		]);
 
+		if (profile?.status === "allow") {
+			return emptyClankerProfile(login);
+		}
+
 		const publicPrs = prs.filter((row) => !row.isPrivate).slice(0, PR_LIMIT);
 
 		// Hide source URLs that point at private repos. Public commenters
@@ -194,25 +198,25 @@ export const getClankerProfile = async (
 			}));
 
 		const reasonCodes = parseJsonArray<ReasonCode>(profile?.reasonCodesJson);
-		const sanitizedSignals: ClankerSignal[] = signals.map((row) => {
-			const metadata = parseJsonObject<{ reasonCode: ReasonCode }>(
-				row.metadataJson
-			);
-			return {
-				observedAt: row.observedAt,
-				reasonCode:
-					metadata.reasonCode && reasonCodes.includes(metadata.reasonCode)
-						? metadata.reasonCode
-						: null,
-				repositoryFullName: row.isPrivate
-					? null
-					: (row.repositoryFullName ?? null),
-				signalType: row.signalType,
-				source: row.source,
-				sourceUrl: row.isPrivate ? null : row.sourceUrl,
-				weight: row.weight,
-			};
-		});
+		const sanitizedSignals: ClankerSignal[] = signals
+			.filter((row) => !row.isPrivate)
+			.map((row) => {
+				const metadata = parseJsonObject<{ reasonCode: ReasonCode }>(
+					row.metadataJson
+				);
+				return {
+					observedAt: row.observedAt,
+					reasonCode:
+						metadata.reasonCode && reasonCodes.includes(metadata.reasonCode)
+							? metadata.reasonCode
+							: null,
+					repositoryFullName: row.repositoryFullName ?? null,
+					signalType: row.signalType,
+					source: row.source,
+					sourceUrl: row.sourceUrl,
+					weight: row.weight,
+				};
+			});
 		const publishedPrCount = profile?.importedSource
 			? Math.max(profile.prCount, publicPrs.length)
 			: publicPrs.length;

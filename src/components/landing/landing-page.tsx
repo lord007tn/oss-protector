@@ -6,6 +6,7 @@ import { Footer } from "./footer";
 import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
 import { SiteHeader } from "./site-header";
+import { TrustSafeguards } from "./trust-safeguards";
 
 export function LandingPage({ dashboard }: { dashboard: DirectoryDashboard }) {
 	const riskyAccounts = dashboard.riskProfiles.filter(
@@ -17,6 +18,7 @@ export function LandingPage({ dashboard }: { dashboard: DirectoryDashboard }) {
 		<main className="min-h-screen bg-background text-foreground">
 			<SiteHeader />
 			<Hero analytics={analytics} dashboard={dashboard} />
+			<TrustSafeguards />
 			<HowItWorks />
 			<Credits />
 			<Footer />

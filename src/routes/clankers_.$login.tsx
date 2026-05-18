@@ -102,7 +102,7 @@ function NotFoundView({ login }: { login: string }) {
 	return (
 		<StatusPage
 			actions={[
-				{ href: "/clankers", label: "Browse all clankers", tone: "primary" },
+				{ href: "/clankers", label: "Browse review feed", tone: "primary" },
 				...(githubHref
 					? [
 							{
@@ -158,6 +158,7 @@ function ProfileView({ profile }: { profile: ClankerProfileResult }) {
 				</div>
 
 				<ContestAlert />
+				<EvidenceDisclosure profile={profile} />
 
 				<PublicPullRequestsCard profile={profile} />
 				<DecisionTimelineCard profile={profile} />
@@ -175,8 +176,31 @@ function BackLink() {
 			href="/clankers"
 		>
 			<ArrowLeft className="size-3.5" />
-			Back to all clankers
+			Back to review feed
 		</a>
+	);
+}
+
+function EvidenceDisclosure({ profile }: { profile: ClankerProfileResult }) {
+	if (
+		profile.reasonCodes.length > 0 ||
+		profile.reports.length > 0 ||
+		profile.signals.length > 0 ||
+		profile.publicPrs.length > 0
+	) {
+		return null;
+	}
+
+	return (
+		<Alert>
+			<ShieldQuestion />
+			<AlertTitle>No public evidence details are available.</AlertTitle>
+			<AlertDescription>
+				This profile may come from imported public data or evidence that is not
+				published on profile pages. Use the contest path if the score or status
+				does not match the visible context.
+			</AlertDescription>
+		</Alert>
 	);
 }
 
@@ -518,9 +542,8 @@ function DecisionTimelineCard({ profile }: { profile: ClankerProfileResult }) {
 					Decision timeline
 				</CardTitle>
 				<CardDescription className="text-xs leading-5">
-					Signals that changed or explained this profile. Private repository
-					links are withheld, but signal type, source, and score weight remain
-					visible for auditability.
+					Public signals that changed or explained this profile. Private
+					repository signals are withheld from this page.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>

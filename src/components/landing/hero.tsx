@@ -37,12 +37,12 @@ export function Hero({
 						Live signal feed
 					</Badge>
 					<h1 className="text-balance font-semibold text-3xl tracking-tight md:text-[2.75rem] md:leading-[1.05]">
-						A shared watchlist for open-source maintainers.
+						Catch suspicious GitHub PRs before you merge them.
 					</h1>
 					<p className="max-w-xl text-pretty text-muted-foreground text-sm leading-6 md:text-[15px] md:leading-7">
-						OSS Protector turns maintainer reports and imported abuse signals
-						into a clanker feed projects can review before merging suspicious
-						pull requests.
+						OSS Protector turns maintainer reports, pull request context, and
+						imported abuse signals into a shared review feed for open-source
+						projects.
 					</p>
 					<div className="mt-1 flex flex-wrap justify-center gap-2">
 						<a
@@ -56,7 +56,7 @@ export function Hero({
 							className={buttonVariants({ size: "sm", variant: "outline" })}
 							href="/clankers"
 						>
-							Browse clankers
+							Browse review feed
 							<ArrowRight data-icon="inline-end" />
 						</a>
 					</div>
