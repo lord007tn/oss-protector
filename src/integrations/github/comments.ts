@@ -156,6 +156,14 @@ const scoreBandMarkdown = () =>
 			`- ${band.min}-${band.max}: ${RISK_STATUS_LABELS[band.status]} - ${RISK_STATUS_DESCRIPTIONS[band.status]}`
 	).join("\n");
 
+const scoreBandLabel = (status: ReturnType<typeof riskStatusForScore>) => {
+	const band = RISK_SCORE_BANDS.find((item) => item.status === status);
+	if (!band) {
+		return RISK_STATUS_LABELS[status];
+	}
+	return `${RISK_STATUS_LABELS[status]} (${band.min}-${band.max})`;
+};
+
 const causeList = (causes: string[]) => {
 	if (causes.length === 0) {
 		return "- No specific cause was extracted; use the rationale and changed files as context.";
@@ -169,14 +177,14 @@ const scoreBreakdownMarkdown = (scoreBreakdown?: null | ScoreBreakdown) => {
 	if (!scoreBreakdown) {
 		return "Not available; fallback score only.";
 	}
-	return `| Dimension | Score |
-| --- | ---: |
-| Malicious code risk | ${scoreBreakdown.maliciousRisk}/100 |
-| Credential risk | ${scoreBreakdown.credentialRisk}/100 |
-| Farming risk | ${scoreBreakdown.farmingRisk}/100 |
-| AI or low-quality risk | ${scoreBreakdown.aiQuality}/100 |
-| Contribution value | ${scoreBreakdown.contributionValue}/100 |
-| Novelty | ${scoreBreakdown.novelty}/100 |`;
+	return `| Dimension | Score | Meaning |
+| --- | ---: | --- |
+| Malicious code risk | ${scoreBreakdown.maliciousRisk}/100 | Backdoors, obfuscation, suspicious execution, or dangerous dependency behavior. |
+| Credential risk | ${scoreBreakdown.credentialRisk}/100 | Secret harvesting, phishing, token exposure, or unsafe privileged workflow behavior. |
+| Farming risk | ${scoreBreakdown.farmingRisk}/100 | Reward-seeking, repeated, duplicate, or low-value contribution patterns. |
+| AI or low-quality risk | ${scoreBreakdown.aiQuality}/100 | Generic generated text, shallow edits, or poor project understanding. |
+| Contribution value | ${scoreBreakdown.contributionValue}/100 | Higher means the change looks more useful; low value can raise review concern. |
+| Novelty | ${scoreBreakdown.novelty}/100 | Higher means the change looks more specific; low novelty can indicate repetition. |`;
 };
 
 export const createInstallationClient = async ({
@@ -244,7 +252,9 @@ const assessmentSummary = (
 const analysisMarker = (headSha?: null | string) =>
 	`<!-- oss-protector:auto-review:${headSha ?? "unknown"} -->`;
 
-const pullRequestAnalysisBody = (input: PullRequestAnalysisCommentInput) => {
+export const pullRequestAnalysisBody = (
+	input: PullRequestAnalysisCommentInput
+) => {
 	const marker = analysisMarker(input.headSha);
 	const riskStatus = riskStatusForScore({
 		isAllowed: false,
@@ -254,33 +264,40 @@ const pullRequestAnalysisBody = (input: PullRequestAnalysisCommentInput) => {
 	// repeat-offender profile. The "Risk score" above is THIS PR only; the
 	// link points to the cumulative profile view in the public directory.
 	const profileLink = input.authorLogin
-		? `\n\n> The score above reflects **this pull request only**. To see whether @${input.authorLogin} has a cumulative profile score (across all OSS Protector signals + maintainer reports), check the public directory: ${PUBLIC_APP_URL}/clankers?q=${encodeURIComponent(input.authorLogin)}`
+		? `\n\nProfile lookup: ${PUBLIC_APP_URL}/clankers?q=${encodeURIComponent(input.authorLogin)}`
 		: "";
 	return `${marker}
-OSS Protector PR assessment: ${assessmentSummary(input.verdict)}
+OSS Protector completed automatic PR review: **${assessmentSummary(input.verdict)}**
 
 | Field | Value |
 | --- | --- |
+| Analysis | Completed for this PR event |
 | Verdict | \`${input.verdict}\` |
-| Review status | ${RISK_STATUS_LABELS[riskStatus]} |
-| Risk score (this PR) | ${input.confidence}/100 |
+| Review band | ${scoreBandLabel(riskStatus)} |
+| Score | ${input.confidence}/100 for this PR only |
 | Reason | ${REASON_LABELS[input.reasonCode]} |
 | Files reviewed | ${input.fileCount} |
 
 ${input.rationale}
 
-Why this was flagged:
+Primary signals:
 ${causeList(input.causes)}
 
 Evidence summary: ${tableValue(input.evidenceSummary ?? input.rationale)}
 
-Scoring breakdown:
+Score details:
 ${scoreBreakdownMarkdown(input.scoreBreakdown)}
 
 Reason context: ${REASON_DESCRIPTIONS[input.reasonCode]}
 
-Score guide:
+<details>
+<summary>Score bands and profile lookup</summary>
+
+The score above is specific to this pull request. The contributor's cumulative public profile, when one exists, is calculated separately from all OSS Protector signals and maintainer reports.
+
 ${scoreBandMarkdown()}${profileLink}
+
+</details>
 
 This comment is a review aid, not a final judgment. Maintainers should inspect the diff, account history, and repository context before taking action.`;
 };
@@ -328,6 +345,8 @@ const checkRunSummary = (input: PullRequestAnalysisCommentInput) => {
 		: "- No specific cause was extracted.";
 	return `**${assessmentSummary(input.verdict)}**
 
+Automatic review completed for this PR event.
+PR score: ${input.confidence}/100. Cumulative public profiles are calculated separately.
 Reason: \`${input.reasonCode}\` (${REASON_LABELS[input.reasonCode]})
 Files reviewed: ${input.fileCount}
 
