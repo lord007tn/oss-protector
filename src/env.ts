@@ -5,17 +5,6 @@ export interface RateLimitBinding {
 	limit(input: { key: string }): Promise<{ success: boolean }>;
 }
 
-// Message enqueued to backfill an account's accessible prior PRs.
-export interface AccountBackfillMessage {
-	login: string;
-}
-
-// Minimal Cloudflare Queue producer surface (avoids depending on the global
-// workers-types Queue<T> at the binding declaration).
-export interface QueueBinding<TMessage = unknown> {
-	send(message: TMessage): Promise<void>;
-}
-
 export interface RuntimeBindings {
 	ALLOW_UNSIGNED_GITHUB_WEBHOOKS?: string;
 	APP_NAME?: string;
@@ -32,7 +21,6 @@ export interface RuntimeBindings {
 	GITHUB_MANIFEST_TOKEN?: string;
 	GITHUB_WEBHOOK_SECRET?: string;
 	OPENROUTER_API_KEY?: string;
-	PR_BACKFILL_QUEUE?: QueueBinding<AccountBackfillMessage>;
 	PUBLIC_RL?: RateLimitBinding;
 	RESEND_API_KEY?: string;
 	SMOKE_HEALTH_TOKEN?: string;
@@ -54,12 +42,7 @@ export const runtimeBindings = () => {
 };
 
 export const runtimeEnv = () => {
-	const {
-		clankers_db: _db,
-		PR_BACKFILL_QUEUE: _queue,
-		PUBLIC_RL: _rl,
-		...envVars
-	} = runtimeBindings();
+	const { clankers_db: _db, PUBLIC_RL: _rl, ...envVars } = runtimeBindings();
 	return envVars;
 };
 

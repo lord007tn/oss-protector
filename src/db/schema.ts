@@ -428,9 +428,35 @@ export const Notification = sqliteTable(
 	]
 );
 
+// Durable, D1-backed work queue for one-time account PR backfills. Replaces the
+// Cloudflare Queue (which needs Workers Paid): a cron-triggered handler drains
+// pending rows. One row per login — re-enqueueing an existing login is a no-op.
+export const BackfillJob = sqliteTable(
+	"BackfillJob",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		login: text("login").notNull().unique(),
+		// pending → drained by cron; done → completed; failed → parked after
+		// MAX_ATTEMPTS so a permanently-broken login can't loop forever.
+		status: text("status").notNull().default("pending"),
+		attempts: integer("attempts", { mode: "number" }).notNull().default(0),
+		lastError: text("lastError"),
+		createdAt: integer("createdAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+		updatedAt: integer("updatedAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [index("backfill_jobs_status_idx").on(table.status)]
+);
+
 export const appSchema = {
 	AppEvent,
 	Appeal,
+	BackfillJob,
 	BotReport,
 	BotSignal,
 	GithubUser,
@@ -445,6 +471,7 @@ export const appSchema = {
 
 export type AppEventSelect = typeof AppEvent.$inferSelect;
 export type AppealSelect = typeof Appeal.$inferSelect;
+export type BackfillJobSelect = typeof BackfillJob.$inferSelect;
 export type BotReportSelect = typeof BotReport.$inferSelect;
 export type BotSignalSelect = typeof BotSignal.$inferSelect;
 export type GithubUserSelect = typeof GithubUser.$inferSelect;

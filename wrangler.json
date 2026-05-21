@@ -39,21 +39,7 @@
       }
     }
   ],
-  "queues": {
-    "producers": [
-      {
-        "binding": "PR_BACKFILL_QUEUE",
-        "queue": "oss-protector-pr-backfill"
-      }
-    ],
-    "consumers": [
-      {
-        "queue": "oss-protector-pr-backfill",
-        "max_batch_size": 5,
-        "max_batch_timeout": 30,
-        "max_retries": 3,
-        "dead_letter_queue": "oss-protector-pr-backfill-dlq"
-      }
-    ]
+  "triggers": {
+    "crons": ["* * * * *"]
   }
 }

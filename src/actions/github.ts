@@ -1,4 +1,5 @@
 import { REASON_LABELS, type ReasonCode } from "@/constants/reason-codes";
+import { enqueueAccountBackfill } from "@/data-access/backfill-jobs";
 import {
 	allowlistUser,
 	correctionAlreadyApplied,
@@ -47,7 +48,6 @@ import {
 	validatePullRequestWithOpenRouter,
 	validateReportWithOpenRouter,
 } from "@/integrations/openrouter/validation";
-import { enqueueAccountBackfill } from "@/integrations/queue/backfill-queue";
 import {
 	commitVoiceScore,
 	diffSignatureScore,

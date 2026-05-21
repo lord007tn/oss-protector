@@ -1,6 +1,11 @@
 import { isNull } from "drizzle-orm";
 
 import {
+	claimPendingBackfillJobs,
+	markBackfillJobDone,
+	markBackfillJobFailed,
+} from "@/data-access/backfill-jobs";
+import {
 	recalculateRiskProfile,
 	recordDuplicateCampaignSignal,
 	upsertGithubUser,
@@ -208,4 +213,34 @@ export const runAccountBackfill = async (
 		console.warn("Account backfill failed", login, caught);
 		return { backfilledPrs: 0, login };
 	}
+};
+
+// Cron-driven drain of the D1-backed backfill queue. Kept tiny on purpose: each
+// job spends ~40 GitHub subrequests and the Workers free tier caps an
+// invocation at ~50, so we process one job per tick. On Workers Paid (1000
+// subrequests) this can be raised.
+const BACKFILL_JOBS_PER_TICK = 1;
+
+export const drainBackfillJobs = async (
+	limit = BACKFILL_JOBS_PER_TICK
+): Promise<{ processed: number }> => {
+	if (!hasDatabaseBinding) {
+		return { processed: 0 };
+	}
+	const jobs = await claimPendingBackfillJobs(limit);
+	let processed = 0;
+	for (const job of jobs) {
+		try {
+			await runAccountBackfill(job.login);
+			await markBackfillJobDone(job.id);
+			processed += 1;
+		} catch (caught) {
+			await markBackfillJobFailed(
+				job.id,
+				job.attempts,
+				caught instanceof Error ? caught.message : "Unknown backfill error"
+			);
+		}
+	}
+	return { processed };
 };

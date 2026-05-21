@@ -1,6 +1,6 @@
 import handler from "@tanstack/react-start/server-entry";
 import { resolveAppeal, submitAppeal } from "./actions/appeal";
-import { runAccountBackfill } from "./actions/backfill";
+import { drainBackfillJobs } from "./actions/backfill";
 import {
 	listClankersApi,
 	listProtectorsApi,
@@ -19,7 +19,7 @@ import {
 	markNotificationReadForRequest,
 } from "./actions/notifications";
 import { createAuth, getAuthConfigStatus } from "./auth";
-import type { AccountBackfillMessage, RuntimeBindings } from "./env";
+import type { RuntimeBindings } from "./env";
 import {
 	parseClankerFilters,
 	parseProtectorFilters,
@@ -32,33 +32,6 @@ type GlobalWithRuntime = typeof globalThis & {
 
 type RequestWithWaitUntil = Request & {
 	waitUntil?: (promise: Promise<unknown>) => void;
-};
-
-// Minimal Cloudflare Queue consumer surface (avoids depending on the global
-// workers-types MessageBatch<T>).
-interface QueueConsumerMessage<TBody> {
-	ack(): void;
-	body: TBody;
-	retry(): void;
-}
-interface QueueConsumerBatch<TBody> {
-	messages: QueueConsumerMessage<TBody>[];
-}
-
-// Drain a backfill batch: each message backfills one account's accessible PRs.
-// ack on success, retry on failure so transient GitHub/D1 errors get re-tried.
-const processBackfillBatch = async (
-	batch: QueueConsumerBatch<AccountBackfillMessage>
-) => {
-	for (const message of batch.messages) {
-		try {
-			await runAccountBackfill(message.body.login);
-			message.ack();
-		} catch (caught) {
-			console.warn("Account backfill message failed", caught);
-			message.retry();
-		}
-	}
 };
 
 const SECURITY_HEADERS = {
@@ -521,9 +494,11 @@ export default {
 		}
 		return routeFetch(request, env, context);
 	},
-	// Cloudflare Queues consumer for the PR backfill (requires Workers Paid).
-	async queue(
-		batch: QueueConsumerBatch<AccountBackfillMessage>,
+	// Cron-triggered drain of the D1-backed backfill queue (replaces Cloudflare
+	// Queues so backfill runs on the free Workers tier). Schedule is declared in
+	// wrangler.json under triggers.crons.
+	async scheduled(
+		_controller: ScheduledController,
 		envArg: RuntimeBindings | undefined
 	) {
 		const env =
@@ -531,6 +506,6 @@ export default {
 		if (env) {
 			(globalThis as GlobalWithRuntime).__env__ = env;
 		}
-		await processBackfillBatch(batch);
+		await drainBackfillJobs();
 	},
 };
