@@ -9,8 +9,7 @@ import {
 import type { ReactNode } from "react";
 
 import { publicAppUrl } from "@/components/landing/constants";
-import { Footer } from "@/components/landing/footer";
-import { SiteHeader } from "@/components/landing/site-header";
+import { PageShell } from "@/components/site/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -117,8 +116,7 @@ const protectorParams = [
 
 function ApiDocsRoute() {
 	return (
-		<main className="min-h-screen bg-background text-foreground">
-			<SiteHeader />
+		<PageShell>
 			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<div className="max-w-2xl">
 					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
@@ -182,8 +180,9 @@ function ApiDocsRoute() {
 							</CardTitle>
 							<CardDescription className="text-xs leading-5">
 								Repo owners and members (author_association OWNER, MEMBER, or
-								COLLABORATOR) can correct the system from a PR comment. The bot
-								posts a confirmation comment for every correction.
+								COLLABORATOR) can correct the system from a PR comment. Each
+								correction is applied silently and recorded as an in-app
+								notification — no reply is posted to the PR.
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -222,8 +221,7 @@ function ApiDocsRoute() {
 					/>
 				</div>
 			</div>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }
 

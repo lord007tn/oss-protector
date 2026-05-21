@@ -10,18 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SponsorsRouteImport } from './routes/sponsors'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProtectorsRouteImport } from './routes/protectors'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as InstallRouteImport } from './routes/install'
-import { Route as ContestRouteImport } from './routes/contest'
-import { Route as ClankersRouteImport } from './routes/clankers'
+import { Route as FeedRouteImport } from './routes/feed'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AppealRouteImport } from './routes/appeal'
 import { Route as ApiDocsRouteImport } from './routes/api-docs'
+import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ClankersLoginRouteImport } from './routes/clankers_.$login'
+import { Route as AccountsLoginRouteImport } from './routes/accounts_.$login'
+import { Route as RepoOwnerNameRouteImport } from './routes/repo.$owner.$name'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorsRoute = SponsorsRouteImport.update({
+  id: '/sponsors',
+  path: '/sponsors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectorsRoute = ProtectorsRouteImport.update({
@@ -34,19 +51,34 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MethodologyRoute = MethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InstallRoute = InstallRouteImport.update({
   id: '/install',
   path: '/install',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContestRoute = ContestRouteImport.update({
-  id: '/contest',
-  path: '/contest',
+const FeedRoute = FeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClankersRoute = ClankersRouteImport.update({
-  id: '/clankers',
-  path: '/clankers',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppealRoute = AppealRouteImport.update({
+  id: '/appeal',
+  path: '/appeal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDocsRoute = ApiDocsRouteImport.update({
@@ -54,97 +86,156 @@ const ApiDocsRoute = ApiDocsRouteImport.update({
   path: '/api-docs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountsRoute = AccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClankersLoginRoute = ClankersLoginRouteImport.update({
-  id: '/clankers_/$login',
-  path: '/clankers/$login',
+const AccountsLoginRoute = AccountsLoginRouteImport.update({
+  id: '/accounts_/$login',
+  path: '/accounts/$login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
+  id: '/repo/$owner/$name',
+  path: '/repo/$owner/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
   '/api-docs': typeof ApiDocsRoute
-  '/clankers': typeof ClankersRoute
-  '/contest': typeof ContestRoute
+  '/appeal': typeof AppealRoute
+  '/dashboard': typeof DashboardRoute
+  '/feed': typeof FeedRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
+  '/methodology': typeof MethodologyRoute
   '/privacy': typeof PrivacyRoute
   '/protectors': typeof ProtectorsRoute
+  '/settings': typeof SettingsRoute
+  '/sponsors': typeof SponsorsRoute
   '/terms': typeof TermsRoute
-  '/clankers/$login': typeof ClankersLoginRoute
+  '/accounts/$login': typeof AccountsLoginRoute
+  '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
   '/api-docs': typeof ApiDocsRoute
-  '/clankers': typeof ClankersRoute
-  '/contest': typeof ContestRoute
+  '/appeal': typeof AppealRoute
+  '/dashboard': typeof DashboardRoute
+  '/feed': typeof FeedRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
+  '/methodology': typeof MethodologyRoute
   '/privacy': typeof PrivacyRoute
   '/protectors': typeof ProtectorsRoute
+  '/settings': typeof SettingsRoute
+  '/sponsors': typeof SponsorsRoute
   '/terms': typeof TermsRoute
-  '/clankers/$login': typeof ClankersLoginRoute
+  '/accounts/$login': typeof AccountsLoginRoute
+  '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRoute
   '/api-docs': typeof ApiDocsRoute
-  '/clankers': typeof ClankersRoute
-  '/contest': typeof ContestRoute
+  '/appeal': typeof AppealRoute
+  '/dashboard': typeof DashboardRoute
+  '/feed': typeof FeedRoute
   '/install': typeof InstallRoute
+  '/login': typeof LoginRoute
+  '/methodology': typeof MethodologyRoute
   '/privacy': typeof PrivacyRoute
   '/protectors': typeof ProtectorsRoute
+  '/settings': typeof SettingsRoute
+  '/sponsors': typeof SponsorsRoute
   '/terms': typeof TermsRoute
-  '/clankers_/$login': typeof ClankersLoginRoute
+  '/accounts_/$login': typeof AccountsLoginRoute
+  '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accounts'
     | '/api-docs'
-    | '/clankers'
-    | '/contest'
+    | '/appeal'
+    | '/dashboard'
+    | '/feed'
     | '/install'
+    | '/login'
+    | '/methodology'
     | '/privacy'
     | '/protectors'
+    | '/settings'
+    | '/sponsors'
     | '/terms'
-    | '/clankers/$login'
+    | '/accounts/$login'
+    | '/repo/$owner/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accounts'
     | '/api-docs'
-    | '/clankers'
-    | '/contest'
+    | '/appeal'
+    | '/dashboard'
+    | '/feed'
     | '/install'
+    | '/login'
+    | '/methodology'
     | '/privacy'
     | '/protectors'
+    | '/settings'
+    | '/sponsors'
     | '/terms'
-    | '/clankers/$login'
+    | '/accounts/$login'
+    | '/repo/$owner/$name'
   id:
     | '__root__'
     | '/'
+    | '/accounts'
     | '/api-docs'
-    | '/clankers'
-    | '/contest'
+    | '/appeal'
+    | '/dashboard'
+    | '/feed'
     | '/install'
+    | '/login'
+    | '/methodology'
     | '/privacy'
     | '/protectors'
+    | '/settings'
+    | '/sponsors'
     | '/terms'
-    | '/clankers_/$login'
+    | '/accounts_/$login'
+    | '/repo/$owner/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountsRoute: typeof AccountsRoute
   ApiDocsRoute: typeof ApiDocsRoute
-  ClankersRoute: typeof ClankersRoute
-  ContestRoute: typeof ContestRoute
+  AppealRoute: typeof AppealRoute
+  DashboardRoute: typeof DashboardRoute
+  FeedRoute: typeof FeedRoute
   InstallRoute: typeof InstallRoute
+  LoginRoute: typeof LoginRoute
+  MethodologyRoute: typeof MethodologyRoute
   PrivacyRoute: typeof PrivacyRoute
   ProtectorsRoute: typeof ProtectorsRoute
+  SettingsRoute: typeof SettingsRoute
+  SponsorsRoute: typeof SponsorsRoute
   TermsRoute: typeof TermsRoute
-  ClankersLoginRoute: typeof ClankersLoginRoute
+  AccountsLoginRoute: typeof AccountsLoginRoute
+  RepoOwnerNameRoute: typeof RepoOwnerNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -154,6 +245,20 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsors': {
+      id: '/sponsors'
+      path: '/sponsors'
+      fullPath: '/sponsors'
+      preLoaderRoute: typeof SponsorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/protectors': {
@@ -170,6 +275,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/methodology': {
+      id: '/methodology'
+      path: '/methodology'
+      fullPath: '/methodology'
+      preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/install': {
       id: '/install'
       path: '/install'
@@ -177,18 +296,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstallRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/contest': {
-      id: '/contest'
-      path: '/contest'
-      fullPath: '/contest'
-      preLoaderRoute: typeof ContestRouteImport
+    '/feed': {
+      id: '/feed'
+      path: '/feed'
+      fullPath: '/feed'
+      preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/clankers': {
-      id: '/clankers'
-      path: '/clankers'
-      fullPath: '/clankers'
-      preLoaderRoute: typeof ClankersRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/appeal': {
+      id: '/appeal'
+      path: '/appeal'
+      fullPath: '/appeal'
+      preLoaderRoute: typeof AppealRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api-docs': {
@@ -198,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounts': {
+      id: '/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -205,11 +338,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/clankers_/$login': {
-      id: '/clankers_/$login'
-      path: '/clankers/$login'
-      fullPath: '/clankers/$login'
-      preLoaderRoute: typeof ClankersLoginRouteImport
+    '/accounts_/$login': {
+      id: '/accounts_/$login'
+      path: '/accounts/$login'
+      fullPath: '/accounts/$login'
+      preLoaderRoute: typeof AccountsLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/repo/$owner/$name': {
+      id: '/repo/$owner/$name'
+      path: '/repo/$owner/$name'
+      fullPath: '/repo/$owner/$name'
+      preLoaderRoute: typeof RepoOwnerNameRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -217,14 +357,21 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountsRoute: AccountsRoute,
   ApiDocsRoute: ApiDocsRoute,
-  ClankersRoute: ClankersRoute,
-  ContestRoute: ContestRoute,
+  AppealRoute: AppealRoute,
+  DashboardRoute: DashboardRoute,
+  FeedRoute: FeedRoute,
   InstallRoute: InstallRoute,
+  LoginRoute: LoginRoute,
+  MethodologyRoute: MethodologyRoute,
   PrivacyRoute: PrivacyRoute,
   ProtectorsRoute: ProtectorsRoute,
+  SettingsRoute: SettingsRoute,
+  SponsorsRoute: SponsorsRoute,
   TermsRoute: TermsRoute,
-  ClankersLoginRoute: ClankersLoginRoute,
+  AccountsLoginRoute: AccountsLoginRoute,
+  RepoOwnerNameRoute: RepoOwnerNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

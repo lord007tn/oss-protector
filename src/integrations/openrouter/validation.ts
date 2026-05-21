@@ -61,8 +61,25 @@ export interface ReportValidationResult {
 	verdict: ReviewVerdictValue;
 }
 
+export interface PullRequestCommentInput {
+	author: string;
+	authorAssociation: string;
+	body: string;
+	isPrAuthor: boolean;
+	kind: string;
+}
+
+export interface PullRequestAccountInput {
+	followers: number;
+	githubCreatedAt: null | number;
+	publicRepos: number;
+}
+
 export interface PullRequestAnalysisInput {
+	account?: null | PullRequestAccountInput;
 	body?: null | string;
+	comments?: PullRequestCommentInput[];
+	commitMessages?: string[];
 	files?: Array<{
 		additions: number;
 		changes: number;
@@ -104,7 +121,10 @@ interface EvidenceSignal {
 }
 
 interface StructuredPrContext {
+	account: null | PullRequestAccountInput;
 	body: string;
+	comments: PullRequestCommentInput[];
+	commitMessages: string[];
 	files: Array<{
 		additions: number;
 		deletions: number;
@@ -140,9 +160,9 @@ interface StructuredPrContext {
 //
 // Chain length × per-call timeout must stay well under Cloudflare's 30s
 // waitUntil budget. 3 models × 4.5s = 13.5s worst-case AI, leaving ~15s for
-// listFiles paginate, posting the comment, and the check run. We also keep
-// the chain short because each :free attempt costs against our 20 RPM
-// pay-as-you-go cap; fewer attempts on rate-limited bursts is healthier.
+// listFiles paginate plus the risk-profile recompute. We also keep the chain
+// short because each :free attempt costs against our 20 RPM pay-as-you-go cap;
+// fewer attempts on rate-limited bursts is healthier.
 const OPENROUTER_FREE_MODEL_CHAIN = [
 	"qwen/qwen3-next-80b-a3b-instruct:free",
 	"google/gemma-4-31b-it:free",
@@ -520,39 +540,19 @@ const pushCredentialRiskSignal = (signals: EvidenceSignal[], text: string) => {
 const isDocLikeFile = (filename: string) =>
 	DOC_EXTENSION_PATTERN.test(filename) || DOC_PATH_PATTERN.test(filename);
 
-const buildStructuredPullRequestContext = (
-	input: PullRequestAnalysisInput
-): StructuredPrContext => {
-	const files =
-		input.files?.map((file) => ({
-			additions: file.additions,
-			deletions: file.deletions,
-			filename: file.filename,
-			patchExcerpt: file.patch?.slice(0, MAX_PATCH_EXCERPT_LENGTH) ?? "",
-			status: file.status,
-		})) ?? [];
-	const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
-	const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
-	const netLines = totalAdditions + totalDeletions;
-	const docsOnly =
-		files.length > 0 && files.every((file) => isDocLikeFile(file.filename));
-	const hasCodeFile = files.some((file) => !isDocLikeFile(file.filename));
-	const meaningfulPatchText = files
-		.map((file) => file.patchExcerpt)
-		.join("\n")
-		.replace(/^[+\-\s#/*`_.,;:()[\]{}'"|\\]+$/gm, "")
-		.trim();
-	const hasMeaningfulCodeChange =
-		hasCodeFile && meaningfulPatchText.length > 30;
-	const trivialChange = netLines <= 4 || (docsOnly && netLines <= 12);
-	const text = lowerText(
-		`${input.title}\n${input.body ?? ""}\n${files
-			.map(
-				(file) =>
-					`${file.filename} ${file.status} +${file.additions} -${file.deletions}\n${file.patchExcerpt}`
-			)
-			.join("\n")}`.slice(0, MAX_CONTEXT_TEXT_LENGTH)
-	);
+const collectHeuristicSignals = ({
+	filesLength,
+	hasMeaningfulCodeChange,
+	netLines,
+	text,
+	trivialChange,
+}: {
+	filesLength: number;
+	hasMeaningfulCodeChange: boolean;
+	netLines: number;
+	text: string;
+	trivialChange: boolean;
+}): EvidenceSignal[] => {
 	const signals: EvidenceSignal[] = [];
 	const hasFarmingLanguage = includesAny(text, [
 		"bounty",
@@ -613,20 +613,20 @@ const buildStructuredPullRequestContext = (
 		(hasFarmingLanguage ||
 			hasGeneratedLanguage ||
 			hasGenericLowValueLanguage ||
-			files.length === 0)
+			filesLength === 0)
 	) {
 		pushSignal(signals, {
 			cause: "No meaningful project addition",
-			evidence: `${files.length} file(s), ${netLines} changed line(s), no substantive code signal.`,
+			evidence: `${filesLength} file(s), ${netLines} changed line(s), no substantive code signal.`,
 			kind: ReviewSignalKind.NoMeaningfulAddition,
 			score: 30,
 			severity: "low",
 		});
 	}
-	if (files.length > 20 || netLines > 1200) {
+	if (filesLength > 20 || netLines > 1200) {
 		pushSignal(signals, {
 			cause: "Broad unaudited scope",
-			evidence: `${files.length} files and ${netLines} changed lines.`,
+			evidence: `${filesLength} files and ${netLines} changed lines.`,
 			kind: ReviewSignalKind.BroadScope,
 			score: 40,
 			severity: "medium",
@@ -655,8 +655,60 @@ const buildStructuredPullRequestContext = (
 		});
 	}
 
+	return signals;
+};
+
+const buildStructuredPullRequestContext = (
+	input: PullRequestAnalysisInput
+): StructuredPrContext => {
+	const files =
+		input.files?.map((file) => ({
+			additions: file.additions,
+			deletions: file.deletions,
+			filename: file.filename,
+			patchExcerpt: file.patch?.slice(0, MAX_PATCH_EXCERPT_LENGTH) ?? "",
+			status: file.status,
+		})) ?? [];
+	const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
+	const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
+	const netLines = totalAdditions + totalDeletions;
+	const docsOnly =
+		files.length > 0 && files.every((file) => isDocLikeFile(file.filename));
+	const hasCodeFile = files.some((file) => !isDocLikeFile(file.filename));
+	const meaningfulPatchText = files
+		.map((file) => file.patchExcerpt)
+		.join("\n")
+		.replace(/^[+\-\s#/*`_.,;:()[\]{}'"|\\]+$/gm, "")
+		.trim();
+	const hasMeaningfulCodeChange =
+		hasCodeFile && meaningfulPatchText.length > 30;
+	const trivialChange = netLines <= 4 || (docsOnly && netLines <= 12);
+	const commitMessages = input.commitMessages ?? [];
+	// Commit messages are the contributor's own text about the change, so they
+	// belong in the deterministic keyword haystack. Comment bodies are NOT folded
+	// in here — a third party writing "this looks malicious" shouldn't trip the
+	// crude fallback signals; the AI path weighs comments with author context.
+	const text = lowerText(
+		`${input.title}\n${input.body ?? ""}\n${commitMessages.join("\n")}\n${files
+			.map(
+				(file) =>
+					`${file.filename} ${file.status} +${file.additions} -${file.deletions}\n${file.patchExcerpt}`
+			)
+			.join("\n")}`.slice(0, MAX_CONTEXT_TEXT_LENGTH)
+	);
+	const signals = collectHeuristicSignals({
+		filesLength: files.length,
+		hasMeaningfulCodeChange,
+		netLines,
+		text,
+		trivialChange,
+	});
+
 	return {
+		account: input.account ?? null,
 		body: input.body?.slice(0, 3000) ?? "",
+		comments: input.comments ?? [],
+		commitMessages,
 		files,
 		metrics: {
 			changedFiles: files.length,

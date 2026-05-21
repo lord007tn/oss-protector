@@ -1,4 +1,4 @@
-import type { ReasonCode } from "@/constants/reason-codes";
+import { REASON_LABELS, type ReasonCode } from "@/constants/reason-codes";
 import {
 	allowlistUser,
 	correctionAlreadyApplied,
@@ -10,6 +10,7 @@ import {
 	recordAppEvent,
 	recordDuplicateCampaignSignal,
 	replacePullRequestAiSignal,
+	replacePullRequestHeuristicSignal,
 	resetRiskProfile,
 	upsertGithubUser,
 	upsertInstallation,
@@ -17,6 +18,8 @@ import {
 	upsertRepository,
 	validateLatestReportForUser,
 } from "@/data-access/directory";
+import { linkInstallerByGithubId } from "@/data-access/maintainers";
+import { notifyInstallationMaintainers } from "@/data-access/notifications";
 import {
 	type CorrectionCommand,
 	type GithubRepositoryPayload,
@@ -38,66 +41,43 @@ import {
 	parseRepositoryPolicy,
 	shouldSkipPullRequestAnalysis,
 } from "@/helpers/repository-policy";
+import { createInstallationClient } from "@/integrations/github/client";
 import {
-	createCorrectionAcknowledgementComment,
-	createInstallationClient,
-	createPullRequestAnalysisComment,
-	createReportAcknowledgementComment,
-} from "@/integrations/github/comments";
-import {
+	type PullRequestAccountInput,
 	validatePullRequestWithOpenRouter,
 	validateReportWithOpenRouter,
 } from "@/integrations/openrouter/validation";
+import { enqueueAccountBackfill } from "@/integrations/queue/backfill-queue";
+import {
+	commitVoiceScore,
+	diffSignatureScore,
+	prHeuristicSignalWeight,
+} from "@/lib/pr-signals";
 import { aiPrSignalWeight } from "@/lib/scoring";
 
 const acknowledgeReport = async ({
 	confidence,
 	installationId,
-	issueNumber,
 	reasonCode,
-	repositoryFullName,
-	sourceCommentId,
 	status,
 	targetLogin,
-	verdict,
-	evidenceSummary,
-	scoreBreakdown,
 }: {
 	confidence: number;
-	evidenceSummary?: null | string;
 	installationId?: null | number;
-	issueNumber?: null | number;
 	reasonCode: ReasonCode;
-	repositoryFullName?: null | string;
-	scoreBreakdown?: null | {
-		aiQuality: number;
-		contributionValue: number;
-		credentialRisk: number;
-		farmingRisk: number;
-		maliciousRisk: number;
-		novelty: number;
-	};
-	sourceCommentId?: null | number | string;
 	status: "dismissed" | "needs_review" | "pending" | "validated";
 	targetLogin: string;
-	verdict?: null | string;
 }) => {
 	try {
-		await createReportAcknowledgementComment({
-			confidence,
-			evidenceSummary,
-			installationId,
-			issueNumber,
-			reasonCode,
-			repositoryFullName,
-			scoreBreakdown,
-			sourceCommentId,
-			status,
-			targetLogin,
-			verdict,
+		await notifyInstallationMaintainers({
+			body: `${REASON_LABELS[reasonCode]} · ${status} · ${confidence}% confidence`,
+			installationGithubId: installationId,
+			kind: "report",
+			link: `/accounts/${targetLogin}`,
+			title: `New report on @${targetLogin}`,
 		});
 	} catch (caught) {
-		console.warn("Failed to create GitHub report acknowledgement", caught);
+		console.warn("Failed to notify maintainers of report", caught);
 	}
 };
 
@@ -109,18 +89,22 @@ const decodeBase64Text = (value: string): string => {
 	return Buffer.from(compact, "base64").toString("utf8");
 };
 
+// One authenticated installation client is built per analyzed PR and threaded
+// into every fetch below, so we exchange an installation token once instead of
+// once per call.
+type InstallationClient = Awaited<ReturnType<typeof createInstallationClient>>;
+
 const fetchRepositoryPolicy = async ({
-	installationId,
+	octokit,
 	repositoryFullName,
 }: {
-	installationId?: null | number;
+	octokit: InstallationClient;
 	repositoryFullName: string;
 }) => {
 	const repository = parseRepositoryFullName(repositoryFullName);
 	if (!repository) {
 		return DEFAULT_REPOSITORY_POLICY;
 	}
-	const octokit = await createInstallationClient({ installationId });
 	if (!octokit) {
 		return DEFAULT_REPOSITORY_POLICY;
 	}
@@ -147,23 +131,24 @@ const fetchRepositoryPolicy = async ({
 	}
 };
 
+const MAX_FILES = 40;
+const MAX_COMMENTS = 30;
+const MAX_COMMITS = 30;
+const MAX_COMMENT_LENGTH = 1000;
+const MAX_COMMIT_MESSAGE_LENGTH = 500;
+const COMMENTS_PER_PAGE = 50;
+
 const fetchPullRequestFiles = async ({
-	installationId,
+	octokit,
 	pullNumber,
 	repositoryFullName,
 }: {
-	installationId?: null | number;
+	octokit: InstallationClient;
 	pullNumber: number;
 	repositoryFullName: string;
 }): Promise<PullRequestFileSummary[]> => {
 	const repository = parseRepositoryFullName(repositoryFullName);
-	if (!repository) {
-		return [];
-	}
-	const octokit = await createInstallationClient({
-		installationId,
-	});
-	if (!octokit) {
+	if (!(repository && octokit)) {
 		return [];
 	}
 
@@ -174,7 +159,7 @@ const fetchPullRequestFiles = async ({
 		repo: repository.repo,
 	});
 
-	return files.slice(0, 40).map((file) => ({
+	return files.slice(0, MAX_FILES).map((file) => ({
 		additions: file.additions,
 		changes: file.changes,
 		deletions: file.deletions,
@@ -184,41 +169,246 @@ const fetchPullRequestFiles = async ({
 	}));
 };
 
-const postPullRequestAnalysis = async ({
+export interface PullRequestCommentSummary {
+	author: string;
+	authorAssociation: string;
+	body: string;
+	isPrAuthor: boolean;
+	kind: "issue_comment" | "review_comment";
+}
+
+// Pull the PR conversation (issue comments) and inline review-thread comments so
+// the analysis can weigh what humans said about the change — e.g. a maintainer
+// calling it generated, or the author's own admissions. Our own bot comments are
+// filtered out so we never grade our own commentary.
+const normalizePullRequestComments = (
+	items: Array<{
+		author_association?: null | string;
+		body?: null | string;
+		user?: { id?: number; login?: string } | null;
+	}>,
+	kind: PullRequestCommentSummary["kind"],
+	prAuthorLogin: string
+): PullRequestCommentSummary[] =>
+	items
+		.filter(
+			(item) =>
+				Boolean(item.body) &&
+				!isOwnBotUser({ id: item.user?.id ?? 0, login: item.user?.login ?? "" })
+		)
+		.map((item) => {
+			const author = item.user?.login ?? "unknown";
+			return {
+				author,
+				authorAssociation: item.author_association ?? "NONE",
+				body: (item.body ?? "").slice(0, MAX_COMMENT_LENGTH),
+				isPrAuthor: author.toLowerCase() === prAuthorLogin.toLowerCase(),
+				kind,
+			};
+		});
+
+const fetchPullRequestComments = async ({
+	octokit,
+	prAuthorLogin,
+	pullNumber,
+	repositoryFullName,
+}: {
+	octokit: InstallationClient;
+	prAuthorLogin: string;
+	pullNumber: number;
+	repositoryFullName: string;
+}): Promise<PullRequestCommentSummary[]> => {
+	const repository = parseRepositoryFullName(repositoryFullName);
+	if (!(repository && octokit)) {
+		return [];
+	}
+	try {
+		const [issueComments, reviewComments] = await Promise.all([
+			octokit.rest.issues.listComments({
+				issue_number: pullNumber,
+				owner: repository.owner,
+				per_page: COMMENTS_PER_PAGE,
+				repo: repository.repo,
+			}),
+			octokit.rest.pulls.listReviewComments({
+				owner: repository.owner,
+				per_page: COMMENTS_PER_PAGE,
+				pull_number: pullNumber,
+				repo: repository.repo,
+			}),
+		]);
+		return [
+			...normalizePullRequestComments(
+				issueComments.data,
+				"issue_comment",
+				prAuthorLogin
+			),
+			...normalizePullRequestComments(
+				reviewComments.data,
+				"review_comment",
+				prAuthorLogin
+			),
+		].slice(0, MAX_COMMENTS);
+	} catch (caught) {
+		console.warn("Failed to fetch PR comments", caught);
+		return [];
+	}
+};
+
+const fetchPullRequestCommits = async ({
+	octokit,
+	pullNumber,
+	repositoryFullName,
+}: {
+	octokit: InstallationClient;
+	pullNumber: number;
+	repositoryFullName: string;
+}): Promise<string[]> => {
+	const repository = parseRepositoryFullName(repositoryFullName);
+	if (!(repository && octokit)) {
+		return [];
+	}
+	try {
+		const commits = await octokit.rest.pulls.listCommits({
+			owner: repository.owner,
+			per_page: 100,
+			pull_number: pullNumber,
+			repo: repository.repo,
+		});
+		return commits.data
+			.slice(0, MAX_COMMITS)
+			.map((entry) =>
+				(entry.commit.message ?? "").slice(0, MAX_COMMIT_MESSAGE_LENGTH)
+			)
+			.filter(Boolean);
+	} catch (caught) {
+		console.warn("Failed to fetch PR commits", caught);
+		return [];
+	}
+};
+
+export interface AccountContext {
+	bio: null | string;
+	followers: number;
+	following: number;
+	githubCreatedAt: null | number;
+	publicRepos: number;
+	totalContributions: number;
+	totalStars: number;
+}
+
+const MAX_REPOS_FOR_STARS = 100;
+const ACCOUNT_ENRICHMENT_TTL_SECONDS = 7 * 86_400;
+
+// Sum stargazers across the account's owned (non-fork) repos — a reputation
+// signal. Bounded to one page so it stays cheap; most stars sit on top repos.
+const fetchAccountStars = async (
+	octokit: NonNullable<InstallationClient>,
+	username: string
+): Promise<number> => {
+	try {
+		const repos = await octokit.rest.repos.listForUser({
+			per_page: MAX_REPOS_FOR_STARS,
+			sort: "pushed",
+			type: "owner",
+			username,
+		});
+		return repos.data
+			.filter((repo) => !repo.fork)
+			.reduce((sum, repo) => sum + (repo.stargazers_count ?? 0), 0);
+	} catch (caught) {
+		console.warn("Failed to fetch account stars", caught);
+		return 0;
+	}
+};
+
+// Total public PRs the account has authored, via the search API total_count.
+const fetchTotalContributions = async (
+	octokit: NonNullable<InstallationClient>,
+	login: string
+): Promise<number> => {
+	try {
+		const result = await octokit.rest.search.issuesAndPullRequests({
+			per_page: 1,
+			q: `type:pr author:${login}`,
+		});
+		return result.data.total_count ?? 0;
+	} catch (caught) {
+		console.warn("Failed to fetch contribution count", caught);
+		return 0;
+	}
+};
+
+// Enrich the PR author with account-level signals (age, followers, following,
+// stars, contributions, bio). The embedded webhook user object doesn't carry
+// these, so we read the user/repos/search APIs. Heavier than a single call, so
+// callers gate this behind a staleness check (see ACCOUNT_ENRICHMENT_TTL).
+const fetchAccountContext = async ({
+	login,
+	octokit,
+}: {
+	login: string;
+	octokit: InstallationClient;
+}): Promise<AccountContext | null> => {
+	if (!octokit) {
+		return null;
+	}
+	try {
+		const { data } = await octokit.rest.users.getByUsername({
+			username: login,
+		});
+		const createdSeconds = data.created_at
+			? Math.floor(Date.parse(data.created_at) / 1000)
+			: Number.NaN;
+		const [totalStars, totalContributions] = await Promise.all([
+			fetchAccountStars(octokit, login),
+			fetchTotalContributions(octokit, login),
+		]);
+		return {
+			bio: data.bio ?? null,
+			followers: data.followers ?? 0,
+			following: data.following ?? 0,
+			githubCreatedAt: Number.isFinite(createdSeconds) ? createdSeconds : null,
+			publicRepos: data.public_repos ?? 0,
+			totalContributions,
+			totalStars,
+		};
+	} catch (caught) {
+		console.warn("Failed to fetch account context", caught);
+		return null;
+	}
+};
+
+// We no longer write anything back to the PR (no comment, no check run).
+// When the analysis flags a PR, notify the repo's linked maintainers in-app so
+// they can review it from the dashboard instead of seeing a bot comment.
+const notifyPullRequestFlag = async ({
 	analysis,
 	authorLogin,
-	fileCount,
-	headSha,
 	installationId,
 	issueNumber,
 	repositoryFullName,
 }: {
 	analysis: Awaited<ReturnType<typeof validatePullRequestWithOpenRouter>>;
 	authorLogin?: null | string;
-	fileCount: number;
-	headSha?: null | string;
 	installationId?: null | number;
 	issueNumber: number;
 	repositoryFullName: string;
 }) => {
+	if (analysis.verdict !== "likely_abuse" && analysis.verdict !== "unclear") {
+		return;
+	}
+	const handle = authorLogin ?? "unknown";
 	try {
-		await createPullRequestAnalysisComment({
-			authorLogin,
-			causes: analysis.causes,
-			confidence: analysis.confidence,
-			evidenceSummary: analysis.evidenceSummary,
-			fileCount,
-			headSha,
-			installationId,
-			issueNumber,
-			rationale: analysis.rationale,
-			reasonCode: analysis.reasonCode,
-			repositoryFullName,
-			scoreBreakdown: analysis.scoreBreakdown,
-			verdict: analysis.verdict,
+		await notifyInstallationMaintainers({
+			body: `@${handle} — ${REASON_LABELS[analysis.reasonCode]} · score ${analysis.confidence}/100`,
+			installationGithubId: installationId,
+			kind: "flag",
+			link: `/accounts/${handle}`,
+			title: `PR #${issueNumber} flagged in ${repositoryFullName}`,
 		});
 	} catch (caught) {
-		console.warn("Failed to create GitHub PR analysis comment", caught);
+		console.warn("Failed to notify maintainers of PR flag", caught);
 	}
 };
 
@@ -238,7 +428,8 @@ const upsertRepoFromPayload = async (
 	});
 
 const upsertInstallationFromPayload = (
-	installation: GithubWebhookPayload["installation"]
+	installation: GithubWebhookPayload["installation"],
+	installerGithubId?: null | number | string
 ) => {
 	if (!installation?.account) {
 		return null;
@@ -248,6 +439,7 @@ const upsertInstallationFromPayload = (
 		accountLogin: installation.account.login,
 		accountType: installation.target_type ?? installation.account.type,
 		githubInstallationId: installation.id,
+		installerGithubId,
 		repositorySelection: installation.repository_selection,
 		suspendedAt: installation.suspended_at,
 	});
@@ -256,7 +448,17 @@ const upsertInstallationFromPayload = (
 const handleInstallationRepositories = async (
 	payload: GithubWebhookPayload
 ) => {
-	await upsertInstallationFromPayload(payload.installation);
+	// Persist the installer's GitHub id so a sign-in-later maintainer can still
+	// be linked (see backfillMaintainerLinks); only install events carry the
+	// real installer as sender.
+	await upsertInstallationFromPayload(payload.installation, payload.sender?.id);
+	// Best-effort: if the installer has already linked their GitHub account in
+	// the app, record them as a maintainer of this installation so the dashboard
+	// and notifications are scoped to them. Idempotent on re-delivery.
+	await linkInstallerByGithubId({
+		githubUserId: payload.sender?.id,
+		installationGithubId: payload.installation?.id,
+	});
 	for (const repository of payload.repositories_added ??
 		payload.repositories ??
 		[]) {
@@ -282,6 +484,61 @@ const PR_TRACKING_ACTIONS = new Set([
 	"assigned",
 	"unassigned",
 ]);
+
+// Refresh + persist the author's account signals when stale, and return the
+// account context the analysis should use (fresh when we just fetched it,
+// otherwise the values already stored on the author row). Kept separate from
+// handlePullRequest so the staleness/persist branching stays contained.
+const enrichAuthorAccount = async ({
+	author,
+	octokit,
+	user,
+}: {
+	author: Awaited<ReturnType<typeof upsertGithubUser>>;
+	octokit: InstallationClient;
+	user: GithubUserPayload;
+}): Promise<PullRequestAccountInput> => {
+	const stored: PullRequestAccountInput = {
+		followers: author.followers,
+		githubCreatedAt: author.githubCreatedAt,
+		publicRepos: author.publicRepos,
+	};
+	const nowSeconds = Math.floor(Date.now() / 1000);
+	const isStale =
+		!author.lastEnrichedAt ||
+		nowSeconds - author.lastEnrichedAt > ACCOUNT_ENRICHMENT_TTL_SECONDS;
+	const fresh = isStale
+		? await fetchAccountContext({ login: author.login, octokit })
+		: null;
+	// First time we've ever enriched this account → queue a one-time backfill of
+	// their accessible prior PRs (no-op when no queue is bound).
+	if (!author.lastEnrichedAt) {
+		await enqueueAccountBackfill(author.login);
+	}
+	if (!fresh) {
+		return stored;
+	}
+	await upsertGithubUser({
+		avatarUrl: user.avatar_url,
+		bio: fresh.bio,
+		followers: fresh.followers,
+		following: fresh.following,
+		githubCreatedAt: fresh.githubCreatedAt,
+		githubUserId: user.id,
+		htmlUrl: user.html_url,
+		lastEnrichedAt: nowSeconds,
+		login: user.login,
+		publicRepos: fresh.publicRepos,
+		totalContributions: fresh.totalContributions,
+		totalStars: fresh.totalStars,
+		type: user.type,
+	});
+	return {
+		followers: fresh.followers,
+		githubCreatedAt: fresh.githubCreatedAt,
+		publicRepos: fresh.publicRepos,
+	};
+};
 
 const handlePullRequest = async (payload: GithubWebhookPayload) => {
 	if (!(payload.repository && payload.pull_request)) {
@@ -353,15 +610,21 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			return;
 		}
 
-		const files = await fetchPullRequestFiles({
+		// One installation token, threaded into every read below.
+		const octokit = await createInstallationClient({
 			installationId: payload.installation?.id,
-			pullNumber: payload.pull_request.number,
-			repositoryFullName: payload.repository.full_name,
 		});
-		const policy = await fetchRepositoryPolicy({
-			installationId: payload.installation?.id,
-			repositoryFullName: payload.repository.full_name,
-		});
+		const [files, policy] = await Promise.all([
+			fetchPullRequestFiles({
+				octokit,
+				pullNumber: payload.pull_request.number,
+				repositoryFullName: payload.repository.full_name,
+			}),
+			fetchRepositoryPolicy({
+				octokit,
+				repositoryFullName: payload.repository.full_name,
+			}),
+		]);
 		if (
 			shouldSkipPullRequestAnalysis({
 				authorLogin: author.login,
@@ -375,6 +638,29 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			);
 			return;
 		}
+		// Only fetched once the PR passed the policy gate, so a skipped PR costs
+		// no extra API calls. Read the conversation, commit messages, and author
+		// account context to feed the analysis.
+		// Account enrichment hits the user/repos/search APIs, so only refresh it
+		// when this author's signals are missing or stale — not on every PR.
+		const [comments, commitMessages, analysisAccount] = await Promise.all([
+			fetchPullRequestComments({
+				octokit,
+				prAuthorLogin: author.login,
+				pullNumber: payload.pull_request.number,
+				repositoryFullName: payload.repository.full_name,
+			}),
+			fetchPullRequestCommits({
+				octokit,
+				pullNumber: payload.pull_request.number,
+				repositoryFullName: payload.repository.full_name,
+			}),
+			enrichAuthorAccount({
+				author,
+				octokit,
+				user: payload.pull_request.user,
+			}),
+		]);
 		await recordDuplicateCampaignSignal({
 			author,
 			currentPullRequest: pullRequestRecord,
@@ -382,7 +668,10 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		});
 		const analysis = applyRepositoryPolicy(
 			await validatePullRequestWithOpenRouter({
+				account: analysisAccount,
 				body: payload.pull_request.body,
+				comments,
+				commitMessages,
 				files,
 				targetLogin: author.login,
 				title: payload.pull_request.title,
@@ -390,11 +679,9 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			}),
 			policy
 		);
-		await postPullRequestAnalysis({
+		await notifyPullRequestFlag({
 			analysis,
 			authorLogin: author.login,
-			fileCount: files.length || (payload.pull_request.changed_files ?? 0),
-			headSha: payload.pull_request.head?.sha,
 			installationId: payload.installation?.id,
 			issueNumber: payload.pull_request.number,
 			repositoryFullName: payload.repository.full_name,
@@ -409,54 +696,89 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		await replacePullRequestAiSignal({
 			aiSignalWeight,
 			analysis,
+			analyzedContext: {
+				account: analysisAccount,
+				comments,
+				commitMessages,
+				files: files.map((file) => ({
+					additions: file.additions,
+					deletions: file.deletions,
+					filename: file.filename,
+					status: file.status,
+				})),
+			},
 			pullRequestId: pullRequestRecord.id,
 			pullRequestUrl: payload.pull_request.html_url,
 			repositoryId: repository.id,
 			targetUserId: author.id,
 		});
+		// Deterministic per-PR heuristics, recorded alongside the LLM signal so
+		// both feed the score (LLM on top of the deterministic core).
+		const diffSignature = diffSignatureScore(files);
+		const commitVoice = commitVoiceScore(commitMessages);
+		await replacePullRequestHeuristicSignal({
+			commitVoice,
+			diffSignature,
+			pullRequestId: pullRequestRecord.id,
+			pullRequestUrl: payload.pull_request.html_url,
+			repositoryId: repository.id,
+			targetUserId: author.id,
+			weight: prHeuristicSignalWeight(diffSignature, commitVoice),
+		});
 		await recalculateRiskProfile(author.id);
 	}
 };
 
-const acknowledgeCorrection = async (input: {
+const CORRECTION_TITLES: Record<CorrectionCommand["kind"], string> = {
+	allow: "Added to allowlist",
+	confirm: "Report confirmed",
+	dismiss: "Report dismissed",
+	reset: "Risk profile reset",
+};
+
+// Instead of replying on the PR thread, record the maintainer's decision as an
+// in-app notification so the rest of the team sees the change from the dashboard.
+const notifyMaintainerCorrection = async ({
+	command,
+	correctedByLogin,
+	installationId,
+	kind,
+	targetLogin,
+}: {
+	command: string;
 	correctedByLogin: string;
-	crossTargetMention?: null | string;
 	installationId?: null | number;
-	issueNumber?: null | number;
 	kind: CorrectionCommand["kind"];
-	note?: null | string;
-	repositoryFullName?: null | string;
-	sourceCommentId?: null | number | string;
 	targetLogin: string;
 }) => {
 	try {
-		await createCorrectionAcknowledgementComment(input);
+		await notifyInstallationMaintainers({
+			body: `@${correctedByLogin} ran "${command}" on @${targetLogin}`,
+			installationGithubId: installationId,
+			kind: "correction",
+			link: `/accounts/${targetLogin}`,
+			title: CORRECTION_TITLES[kind],
+		});
 	} catch (caught) {
-		console.warn("Failed to post correction acknowledgement", caught);
+		console.warn("Failed to notify maintainers of correction", caught);
 	}
 };
 
 const handleMaintainerCorrection = async ({
 	correction,
 	installationId,
-	issueNumber,
 	pullRequestId,
-	repositoryFullName,
 	repositoryId,
 	reporterLogin,
-	sourceCommentId,
 	sourceUrl,
 	targetLogin,
 	targetUserId,
 }: {
 	correction: CorrectionCommand;
 	installationId?: null | number;
-	issueNumber?: null | number;
 	pullRequestId?: null | string;
-	repositoryFullName?: null | string;
 	repositoryId?: null | string;
 	reporterLogin: string;
-	sourceCommentId?: null | number | string;
 	sourceUrl: string;
 	targetLogin: string;
 	targetUserId: string;
@@ -490,15 +812,11 @@ const handleMaintainerCorrection = async ({
 		await allowlistUser(correctionInput);
 	}
 
-	await acknowledgeCorrection({
+	await notifyMaintainerCorrection({
+		command: correction.command,
 		correctedByLogin: reporterLogin,
-		crossTargetMention: correction.crossTargetMention,
 		installationId,
-		issueNumber,
 		kind: correction.kind,
-		note: correction.command,
-		repositoryFullName,
-		sourceCommentId,
 		targetLogin,
 	});
 };
@@ -586,16 +904,10 @@ const writeIssueCommentReport = async ({
 	});
 	await acknowledgeReport({
 		confidence: validation.confidence,
-		evidenceSummary: validation.evidenceSummary,
 		installationId: payload.installation?.id,
-		issueNumber: payload.issue.number,
 		reasonCode,
-		repositoryFullName: payload.repository.full_name,
-		scoreBreakdown: validation.scoreBreakdown,
-		sourceCommentId: payload.comment.id,
 		status: validation.status,
 		targetLogin: targetUser.login,
-		verdict: validation.verdict,
 	});
 };
 
@@ -638,12 +950,9 @@ const handleIssueComment = async (payload: GithubWebhookPayload) => {
 		await handleMaintainerCorrection({
 			correction,
 			installationId: payload.installation?.id,
-			issueNumber: payload.issue.number,
 			pullRequestId: pullRequest?.id ?? null,
-			repositoryFullName: payload.repository.full_name,
 			repositoryId: repository.id,
 			reporterLogin: payload.comment.user.login,
-			sourceCommentId: payload.comment.id,
 			sourceUrl: payload.comment.html_url ?? payload.issue.html_url ?? "",
 			targetLogin: targetUser.login,
 			targetUserId: targetUser.id,
@@ -775,16 +1084,10 @@ const writeReviewCommentReport = async ({
 	});
 	await acknowledgeReport({
 		confidence: validation.confidence,
-		evidenceSummary: validation.evidenceSummary,
 		installationId: payload.installation?.id,
-		issueNumber: payload.pull_request.number,
 		reasonCode,
-		repositoryFullName: payload.repository.full_name,
-		scoreBreakdown: validation.scoreBreakdown,
-		sourceCommentId: payload.comment.id,
 		status: validation.status,
 		targetLogin: targetUser.login,
-		verdict: validation.verdict,
 	});
 };
 
@@ -827,12 +1130,9 @@ const handlePullRequestReviewComment = async (
 		await handleMaintainerCorrection({
 			correction,
 			installationId: payload.installation?.id,
-			issueNumber: payload.pull_request.number,
 			pullRequestId: pullRequest.id,
-			repositoryFullName: payload.repository.full_name,
 			repositoryId: repository.id,
 			reporterLogin: payload.comment.user.login,
-			sourceCommentId: payload.comment.id,
 			sourceUrl: payload.comment.html_url ?? payload.pull_request.html_url,
 			targetLogin: targetUser.login,
 			targetUserId: targetUser.id,

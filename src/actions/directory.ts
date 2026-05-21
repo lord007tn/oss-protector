@@ -33,9 +33,9 @@ const CLANKER_LEADERBOARD_CREDIT = {
 
 const PUBLIC_APP_URL = "https://oss-protector.raedbahri90.workers.dev";
 const DELISTING = {
-	contest_url: `${PUBLIC_APP_URL}/contest`,
+	appeal_url: `${PUBLIC_APP_URL}/appeal`,
 	maintainer_command: "@oss-protector dismiss",
-	note: "If you are listed and believe it is wrong, ask any maintainer of the repo where the report came from to run the maintainer command in any PR comment, or open a delisting issue at the contest URL.",
+	note: "If you are listed and believe it is wrong, ask any maintainer of the repo where the report came from to run the maintainer command in any PR comment, or submit an appeal at the appeal URL.",
 } as const;
 
 type DashboardRecords = Awaited<
@@ -73,6 +73,7 @@ const emptyDashboard = () => ({
 	protectors: [],
 	imports: [],
 	reports: [],
+	repositories: [] as { fullName: string; name: string; ownerLogin: string }[],
 	riskProfiles: [],
 	stats: {
 		activeRepositories: 0,
@@ -221,6 +222,13 @@ const buildDirectoryDashboard = ({
 			id: report.id,
 			status: report.status,
 		})),
+		repositories: repositories
+			.filter((repo) => repo.isActive && !repo.isPrivate)
+			.map((repo) => ({
+				fullName: repo.fullName,
+				name: repo.name,
+				ownerLogin: repo.ownerLogin,
+			})),
 		riskProfiles,
 		stats: {
 			activeRepositories: repositories.filter(

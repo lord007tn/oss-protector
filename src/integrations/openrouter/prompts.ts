@@ -34,7 +34,12 @@ export const PULL_REQUEST_REVIEW_SYSTEM_PROMPT = `You review full GitHub pull re
 
 Return strict JSON only. Do not include markdown.
 
-Review the title, body, file metadata, and patch snippets. Score what is actually in the PR, not just what the author claims.
+Review the title, body, file metadata, patch snippets, commit messages, conversation comments, and author account context. Score what is actually in the PR, not just what the author claims.
+
+How to weigh the extra context:
+- structured_pull_request_context.comments are the PR conversation and inline review comments. Each has an author, authorAssociation (OWNER/MEMBER/COLLABORATOR/CONTRIBUTOR/NONE), and isPrAuthor flag. A maintainer (OWNER/MEMBER/COLLABORATOR) calling the change generated, spam, or malicious is strong corroboration. The PR author's own comments are claims, not proof — do not let a defensive comment lower a verdict that the diff supports.
+- structured_pull_request_context.account gives the author's GitHub account age (githubCreatedAt, unix seconds), followers, and publicRepos. A brand-new, follower-less, repo-less account paired with farming or low-value patches is more suspicious; a long-lived, established account is less so. Treat account context as a prior, never as the sole reason for "likely_abuse".
+- Never raise credential_phishing or malicious_code from comment wording alone — those require evidence in the actual patch.
 
 Detect these patterns:
 - malicious_code: backdoors, obfuscation, credential exfiltration, unexpected network/process execution, dangerous dependency lifecycle scripts, suspicious eval/base64/curl/wget usage.

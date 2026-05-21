@@ -1,4 +1,6 @@
 import handler from "@tanstack/react-start/server-entry";
+import { resolveAppeal, submitAppeal } from "./actions/appeal";
+import { runAccountBackfill } from "./actions/backfill";
 import {
 	listClankersApi,
 	listProtectorsApi,
@@ -9,8 +11,15 @@ import {
 	convertGithubManifestCode,
 	githubAppManifest,
 } from "./actions/github-manifest";
+import { applyMaintainerDecision } from "./actions/maintainer";
+import { getMaintainerDashboardForRequest } from "./actions/maintainer-dashboard";
+import {
+	listNotificationsForRequest,
+	markAllNotificationsReadForRequest,
+	markNotificationReadForRequest,
+} from "./actions/notifications";
 import { createAuth, getAuthConfigStatus } from "./auth";
-import type { RuntimeBindings } from "./env";
+import type { AccountBackfillMessage, RuntimeBindings } from "./env";
 import {
 	parseClankerFilters,
 	parseProtectorFilters,
@@ -25,6 +34,33 @@ type RequestWithWaitUntil = Request & {
 	waitUntil?: (promise: Promise<unknown>) => void;
 };
 
+// Minimal Cloudflare Queue consumer surface (avoids depending on the global
+// workers-types MessageBatch<T>).
+interface QueueConsumerMessage<TBody> {
+	ack(): void;
+	body: TBody;
+	retry(): void;
+}
+interface QueueConsumerBatch<TBody> {
+	messages: QueueConsumerMessage<TBody>[];
+}
+
+// Drain a backfill batch: each message backfills one account's accessible PRs.
+// ack on success, retry on failure so transient GitHub/D1 errors get re-tried.
+const processBackfillBatch = async (
+	batch: QueueConsumerBatch<AccountBackfillMessage>
+) => {
+	for (const message of batch.messages) {
+		try {
+			await runAccountBackfill(message.body.login);
+			message.ack();
+		} catch (caught) {
+			console.warn("Account backfill message failed", caught);
+			message.retry();
+		}
+	}
+};
+
 const SECURITY_HEADERS = {
 	"Content-Security-Policy":
 		"default-src 'self'; base-uri 'self'; connect-src 'self' https://api.github.com https://openrouter.ai; form-action 'self' https://github.com; frame-ancestors 'none'; img-src 'self' https://github.com https://avatars.githubusercontent.com https://startupfa.me https://launchigniter.com https://api.producthunt.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
@@ -35,29 +71,17 @@ const SECURITY_HEADERS = {
 	"X-Frame-Options": "DENY",
 } as const;
 
-const GITHUB_LOGIN_PATTERN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
-
-const isInvalidClankerProfilePath = (path: string) => {
-	if (!path.startsWith("/clankers/")) {
-		return false;
-	}
-	const login = path.slice("/clankers/".length);
-	try {
-		return !GITHUB_LOGIN_PATTERN.test(decodeURIComponent(login));
-	} catch {
-		return true;
-	}
-};
-
 const sitemap = () =>
 	[
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/</loc></url>",
-		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/clankers</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/accounts</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/feed</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/protectors</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/api-docs</loc></url>",
-		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/contest</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/appeal</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/methodology</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/privacy</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/terms</loc></url>",
 		"</urlset>",
@@ -148,7 +172,7 @@ const authResponse = (request: Request, env: RuntimeBindings | undefined) => {
 		return withSecurityHeaders(
 			Response.json(
 				{
-					error: "GitHub sign-in is not configured.",
+					error: "Sign-in is not configured on this deployment.",
 					missing: authConfig.missing,
 				},
 				{ status: 503 }
@@ -218,6 +242,152 @@ const recentWebhookResponse = async (
 	);
 };
 
+const maintainerDecisionResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as {
+		decision?: string;
+		login?: string;
+	};
+	if (!(body.login && body.decision)) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing login or decision." }, { status: 400 })
+		);
+	}
+	const result = await applyMaintainerDecision({
+		decision: body.decision,
+		env,
+		login: body.login,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const maintainerDashboardResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await getMaintainerDashboardForRequest({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const notificationsListResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await listNotificationsForRequest({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const notificationReadResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as { id?: string };
+	if (!body.id) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing notification id." }, { status: 400 })
+		);
+	}
+	const result = await markNotificationReadForRequest({
+		env,
+		id: body.id,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const notificationReadAllResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await markAllNotificationsReadForRequest({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const appealResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as {
+		email?: string;
+		evidence?: string[];
+		login?: string;
+		relationship?: string;
+		story?: string;
+	};
+	const result = await submitAppeal({
+		env,
+		input: {
+			email: body.email,
+			evidence: body.evidence,
+			login: body.login ?? "",
+			relationship: body.relationship,
+			story: body.story ?? "",
+		},
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const appealResolveResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as {
+		id?: string;
+		resolution?: string;
+	};
+	if (!(body.id && body.resolution)) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing id or resolution." }, { status: 400 })
+		);
+	}
+	const result = await resolveAppeal({
+		env,
+		id: body.id,
+		request,
+		resolution: body.resolution,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
 const manifestConvertResponse = async (request: Request) => {
 	const body = (await request.json()) as { code?: string };
 	if (!body.code) {
@@ -263,6 +433,32 @@ const webhookResponse = async (
 	);
 };
 
+// Grouped so routeFetch stays under the cognitive-complexity budget. Returns
+// null when the path/method pair isn't one of these session-guarded routes.
+const sessionApiRoute = (
+	request: Request,
+	env: RuntimeBindings | undefined,
+	path: string,
+	method: string
+): Promise<Response> | null => {
+	if (path === "/api/dashboard" && method === "GET") {
+		return maintainerDashboardResponse(request, env);
+	}
+	if (path === "/api/notifications" && method === "GET") {
+		return notificationsListResponse(request, env);
+	}
+	if (path === "/api/notifications/read" && method === "POST") {
+		return notificationReadResponse(request, env);
+	}
+	if (path === "/api/notifications/read-all" && method === "POST") {
+		return notificationReadAllResponse(request, env);
+	}
+	if (path === "/api/appeals/resolve" && method === "POST") {
+		return appealResolveResponse(request, env);
+	}
+	return null;
+};
+
 const routeFetch = (
 	request: Request,
 	env: RuntimeBindings | undefined,
@@ -293,13 +489,18 @@ const routeFetch = (
 	if (path === "/api/github/manifest/convert" && method === "POST") {
 		return manifestConvertResponse(request);
 	}
+	if (path === "/api/maintainer/decision" && method === "POST") {
+		return maintainerDecisionResponse(request, env);
+	}
+	const sessionRoute = sessionApiRoute(request, env, path, method);
+	if (sessionRoute) {
+		return sessionRoute;
+	}
+	if (path === "/api/appeal" && method === "POST") {
+		return appealResponse(request, env);
+	}
 	if (path === "/api/github/webhook" && method === "POST") {
 		return webhookResponse(request, context);
-	}
-	if (isInvalidClankerProfilePath(path)) {
-		return withSecurityHeaders(
-			Response.redirect(new URL("/clankers", request.url))
-		);
 	}
 	return withSecurityHeaders(handler.fetch(request));
 };
@@ -319,5 +520,17 @@ export default {
 			(globalThis as GlobalWithRuntime).__env__ = env;
 		}
 		return routeFetch(request, env, context);
+	},
+	// Cloudflare Queues consumer for the PR backfill (requires Workers Paid).
+	async queue(
+		batch: QueueConsumerBatch<AccountBackfillMessage>,
+		envArg: RuntimeBindings | undefined
+	) {
+		const env =
+			envArg ?? (globalThis as GlobalWithRuntime).__env__ ?? undefined;
+		if (env) {
+			(globalThis as GlobalWithRuntime).__env__ = env;
+		}
+		await processBackfillBatch(batch);
 	},
 };

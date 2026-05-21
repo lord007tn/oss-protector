@@ -24,6 +24,28 @@ export const GithubUser = sqliteTable(
 		avatarUrl: text("avatarUrl"),
 		htmlUrl: text("htmlUrl"),
 		accountType: text("accountType").notNull().default("User"),
+		// Account-level abuse signals pulled from the GitHub user API. Used as a
+		// corroborator (young, thin accounts boost existing suspicion) — never as a
+		// standalone accusation. Null when we couldn't enrich (no installation token).
+		githubCreatedAt: integer("githubCreatedAt", { mode: "number" }),
+		followers: integer("followers", { mode: "number" }).notNull().default(0),
+		following: integer("following", { mode: "number" }).notNull().default(0),
+		publicRepos: integer("publicRepos", { mode: "number" })
+			.notNull()
+			.default(0),
+		// Sum of stargazers across the account's owned public repos — a reputation
+		// signal that dampens suspicion for established maintainers.
+		totalStars: integer("totalStars", { mode: "number" }).notNull().default(0),
+		// Total public PRs the account has authored (GitHub search total_count).
+		totalContributions: integer("totalContributions", { mode: "number" })
+			.notNull()
+			.default(0),
+		bio: text("bio"),
+		// GitHub profile achievements (Pull Shark, etc.) — best-effort, may be empty.
+		achievementsJson: text("achievementsJson").notNull().default("[]"),
+		// When the heavier account signals (stars, contributions) were last
+		// refreshed, so per-PR analysis doesn't re-hit the search/repos API.
+		lastEnrichedAt: integer("lastEnrichedAt", { mode: "number" }),
 		isKnownGithubBot: integer("isKnownGithubBot", { mode: "boolean" })
 			.notNull()
 			.default(false),
@@ -56,6 +78,10 @@ export const Installation = sqliteTable(
 		accountGithubId: text("accountGithubId"),
 		accountLogin: text("accountLogin").notNull(),
 		accountType: text("accountType").notNull().default("Organization"),
+		// GitHub user id of whoever installed the app (payload.sender.id on the
+		// install event). Lets a maintainer who signs in *after* installing get
+		// linked to this installation — see backfillMaintainerLinks.
+		installerGithubId: text("installerGithubId"),
 		repositorySelection: text("repositorySelection").notNull().default("all"),
 		suspendedAt: integer("suspendedAt", { mode: "number" }),
 		createdAt: integer("createdAt", { mode: "number" })
@@ -65,7 +91,10 @@ export const Installation = sqliteTable(
 			.notNull()
 			.default(unixNow),
 	},
-	(table) => [index("installations_account_login_idx").on(table.accountLogin)]
+	(table) => [
+		index("installations_account_login_idx").on(table.accountLogin),
+		index("installations_installer_idx").on(table.installerGithubId),
+	]
 );
 
 export const Repository = sqliteTable(
@@ -322,12 +351,92 @@ export const AppEvent = sqliteTable(
 	]
 );
 
+export const Appeal = sqliteTable(
+	"Appeal",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		login: text("login").notNull(),
+		email: text("email"),
+		// "self" (account holder) or "rep" (representing them).
+		relationship: text("relationship").notNull().default("self"),
+		story: text("story").notNull(),
+		evidenceJson: text("evidenceJson").notNull().default("[]"),
+		status: text("status").notNull().default("pending"),
+		submittedByUserId: text("submittedByUserId"),
+		createdAt: integer("createdAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+		updatedAt: integer("updatedAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [
+		index("appeals_login_idx").on(table.login),
+		index("appeals_status_idx").on(table.status),
+	]
+);
+
+// Links a signed-in (better-auth) user to a GitHub App installation they
+// maintain. Scopes the dashboard + notifications per user without reaching
+// into the better-auth tables.
+export const InstallationMaintainer = sqliteTable(
+	"InstallationMaintainer",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		userId: text("userId").notNull(),
+		installationId: text("installationId")
+			.notNull()
+			.references(() => Installation.id, { onDelete: "cascade" }),
+		role: text("role").notNull().default("maintainer"),
+		createdAt: integer("createdAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [
+		uniqueIndex("installation_maintainers_user_install_idx").on(
+			table.userId,
+			table.installationId
+		),
+		index("installation_maintainers_user_idx").on(table.userId),
+	]
+);
+
+// In-app notifications — replaces the GitHub PR-comment feedback channel.
+export const Notification = sqliteTable(
+	"Notification",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		userId: text("userId").notNull(),
+		kind: text("kind").notNull().default("info"),
+		title: text("title").notNull(),
+		body: text("body"),
+		link: text("link"),
+		read: integer("read", { mode: "boolean" }).notNull().default(false),
+		createdAt: integer("createdAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [
+		index("notifications_user_idx").on(table.userId),
+		index("notifications_user_read_idx").on(table.userId, table.read),
+	]
+);
+
 export const appSchema = {
 	AppEvent,
+	Appeal,
 	BotReport,
 	BotSignal,
 	GithubUser,
 	Installation,
+	InstallationMaintainer,
+	Notification,
 	PullRequest,
 	Repository,
 	RiskProfile,
@@ -335,10 +444,14 @@ export const appSchema = {
 };
 
 export type AppEventSelect = typeof AppEvent.$inferSelect;
+export type AppealSelect = typeof Appeal.$inferSelect;
 export type BotReportSelect = typeof BotReport.$inferSelect;
 export type BotSignalSelect = typeof BotSignal.$inferSelect;
 export type GithubUserSelect = typeof GithubUser.$inferSelect;
 export type InstallationSelect = typeof Installation.$inferSelect;
+export type InstallationMaintainerSelect =
+	typeof InstallationMaintainer.$inferSelect;
+export type NotificationSelect = typeof Notification.$inferSelect;
 export type PullRequestSelect = typeof PullRequest.$inferSelect;
 export type RepositorySelect = typeof Repository.$inferSelect;
 export type RiskProfileSelect = typeof RiskProfile.$inferSelect;

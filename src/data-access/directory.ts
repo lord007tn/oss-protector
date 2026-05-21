@@ -4,6 +4,7 @@ import {
 	countDistinct,
 	desc,
 	eq,
+	gte,
 	inArray,
 	isNull,
 	max,
@@ -30,13 +31,27 @@ import {
 	RiskProfile,
 	SourceImport,
 } from "@/db/schema";
+import {
+	bioMatchesBotPattern,
+	handleEntropyIsSuspicious,
+	handleMatchesBotPattern,
+} from "@/lib/account-heuristics";
+import { composeProfileScore } from "@/lib/scoring";
 import { toUnixSeconds, unixNow } from "@/lib/time";
 
 export interface GithubAccountInput {
 	avatarUrl?: null | string;
+	bio?: null | string;
+	followers?: null | number;
+	following?: null | number;
+	githubCreatedAt?: null | number;
 	githubUserId: number | string;
 	htmlUrl?: null | string;
+	lastEnrichedAt?: null | number;
 	login: string;
+	publicRepos?: null | number;
+	totalContributions?: null | number;
+	totalStars?: null | number;
 	type?: null | string;
 }
 
@@ -56,6 +71,10 @@ export interface GithubInstallationInput {
 	accountLogin: string;
 	accountType?: null | string;
 	githubInstallationId: number | string;
+	// Only set on install events (payload.sender.id). Left undefined on the
+	// PR/comment-driven upserts so we never overwrite the real installer with a
+	// passing actor's id.
+	installerGithubId?: null | number | string;
 	repositorySelection?: null | string;
 	suspendedAt?: null | string;
 }
@@ -106,6 +125,29 @@ const asTextId = (value: number | string) => String(value);
 
 const json = (value: unknown) => JSON.stringify(value);
 
+// Webhook/report payloads are stored for the audit ledger. Cap the size so a
+// pathological payload can't blow past D1's row limits; oversized payloads keep
+// a truncated preview plus the original byte count.
+const MAX_RAW_PAYLOAD_BYTES = 200_000;
+const serializeRawPayload = (value: unknown): null | string => {
+	if (value === undefined || value === null) {
+		return null;
+	}
+	try {
+		const text = JSON.stringify(value);
+		if (text.length > MAX_RAW_PAYLOAD_BYTES) {
+			return JSON.stringify({
+				bytes: text.length,
+				preview: text.slice(0, MAX_RAW_PAYLOAD_BYTES),
+				truncated: true,
+			});
+		}
+		return text;
+	} catch {
+		return null;
+	}
+};
+
 const DUPLICATE_CAMPAIGN_WINDOW_SECONDS = 90 * 86_400;
 const DUPLICATE_CAMPAIGN_MIN_PRS = 3;
 const DUPLICATE_CAMPAIGN_MIN_REPOSITORIES = 2;
@@ -135,32 +177,54 @@ const normalizeCampaignTitle = (title: string) =>
 		.slice(0, 8)
 		.join(" ");
 
+// Fields written identically on both the insert and the conflict-update path.
+// Extracted so upsertGithubUser doesn't duplicate the isKnownGithubBot/default
+// logic (and stays under the cognitive-complexity budget).
+const githubUserScalars = (input: GithubAccountInput) => ({
+	accountType: input.type ?? "User",
+	avatarUrl: input.avatarUrl ?? null,
+	htmlUrl: input.htmlUrl ?? `https://github.com/${input.login}`,
+	isKnownGithubBot:
+		(input.type ?? "").toLowerCase() === "bot" || input.login.endsWith("[bot]"),
+	login: input.login,
+});
+
 export const upsertGithubUser = async (input: GithubAccountInput) => {
 	const now = unixNow();
+	const scalars = githubUserScalars(input);
 	const [created] = await database
 		.insert(GithubUser)
 		.values({
-			accountType: input.type ?? "User",
-			avatarUrl: input.avatarUrl ?? null,
+			...scalars,
+			bio: input.bio ?? null,
+			followers: input.followers ?? 0,
+			following: input.following ?? 0,
+			githubCreatedAt: input.githubCreatedAt ?? null,
 			githubUserId: asTextId(input.githubUserId),
-			htmlUrl: input.htmlUrl ?? `https://github.com/${input.login}`,
-			isKnownGithubBot:
-				(input.type ?? "").toLowerCase() === "bot" ||
-				input.login.endsWith("[bot]"),
+			lastEnrichedAt: input.lastEnrichedAt ?? null,
 			lastSeenAt: now,
-			login: input.login,
+			publicRepos: input.publicRepos ?? 0,
+			totalContributions: input.totalContributions ?? 0,
+			totalStars: input.totalStars ?? 0,
 			updatedAt: now,
 		})
 		.onConflictDoUpdate({
+			// Preserve enrichment-only fields when a caller (e.g. a webhook with
+			// only the embedded user object) doesn't supply them.
 			set: {
-				accountType: input.type ?? "User",
-				avatarUrl: input.avatarUrl ?? null,
-				htmlUrl: input.htmlUrl ?? `https://github.com/${input.login}`,
-				isKnownGithubBot:
-					(input.type ?? "").toLowerCase() === "bot" ||
-					input.login.endsWith("[bot]"),
+				...scalars,
+				bio: input.bio ?? sql`${GithubUser.bio}`,
+				followers: input.followers ?? sql`${GithubUser.followers}`,
+				following: input.following ?? sql`${GithubUser.following}`,
+				githubCreatedAt:
+					input.githubCreatedAt ?? sql`${GithubUser.githubCreatedAt}`,
+				lastEnrichedAt:
+					input.lastEnrichedAt ?? sql`${GithubUser.lastEnrichedAt}`,
 				lastSeenAt: now,
-				login: input.login,
+				publicRepos: input.publicRepos ?? sql`${GithubUser.publicRepos}`,
+				totalContributions:
+					input.totalContributions ?? sql`${GithubUser.totalContributions}`,
+				totalStars: input.totalStars ?? sql`${GithubUser.totalStars}`,
 				updatedAt: now,
 			},
 			target: GithubUser.githubUserId,
@@ -172,30 +236,32 @@ export const upsertGithubUser = async (input: GithubAccountInput) => {
 
 export const upsertInstallation = async (input: GithubInstallationInput) => {
 	const now = unixNow();
+	const installerGithubId =
+		input.installerGithubId == null
+			? undefined
+			: asTextId(input.installerGithubId);
+	const set = {
+		accountGithubId: input.accountGithubId
+			? asTextId(input.accountGithubId)
+			: null,
+		accountLogin: input.accountLogin,
+		accountType: input.accountType ?? "Organization",
+		repositorySelection: input.repositorySelection ?? "all",
+		suspendedAt: toUnixSeconds(input.suspendedAt),
+		updatedAt: now,
+	};
 	const [created] = await database
 		.insert(Installation)
 		.values({
-			accountGithubId: input.accountGithubId
-				? asTextId(input.accountGithubId)
-				: null,
-			accountLogin: input.accountLogin,
-			accountType: input.accountType ?? "Organization",
+			...set,
 			githubInstallationId: asTextId(input.githubInstallationId),
-			repositorySelection: input.repositorySelection ?? "all",
-			suspendedAt: toUnixSeconds(input.suspendedAt),
-			updatedAt: now,
+			// null on first insert when unknown; a later install event fills it in.
+			installerGithubId: installerGithubId ?? null,
 		})
 		.onConflictDoUpdate({
-			set: {
-				accountGithubId: input.accountGithubId
-					? asTextId(input.accountGithubId)
-					: null,
-				accountLogin: input.accountLogin,
-				accountType: input.accountType ?? "Organization",
-				repositorySelection: input.repositorySelection ?? "all",
-				suspendedAt: toUnixSeconds(input.suspendedAt),
-				updatedAt: now,
-			},
+			// Only carry installerGithubId into the update when this call actually
+			// knows it (install events). Otherwise leave the stored value intact.
+			set: installerGithubId ? { ...set, installerGithubId } : set,
 			target: Installation.githubInstallationId,
 		})
 		.returning();
@@ -467,7 +533,7 @@ export const createRiskReport = async (input: CreateRiskReportInput) => {
 		evidenceJson: json(input.evidence),
 		issueNumber: input.issueNumber ?? null,
 		pullRequestId: input.pullRequestId ?? null,
-		rawPayloadJson: null,
+		rawPayloadJson: serializeRawPayload(input.rawPayload),
 		reasonCode: input.reasonCode,
 		reasonText: input.reasonText ?? null,
 		reporterAssociation: input.reporterAssociation,
@@ -675,7 +741,7 @@ export const recordAppEvent = async (input: {
 		installationGithubId: input.installationGithubId
 			? asTextId(input.installationGithubId)
 			: null,
-		rawPayloadJson: null,
+		rawPayloadJson: serializeRawPayload(input.rawPayload),
 		repositoryFullName: input.repositoryFullName ?? null,
 		status: input.status ?? "processed",
 	};
@@ -841,9 +907,32 @@ const pullRequestAggregatesQuery = (targetUserId: string) =>
 			)
 		);
 
+const PR_VELOCITY_WINDOW_SECONDS = 7 * 86_400;
+
+// Recent PR rate + how many distinct repo owners they span — feeds the
+// scattershot-velocity signal (bursty PRs across many unrelated orgs).
+const pullRequestVelocityQuery = (targetUserId: string) =>
+	database
+		.select({
+			distinctOwners: countDistinct(Repository.ownerLogin),
+			recentPrCount: count(),
+		})
+		.from(PullRequest)
+		.innerJoin(Repository, eq(Repository.id, PullRequest.repositoryId))
+		.where(
+			and(
+				eq(PullRequest.authorUserId, targetUserId),
+				eq(Repository.isPrivate, false),
+				gte(PullRequest.lastSeenAt, unixNow() - PR_VELOCITY_WINDOW_SECONDS)
+			)
+		);
+
 type ReportAgg = Awaited<ReturnType<typeof reportAggregatesQuery>>[number];
 type SignalAgg = Awaited<ReturnType<typeof signalAggregatesQuery>>[number];
 type PrAgg = Awaited<ReturnType<typeof pullRequestAggregatesQuery>>[number];
+type PrVelocityAgg = Awaited<
+	ReturnType<typeof pullRequestVelocityQuery>
+>[number];
 type ExistingProfile =
 	| {
 			importedSource: null | string;
@@ -885,6 +974,7 @@ const buildProfileValues = ({
 	signalAgg,
 	targetUserId,
 	user,
+	velocityAgg,
 }: {
 	existing: ExistingProfile;
 	prAgg: PrAgg | undefined;
@@ -893,6 +983,7 @@ const buildProfileValues = ({
 	signalAgg: SignalAgg | undefined;
 	targetUserId: string;
 	user: GithubUserSelect;
+	velocityAgg: PrVelocityAgg | undefined;
 }) => {
 	const signalScore = Number(signalAgg?.signalScore ?? 0);
 	const reportCount = Number(reportAgg?.reportCount ?? 0);
@@ -902,14 +993,28 @@ const buildProfileValues = ({
 	const commitCount = Number(prAgg?.commitCount ?? 0);
 	const repositoryCount = Number(prAgg?.repositoryCount ?? 0);
 
-	const activityScore = Math.min(20, prCount * 2);
-	const importedScore = existing?.importedSource ? 48 : 0;
-	const computedScore = boundedConfidence(
-		reportScore + signalScore + activityScore + importedScore
-	);
-	const isAllowed = user.isKnownGithubBot || existing?.status === "allow";
-	const score = isAllowed ? 0 : computedScore;
-	const status = riskStatusForScore({ isAllowed, score });
+	// Deterministic core + young-account/bot-pattern boosts + reputation
+	// dampening all live in composeProfileScore, so the published score matches
+	// the unit-tested math (single source of truth).
+	const { score, status } = composeProfileScore({
+		accountCreatedAt: user.githubCreatedAt,
+		botPatternMatch:
+			handleMatchesBotPattern(user.login) || bioMatchesBotPattern(user.bio),
+		distinctOwners: Number(velocityAgg?.distinctOwners ?? 0),
+		followers: user.followers,
+		following: user.following,
+		importedSource: existing?.importedSource ?? null,
+		isAllowedSticky: existing?.status === "allow",
+		isKnownGithubBot: user.isKnownGithubBot,
+		prCount,
+		recentPrCount: Number(velocityAgg?.recentPrCount ?? 0),
+		reportScore,
+		signalScore,
+		suspiciousHandleEntropy: handleEntropyIsSuspicious(user.login),
+		totalContributions: user.totalContributions,
+		totalStars: user.totalStars,
+		validatedReportCount,
+	});
 
 	const lastSeenAt = Math.max(
 		user.lastSeenAt,
@@ -956,18 +1061,25 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		return null;
 	}
 
-	const [[reportAgg], [signalAgg], [prAgg], [existing], perReporter] =
-		await Promise.all([
-			reportAggregatesQuery(targetUserId),
-			signalAggregatesQuery(targetUserId),
-			pullRequestAggregatesQuery(targetUserId),
-			database
-				.select()
-				.from(RiskProfile)
-				.where(eq(RiskProfile.targetUserId, targetUserId))
-				.limit(1),
-			perReporterContributionQuery(targetUserId),
-		]);
+	const [
+		[reportAgg],
+		[signalAgg],
+		[prAgg],
+		[velocityAgg],
+		[existing],
+		perReporter,
+	] = await Promise.all([
+		reportAggregatesQuery(targetUserId),
+		signalAggregatesQuery(targetUserId),
+		pullRequestAggregatesQuery(targetUserId),
+		pullRequestVelocityQuery(targetUserId),
+		database
+			.select()
+			.from(RiskProfile)
+			.where(eq(RiskProfile.targetUserId, targetUserId))
+			.limit(1),
+		perReporterContributionQuery(targetUserId),
+	]);
 
 	// Compute reportScore: per-reporter MAX validated contribution × trust.
 	// Caps report-bombing (one reporter spamming N reports stays capped at
@@ -998,6 +1110,7 @@ export const recalculateRiskProfile = async (targetUserId: string) => {
 		signalAgg,
 		targetUserId,
 		user,
+		velocityAgg,
 	});
 
 	const [profile] = await database
@@ -1085,6 +1198,7 @@ export const correctionAlreadyApplied = async ({
 export const replacePullRequestAiSignal = async ({
 	aiSignalWeight,
 	analysis,
+	analyzedContext,
 	pullRequestId,
 	pullRequestUrl,
 	repositoryId,
@@ -1100,6 +1214,10 @@ export const replacePullRequestAiSignal = async ({
 		scoreBreakdown?: unknown;
 		verdict: string;
 	};
+	// The inputs the analysis actually read (comments, commit messages, file
+	// metadata, account context) — persisted alongside the verdict for the audit
+	// trail, so a flagged PR's full evidence is reconstructable.
+	analyzedContext?: unknown;
 	pullRequestId: string;
 	pullRequestUrl: string;
 	repositoryId: string;
@@ -1127,6 +1245,7 @@ export const replacePullRequestAiSignal = async ({
 				aiRationale: analysis.rationale,
 				aiScoreBreakdown: analysis.scoreBreakdown,
 				aiVerdict: analysis.verdict,
+				analyzedContext: analyzedContext ?? null,
 				reasonCode: analysis.reasonCode,
 			},
 			pullRequestId,
@@ -1136,6 +1255,51 @@ export const replacePullRequestAiSignal = async ({
 			sourceUrl: pullRequestUrl,
 			targetUserId,
 			weight: aiSignalWeight,
+		});
+	}
+};
+
+// Deterministic per-PR heuristics (diff signature + commit-message voice).
+// Recorded alongside the LLM's ai_pr_review so the deterministic core and the
+// LLM both contribute to the score. Deduped per PR like ai_pr_review: prior
+// rows are zeroed so repeated synchronizes don't stack.
+export const replacePullRequestHeuristicSignal = async ({
+	commitVoice,
+	diffSignature,
+	pullRequestId,
+	pullRequestUrl,
+	repositoryId,
+	targetUserId,
+	weight,
+}: {
+	commitVoice: number;
+	diffSignature: number;
+	pullRequestId: string;
+	pullRequestUrl: string;
+	repositoryId: string;
+	targetUserId: string;
+	weight: number;
+}) => {
+	await database
+		.update(BotSignal)
+		.set({ weight: 0 })
+		.where(
+			and(
+				eq(BotSignal.targetUserId, targetUserId),
+				eq(BotSignal.pullRequestId, pullRequestId),
+				eq(BotSignal.signalType, "pr_heuristics")
+			)
+		);
+	if (weight > 0) {
+		await recordSignal({
+			metadata: { commitVoice, diffSignature },
+			pullRequestId,
+			repositoryId,
+			signalType: "pr_heuristics",
+			source: "deterministic_pr_heuristics",
+			sourceUrl: pullRequestUrl,
+			targetUserId,
+			weight,
 		});
 	}
 };

@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { publicAppUrl } from "@/components/landing/constants";
-import { Footer } from "@/components/landing/footer";
 import { PolicyPage, PolicySection } from "@/components/landing/policy-page";
-import { SiteHeader } from "@/components/landing/site-header";
+import { PageShell } from "@/components/site/page-shell";
 
 export const Route = createFileRoute("/terms")({
 	component: TermsRoute,
@@ -22,8 +21,7 @@ export const Route = createFileRoute("/terms")({
 
 function TermsRoute() {
 	return (
-		<main className="min-h-screen bg-background text-foreground">
-			<SiteHeader />
+		<PageShell>
 			<PolicyPage
 				description="Plain-language ground rules. This is a shared review aid, not an enforcement tool."
 				eyebrow="Terms"
@@ -92,7 +90,7 @@ function TermsRoute() {
 				<PolicySection title="Contesting a listing">
 					<p>
 						If you're listed and believe it's wrong, see{" "}
-						<a href="/contest">/contest</a>. The fastest path is asking a
+						<a href="/appeal">/appeal</a>. The fastest path is asking a
 						maintainer of the repo where the report came from to run a
 						correction command.
 					</p>
@@ -122,7 +120,6 @@ function TermsRoute() {
 					</p>
 				</PolicySection>
 			</PolicyPage>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }

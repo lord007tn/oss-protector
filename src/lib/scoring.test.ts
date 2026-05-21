@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+	accountAgeBoost,
+	accountReputationPenalty,
+	accountSuspicionBoost,
 	ageDecay,
 	aiPrSignalWeight,
 	composeProfileScore,
 	DECAY_FLOOR,
+	prVelocityBoost,
 	reporterTrust,
 } from "./scoring";
 
@@ -57,6 +61,66 @@ describe("reporterTrust", () => {
 	});
 });
 
+describe("accountAgeBoost", () => {
+	const now = 1_800_000_000;
+	const daysAgo = (n: number) => now - n * 86_400;
+
+	it("returns 0 when there is no existing evidence", () => {
+		// A brand-new account opening a clean PR must never be accused on age.
+		expect(
+			accountAgeBoost({
+				accountCreatedAt: daysAgo(1),
+				evidenceScore: 0,
+				nowSeconds: now,
+			})
+		).toBe(0);
+	});
+
+	it("returns 0 when account age is unknown", () => {
+		expect(
+			accountAgeBoost({
+				accountCreatedAt: null,
+				evidenceScore: 50,
+				nowSeconds: now,
+			})
+		).toBe(0);
+	});
+
+	it("boosts younger accounts more, gated on evidence", () => {
+		expect(
+			accountAgeBoost({
+				accountCreatedAt: daysAgo(5),
+				evidenceScore: 50,
+				nowSeconds: now,
+			})
+		).toBe(12);
+		expect(
+			accountAgeBoost({
+				accountCreatedAt: daysAgo(20),
+				evidenceScore: 50,
+				nowSeconds: now,
+			})
+		).toBe(8);
+		expect(
+			accountAgeBoost({
+				accountCreatedAt: daysAgo(60),
+				evidenceScore: 50,
+				nowSeconds: now,
+			})
+		).toBe(4);
+	});
+
+	it("does not boost established accounts", () => {
+		expect(
+			accountAgeBoost({
+				accountCreatedAt: daysAgo(120),
+				evidenceScore: 50,
+				nowSeconds: now,
+			})
+		).toBe(0);
+	});
+});
+
 describe("aiPrSignalWeight", () => {
 	it("returns 0 below the 65% confidence threshold", () => {
 		expect(aiPrSignalWeight(0)).toBe(0);
@@ -70,6 +134,106 @@ describe("aiPrSignalWeight", () => {
 		expect(aiPrSignalWeight(85)).toBe(50);
 		expect(aiPrSignalWeight(90)).toBe(65);
 		expect(aiPrSignalWeight(100)).toBe(65);
+	});
+});
+
+describe("accountReputationPenalty", () => {
+	const now = 1_800_000_000;
+	const yearsAgo = (n: number) => now - n * 365 * 86_400;
+
+	it("is 0 for a brand-new, unknown account", () => {
+		expect(
+			accountReputationPenalty({ accountCreatedAt: now, nowSeconds: now })
+		).toBe(0);
+	});
+
+	it("rewards established, starred, prolific accounts", () => {
+		expect(
+			accountReputationPenalty({
+				accountCreatedAt: yearsAgo(3),
+				followers: 800,
+				nowSeconds: now,
+				totalContributions: 600,
+				totalStars: 2000,
+			})
+		).toBeGreaterThan(20);
+	});
+
+	it("caps the penalty at 28", () => {
+		expect(
+			accountReputationPenalty({
+				accountCreatedAt: yearsAgo(10),
+				followers: 100_000,
+				nowSeconds: now,
+				totalContributions: 100_000,
+				totalStars: 1_000_000,
+			})
+		).toBeLessThanOrEqual(28);
+	});
+});
+
+describe("accountSuspicionBoost", () => {
+	it("returns 0 without existing evidence", () => {
+		expect(
+			accountSuspicionBoost({
+				botPatternMatch: true,
+				evidenceScore: 0,
+				followers: 0,
+				following: 500,
+				suspiciousHandleEntropy: true,
+			})
+		).toBe(0);
+	});
+
+	it("sums corroborators and caps at 16", () => {
+		expect(
+			accountSuspicionBoost({
+				botPatternMatch: true,
+				evidenceScore: 30,
+				followers: 1,
+				following: 500,
+				suspiciousHandleEntropy: true,
+			})
+		).toBe(16);
+	});
+
+	it("flags a bot-like follow graph (follows many, followed by few)", () => {
+		expect(
+			accountSuspicionBoost({
+				evidenceScore: 30,
+				followers: 2,
+				following: 200,
+			})
+		).toBe(4);
+	});
+
+	it("does not flag a normal follow graph", () => {
+		expect(
+			accountSuspicionBoost({
+				evidenceScore: 30,
+				followers: 300,
+				following: 200,
+			})
+		).toBe(0);
+	});
+});
+
+describe("prVelocityBoost", () => {
+	it("is 0 below the minimum PR count", () => {
+		expect(prVelocityBoost({ distinctOwners: 3, recentPrCount: 4 })).toBe(0);
+	});
+
+	it("returns the cap for a high-volume, high-diversity burst", () => {
+		expect(prVelocityBoost({ distinctOwners: 8, recentPrCount: 15 })).toBe(25);
+	});
+
+	it("scales by volume and diversity", () => {
+		expect(prVelocityBoost({ distinctOwners: 4, recentPrCount: 8 })).toBe(15);
+		expect(prVelocityBoost({ distinctOwners: 4, recentPrCount: 6 })).toBe(8);
+	});
+
+	it("does not flag a prolific maintainer working in one org", () => {
+		expect(prVelocityBoost({ distinctOwners: 1, recentPrCount: 12 })).toBe(0);
 	});
 });
 
@@ -131,6 +295,36 @@ describe("composeProfileScore", () => {
 		expect(result.status).toBe("watch");
 	});
 
+	it("young account boosts a PR that already has signal evidence", () => {
+		const now = 1_800_000_000;
+		const withoutAge = composeProfileScore({
+			...blank,
+			prCount: 1,
+			signalScore: aiPrSignalWeight(80),
+		});
+		const withAge = composeProfileScore({
+			...blank,
+			accountCreatedAt: now - 5 * 86_400,
+			nowSeconds: now,
+			prCount: 1,
+			signalScore: aiPrSignalWeight(80),
+		});
+		expect(withAge.score).toBe(withoutAge.score + 12);
+	});
+
+	it("young account never accuses on its own (no evidence)", () => {
+		const now = 1_800_000_000;
+		const result = composeProfileScore({
+			...blank,
+			accountCreatedAt: now - 86_400,
+			nowSeconds: now,
+			prCount: 1,
+		});
+		// prCount 1 → activityScore 2, evidenceScore 0 → no boost.
+		expect(result.score).toBe(2);
+		expect(result.status).toBe("watch");
+	});
+
 	it("allowed users (sticky) always score 0 regardless of inputs", () => {
 		const result = composeProfileScore({
 			...blank,
@@ -161,6 +355,73 @@ describe("composeProfileScore", () => {
 		});
 		// 48 + 10 = 58 → review band edge
 		expect(result.score).toBe(58);
+		expect(result.status).toBe("review");
+	});
+
+	it("reputation dampens automated suspicion for an established account", () => {
+		const now = 1_800_000_000;
+		const base = {
+			...blank,
+			nowSeconds: now,
+			signalScore: 60,
+		};
+		const newcomer = composeProfileScore(base);
+		const veteran = composeProfileScore({
+			...base,
+			accountCreatedAt: now - 3 * 365 * 86_400,
+			totalContributions: 600,
+			totalStars: 2000,
+		});
+		expect(veteran.score).toBeLessThan(newcomer.score);
+	});
+
+	it("a validated maintainer report overrides the reputation dampener", () => {
+		const now = 1_800_000_000;
+		const reputable = {
+			...blank,
+			accountCreatedAt: now - 5 * 365 * 86_400,
+			nowSeconds: now,
+			signalScore: 60,
+			totalContributions: 1000,
+			totalStars: 5000,
+		};
+		const withoutValidation = composeProfileScore(reputable);
+		const withValidation = composeProfileScore({
+			...reputable,
+			validatedReportCount: 1,
+		});
+		expect(withValidation.score).toBeGreaterThan(withoutValidation.score);
+	});
+
+	it("bot-pattern boost only applies when there is existing evidence", () => {
+		const now = 1_800_000_000;
+		const noEvidence = composeProfileScore({
+			...blank,
+			botPatternMatch: true,
+			nowSeconds: now,
+			prCount: 1,
+		});
+		// prCount 1 → activity 2, no signal/report evidence → no bot boost.
+		expect(noEvidence.score).toBe(2);
+		const withEvidence = composeProfileScore({
+			...blank,
+			botPatternMatch: true,
+			nowSeconds: now,
+			signalScore: 30,
+		});
+		expect(withEvidence.score).toBe(38); // 30 + 8 bot-pattern corroborator
+	});
+
+	it("PR velocity across many orgs lifts a score that also has signal", () => {
+		const now = 1_800_000_000;
+		const result = composeProfileScore({
+			...blank,
+			distinctOwners: 8,
+			nowSeconds: now,
+			recentPrCount: 15,
+			signalScore: 30,
+		});
+		expect(result.score).toBe(55); // 30 signal + 25 velocity → review band
 		expect(result.status).toBe("review");
 	});
 
