@@ -48,3 +48,4 @@ pnpm-debug.log*
 # Coverage / test artifacts
 coverage
 *.lcov
+.kbx/
