@@ -73,8 +73,9 @@ function ProtectorsRoute() {
 		limit: Number.MAX_SAFE_INTEGER,
 		minReports: filters.min_reports,
 		minScore: filters.min_score,
+		offset: 0,
 		q: filters.q,
-	});
+	}).page;
 	const paginatedProtectors = paginateItems({
 		items: matchingProtectors,
 		page: filters.page,

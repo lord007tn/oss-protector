@@ -20,7 +20,7 @@ import { Route as InstallRouteImport } from './routes/install'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AppealRouteImport } from './routes/appeal'
-import { Route as ApiDocsRouteImport } from './routes/api-docs'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsLoginRouteImport } from './routes/accounts_.$login'
@@ -81,9 +81,9 @@ const AppealRoute = AppealRouteImport.update({
   path: '/appeal',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDocsRoute = ApiDocsRouteImport.update({
-  id: '/api-docs',
-  path: '/api-docs',
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountsRoute = AccountsRouteImport.update({
@@ -110,7 +110,7 @@ const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
-  '/api-docs': typeof ApiDocsRoute
+  '/docs': typeof DocsRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
   '/feed': typeof FeedRoute
@@ -128,7 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
-  '/api-docs': typeof ApiDocsRoute
+  '/docs': typeof DocsRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
   '/feed': typeof FeedRoute
@@ -147,7 +147,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
-  '/api-docs': typeof ApiDocsRoute
+  '/docs': typeof DocsRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
   '/feed': typeof FeedRoute
@@ -167,7 +167,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accounts'
-    | '/api-docs'
+    | '/docs'
     | '/appeal'
     | '/dashboard'
     | '/feed'
@@ -185,7 +185,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
-    | '/api-docs'
+    | '/docs'
     | '/appeal'
     | '/dashboard'
     | '/feed'
@@ -203,7 +203,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accounts'
-    | '/api-docs'
+    | '/docs'
     | '/appeal'
     | '/dashboard'
     | '/feed'
@@ -222,7 +222,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
-  ApiDocsRoute: typeof ApiDocsRoute
+  DocsRoute: typeof DocsRoute
   AppealRoute: typeof AppealRoute
   DashboardRoute: typeof DashboardRoute
   FeedRoute: typeof FeedRoute
@@ -317,11 +317,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppealRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api-docs': {
-      id: '/api-docs'
-      path: '/api-docs'
-      fullPath: '/api-docs'
-      preLoaderRoute: typeof ApiDocsRouteImport
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accounts': {
@@ -358,7 +358,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
-  ApiDocsRoute: ApiDocsRoute,
+  DocsRoute: DocsRoute,
   AppealRoute: AppealRoute,
   DashboardRoute: DashboardRoute,
   FeedRoute: FeedRoute,

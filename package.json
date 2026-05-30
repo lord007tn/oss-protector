@@ -72,7 +72,7 @@
     "wrangler": "^4.90.1"
   },
   "name": "oss-protector",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shared abuse intelligence for suspicious GitHub pull request activity. One GitHub App, one public directory, one scoring engine.",
   "license": "MIT",
   "homepage": "https://github.com/lord007tn/oss-protector#readme",

@@ -19,7 +19,9 @@
     "VITE_APP_URL": "https://oss-protector.raedbahri90.workers.dev",
     "CLOUDFLARE_D1_DATABASE_NAME": "oss-protector",
     "GITHUB_APP_SLUG": "oss-protector",
-    "VITE_GITHUB_APP_SLUG": "oss-protector"
+    "VITE_GITHUB_APP_SLUG": "oss-protector",
+    "VITE_ENABLE_GITHUB_AUTH": "true",
+    "VITE_ENABLE_EMAIL_OTP": "true"
   },
   "d1_databases": [
     {

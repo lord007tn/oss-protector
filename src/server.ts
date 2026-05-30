@@ -51,11 +51,64 @@ type RequestWithWaitUntil = Request & {
 	waitUntil?: (promise: Promise<unknown>) => void;
 };
 
+// `'unsafe-inline'` is intentionally kept on script-src and style-src because
+// TanStack Start emits an inline hydration bootstrap and Tailwind injects a
+// few runtime style nodes — both fail under strict CSP. We mitigate by
+// keeping every other directive tight: explicit object-src/frame-src none,
+// data: dropped from img-src (no inlined data URIs in this codebase), and
+// SVGs served from /assets via 'self'.
+const CSP_DIRECTIVES = [
+	"default-src 'self'",
+	"base-uri 'self'",
+	"object-src 'none'",
+	"frame-src 'none'",
+	"frame-ancestors 'none'",
+	"form-action 'self' https://github.com",
+	"connect-src 'self' https://api.github.com https://openrouter.ai",
+	"img-src 'self' https://github.com https://avatars.githubusercontent.com https://startupfa.me https://launchigniter.com https://api.producthunt.com",
+	"script-src 'self' 'unsafe-inline'",
+	"style-src 'self' 'unsafe-inline'",
+].join("; ");
+
+// Deny-by-default Permissions-Policy. Every powerful capability we don't use
+// is named explicitly so a future framework or library that requests one
+// gets a deterministic deny, not the user-agent default.
+const PERMISSIONS_POLICY = [
+	"accelerometer=()",
+	"autoplay=()",
+	"bluetooth=()",
+	"camera=()",
+	"display-capture=()",
+	"encrypted-media=()",
+	"fullscreen=(self)",
+	"geolocation=()",
+	"gyroscope=()",
+	"hid=()",
+	"identity-credentials-get=()",
+	"idle-detection=()",
+	"keyboard-map=()",
+	"local-fonts=()",
+	"magnetometer=()",
+	"microphone=()",
+	"midi=()",
+	"payment=()",
+	"picture-in-picture=()",
+	"publickey-credentials-get=()",
+	"screen-wake-lock=()",
+	"serial=()",
+	"sync-xhr=()",
+	"usb=()",
+	"web-share=()",
+	"xr-spatial-tracking=()",
+].join(", ");
+
 const SECURITY_HEADERS = {
-	"Content-Security-Policy":
-		"default-src 'self'; base-uri 'self'; connect-src 'self' https://api.github.com https://openrouter.ai; form-action 'self' https://github.com; frame-ancestors 'none'; img-src 'self' https://github.com https://avatars.githubusercontent.com https://startupfa.me https://launchigniter.com https://api.producthunt.com data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
-	"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-	"Referrer-Policy": "strict-origin-when-cross-origin",
+	"Content-Security-Policy": CSP_DIRECTIVES,
+	"Permissions-Policy": PERMISSIONS_POLICY,
+	// Origin-only (no path or query) on cross-origin; no referrer at all
+	// downgrading HTTPS → HTTP. Tighter than the default
+	// `strict-origin-when-cross-origin` which leaks the full same-origin URL.
+	"Referrer-Policy": "strict-origin",
 	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 	"X-Content-Type-Options": "nosniff",
 	"X-Frame-Options": "DENY",
@@ -69,7 +122,7 @@ const sitemap = () =>
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/accounts</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/feed</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/protectors</loc></url>",
-		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/api-docs</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/docs</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/appeal</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/methodology</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/privacy</loc></url>",
@@ -222,9 +275,25 @@ const protectorsResponse = async (
 	if (limited) {
 		return limited;
 	}
-	return withSecurityHeaders(
-		Response.json(await listProtectorsApi(parseProtectorFilters(searchParams)))
-	);
+	try {
+		const filters = parseProtectorFilters(searchParams);
+		return withSecurityHeaders(Response.json(await listProtectorsApi(filters)));
+	} catch (caught) {
+		if (caught instanceof FilterValidationError) {
+			return withSecurityHeaders(
+				Response.json(
+					{
+						allowed: caught.allowed,
+						error: caught.message,
+						field: caught.field,
+						value: caught.value,
+					},
+					{ status: 400 }
+				)
+			);
+		}
+		throw caught;
+	}
 };
 
 const recentWebhookResponse = async (
@@ -755,6 +824,18 @@ interface RouteEntry {
 
 const ROUTES: RouteEntry[] = [
 	{ path: "/sitemap.xml", handler: () => sitemapResponse() },
+	// /api-docs was renamed to /docs in v1.1. 301 keeps old external links and
+	// social-card scrapers working.
+	{
+		path: "/api-docs",
+		handler: () =>
+			Promise.resolve(
+				new Response(null, {
+					headers: { Location: "/docs" },
+					status: 301,
+				})
+			),
+	},
 	{
 		path: (path) => path.startsWith("/api/auth"),
 		handler: ({ env, request }) => authResponse(request, env),

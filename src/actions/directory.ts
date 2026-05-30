@@ -298,20 +298,21 @@ export type DirectoryDashboard = Awaited<
 
 export const listAccountsApi = async (filters: AccountFilters) => {
 	const dashboard = await listDirectoryDashboard();
-	const accounts = filterAccounts(dashboard.riskProfiles, filters);
+	const { page, pageInfo } = filterAccounts(dashboard.riskProfiles, filters);
 
 	return {
-		accounts: accounts.map((profile) => ({
+		accounts: page.map((profile) => ({
 			...publicUser(profile),
 			score: profile.score,
 			score_detail: scoreDetails(profile.score),
 		})),
-		count: accounts.length,
+		count: page.length,
 		credits: LEADERBOARD_CREDIT,
 		delisting: DELISTING,
 		filters,
 		generated_at: new Date().toISOString(),
-		schema_version: "2026-05-23",
+		page_info: pageInfo,
+		schema_version: "2026-05-30",
 		source: "oss-protector",
 		total_available: dashboard.riskProfiles.filter(
 			(profile) => profile.status !== "allow"
@@ -338,16 +339,17 @@ export const recentWebhookEvents = async (input: {
 
 export const listProtectorsApi = async (filters: ProtectorFilters) => {
 	const dashboard = await listDirectoryDashboard();
-	const protectors = filterProtectors(dashboard.protectors, filters);
+	const { page, pageInfo } = filterProtectors(dashboard.protectors, filters);
 
 	return {
-		count: protectors.length,
+		count: page.length,
 		credits: LEADERBOARD_CREDIT,
 		delisting: DELISTING,
 		filters,
 		generated_at: new Date().toISOString(),
-		protectors: protectors.map(publicProtector),
-		schema_version: "2026-05-15",
+		page_info: pageInfo,
+		protectors: page.map(publicProtector),
+		schema_version: "2026-05-30",
 		source: "oss-protector",
 		total_available: dashboard.protectors.length,
 	};
