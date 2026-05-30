@@ -1,8 +1,13 @@
 # Repository policy
 
-OSS Protector supports an optional repo-local policy file so each protected repository can tune how automatic PR review behaves.
+OSS Protector supports two ways to set per-repo policy:
 
-Create this file in the repository you want to protect:
+1. **Commit `.github/oss-protector.json` to the repository** (recommended for policy-as-code).
+2. **Edit it from the dashboard** at `/dashboard` → "Repo policy" tab.
+
+The committed file always takes precedence **per-field**: any field present in the file overrides the dashboard-saved value; fields absent from the file fall through to whatever the dashboard saved, or to the built-in default if neither has a value.
+
+Create the committed file in the repository you want to protect:
 
 ```text
 .github/oss-protector.json
@@ -25,7 +30,8 @@ Example:
 1. A pull request webhook reaches OSS Protector.
 2. OSS Protector records the PR metadata and changed files.
 3. OSS Protector tries to read `.github/oss-protector.json` from the target repository.
-4. If the file is missing or invalid JSON, the default policy is used.
+4. OSS Protector also reads the dashboard-saved `RepoPolicy` row, if any. The effective policy is the per-field merge: committed file > dashboard DB row > built-in default.
+5. If the file is missing or invalid JSON, the dashboard-saved policy alone is used (or defaults if neither exists).
 5. If the policy disables review, trusts the author, or ignores every changed path, automatic abuse analysis is skipped.
 6. Private repositories skip third-party AI analysis unless `analyzePrivateRepositories` is explicitly set to `true`.
 7. Otherwise, OSS Protector analyzes the PR.

@@ -27,6 +27,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { buildSharedHead } from "@/lib/head";
 
 export const Route = createFileRoute("/install")({
 	component: InstallRoute,
@@ -43,12 +44,18 @@ export const Route = createFileRoute("/install")({
 	head: ({ match }) => {
 		const search = match.search;
 		let title = "Install | OSS Protector";
+		let description =
+			"Install the OSS Protector GitHub App on your repositories — flags AI-generated spam PRs before they hit your review queue, free.";
 		if (search.installation_id && !search.code) {
 			title = "Install complete | OSS Protector";
+			description =
+				"OSS Protector is now watching your repositories. Open your dashboard to see captured PRs and tune repo policy.";
 		} else if (search.code) {
 			title = "GitHub App setup | OSS Protector";
+			description =
+				"Exchange the one-hour GitHub manifest code for App credentials, then store them as Cloudflare Worker secrets.";
 		}
-		return { meta: [{ title }] };
+		return buildSharedHead({ description, path: "/install", title });
 	},
 });
 

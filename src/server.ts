@@ -97,9 +97,20 @@ const bucketIp = (ip: string) => {
 		return ip;
 	}
 	const expanded = ip.split("%")[0].toLowerCase();
-	const hextets = expanded.split(":");
-	const known = hextets.filter((h) => h !== "").slice(0, 4);
-	return `${known.join(":")}::/64`;
+	// Expand the `::` compression so positional information is preserved before
+	// we take the /64 prefix. Filtering empty hextets without expanding would
+	// collapse different /64s into the same bucket (e.g. 2001:db8::1 and
+	// 2001:db8:0:0:1:2:3:4 both producing `2001:db8:1::/64`).
+	const [head, tail] = expanded.includes("::")
+		? expanded.split("::", 2)
+		: [expanded, ""];
+	const headHextets = head ? head.split(":") : [];
+	const tailHextets = tail ? tail.split(":") : [];
+	const zerosNeeded = Math.max(0, 8 - headHextets.length - tailHextets.length);
+	const zeros = new Array(zerosNeeded).fill("0");
+	const fullHextets = [...headHextets, ...zeros, ...tailHextets];
+	const prefix = fullHextets.slice(0, 4).join(":");
+	return `${prefix}::/64`;
 };
 
 const clientKey = (request: Request) => {

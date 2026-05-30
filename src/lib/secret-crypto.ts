@@ -18,6 +18,12 @@ const BASE64_PLUS = /\+/g;
 const BASE64_SLASH = /\//g;
 const BASE64_TRAILING_EQUALS = /=+$/;
 
+// HKDF can derive a key from any input, so a one-character BETTER_AUTH_SECRET
+// would silently produce a low-entropy AES-GCM key protecting every BYOK
+// payload in the DB. Enforce a floor that matches the project's documented
+// `openssl rand -base64 32` recommendation.
+const MIN_MASTER_SECRET_BYTES = 32;
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
@@ -72,6 +78,11 @@ const importMasterKey = (secret: string): Promise<CryptoKey> => {
 	if (!secret) {
 		throw new Error(
 			"BETTER_AUTH_SECRET is not configured; cannot encrypt user secrets."
+		);
+	}
+	if (textEncoder.encode(secret).byteLength < MIN_MASTER_SECRET_BYTES) {
+		throw new Error(
+			`BETTER_AUTH_SECRET must be at least ${MIN_MASTER_SECRET_BYTES} bytes — regenerate with: openssl rand -base64 32`
 		);
 	}
 	return crypto.subtle.importKey("raw", encode(secret), "HKDF", false, [

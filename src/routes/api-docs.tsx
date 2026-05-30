@@ -220,8 +220,84 @@ function ApiDocsRoute() {
 						title="/api/protectors"
 					/>
 				</div>
+
+				<div className="mt-6">
+					<div className="max-w-2xl">
+						<h2 className="font-semibold text-xl tracking-tight">
+							Maintainer endpoints
+						</h2>
+						<p className="mt-2 text-muted-foreground text-sm leading-6">
+							Authenticated endpoints used by the dashboard. They require an
+							active Better Auth session cookie (sign in at{" "}
+							<a className="text-primary hover:underline" href="/login">
+								/login
+							</a>
+							) and are not throttled by the public 60 req/min IP limit.
+							Scripting these is supported.
+						</p>
+					</div>
+					<div className="mt-4 grid gap-3 text-[13.5px]">
+						<MaintainerEndpoint
+							desc="Read or update your notification kinds + BYOK OpenRouter key. POST accepts { notificationKinds?: string[]; openrouterApiKey?: string | null }. Pass null to clear the key."
+							method="GET / POST"
+							path="/api/user/preferences"
+						/>
+						<MaintainerEndpoint
+							desc="Validate a BYOK OpenRouter key against /api/v1/key. Body: { apiKey: string }. No model credit consumed."
+							method="POST"
+							path="/api/openrouter/test"
+						/>
+						<MaintainerEndpoint
+							desc="Public. The model IDs the platform key cycles through, returned with cache-busting timestamp."
+							method="GET"
+							path="/api/openrouter/free-models"
+						/>
+						<MaintainerEndpoint
+							desc="Block or allow a specific account on a repo you maintain. Body: { repositoryId, targetLogin, decision: 'block'|'allow', note? }. DELETE clears."
+							method="POST / DELETE"
+							path="/api/maintainer/repo-decision"
+						/>
+						<MaintainerEndpoint
+							desc="List all repo-local overrides across the repos you maintain."
+							method="GET"
+							path="/api/maintainer/repo-decisions"
+						/>
+						<MaintainerEndpoint
+							desc="Dashboard-saved repository policy (enabled, analyzePrivateRepositories, minimumLikelyAbuseConfidence, trustedAuthors, ignoredPaths). The committed .github/oss-protector.json takes precedence per-field."
+							method="GET / POST / DELETE"
+							path="/api/maintainer/repo-policy?repositoryId=…"
+						/>
+					</div>
+				</div>
 			</div>
 		</PageShell>
+	);
+}
+
+function MaintainerEndpoint({
+	desc,
+	method,
+	path,
+}: {
+	desc: string;
+	method: string;
+	path: string;
+}) {
+	return (
+		<div className="rounded-md border bg-card p-3">
+			<div className="flex flex-wrap items-center gap-2">
+				<Badge
+					className="rounded-sm font-mono text-[10px] uppercase tracking-wide"
+					variant="secondary"
+				>
+					{method}
+				</Badge>
+				<code className="font-mono text-[12.5px]">{path}</code>
+			</div>
+			<p className="mt-1.5 text-[12.5px] text-muted-foreground leading-5">
+				{desc}
+			</p>
+		</div>
 	);
 }
 

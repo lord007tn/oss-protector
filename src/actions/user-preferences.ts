@@ -67,11 +67,11 @@ export interface UpdateUserPreferencesPayload {
 }
 
 const parseKinds = (value: unknown): NotificationKind[] | undefined => {
-	if (value === undefined) {
+	// Treat undefined / null / non-array as "leave unchanged". A literal `null`
+	// from a malformed client payload used to wipe every kind silently — that
+	// was an accidental notification lockout, not a deliberate clear.
+	if (value === undefined || value === null || !Array.isArray(value)) {
 		return;
-	}
-	if (!Array.isArray(value)) {
-		return [];
 	}
 	return value
 		.filter((entry): entry is string => typeof entry === "string")

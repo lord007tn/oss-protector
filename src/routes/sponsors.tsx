@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
 
-import { githubRepoUrl, publicAppUrl } from "@/components/landing/constants";
+import { githubRepoUrl } from "@/components/landing/constants";
 import {
 	PageContainer,
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
 import { buttonVariants } from "@/components/ui/button";
+import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 type Tier = "platinum" | "gold" | "silver";
@@ -29,17 +30,13 @@ const TIERS: Tier[] = ["platinum", "gold", "silver"];
 
 export const Route = createFileRoute("/sponsors")({
 	component: SponsorsRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/sponsors`, rel: "canonical" }],
-		meta: [
-			{ title: "Sponsors | OSS Protector" },
-			{
-				content:
-					"How OSS Protector stays free: a transparent breakdown of money in, money out, and every sponsor.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"How OSS Protector stays free: a transparent breakdown of money in, money out, and every sponsor.",
+			path: "/sponsors",
+			title: "Sponsors | OSS Protector",
+		}),
 });
 
 function MonoLabel({ children }: { children: string }) {

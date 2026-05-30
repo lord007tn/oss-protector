@@ -87,8 +87,11 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 | `CLOUDFLARE_D1_TOKEN` | Drizzle Kit | API token for `drizzle-kit push` against remote D1, if you use that workflow. |
 | `VITE_GITHUB_STARS` | build | Optional override for the generated GitHub star count. |
 | `VITE_GITHUB_REPO_SLUG` | build | Optional `owner/repo` override for the generated GitHub star count. |
-| `BETTER_AUTH_SECRET` | sign-in | Required to enable Better Auth sessions. |
+| `BETTER_AUTH_SECRET` | sign-in | Required to enable Better Auth sessions. Must be ≥ 32 bytes — generate with `openssl rand -base64 32`. Also used to derive the BYOK encryption key. |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | sign-in | GitHub OAuth credentials for Better Auth. |
+| `VITE_ENABLE_EMAIL_OTP` | UI sign-in | Set to `true` to show the email OTP option alongside the GitHub button. |
+| `RESEND_API_KEY` | email OTP delivery | Resend API key. If unset, OTP codes are logged to the server console in local dev; in non-localhost the send is rejected with a clear error. |
+| `EMAIL_FROM` | email OTP delivery | From address for OTP emails. Production must use a Resend-verified domain. Defaults to `OSS Protector <onboarding@resend.dev>`. |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | webhooks | The GitHub App's identity, used for installation tokens. |
 | `GITHUB_APP_SLUG` / `VITE_GITHUB_APP_SLUG` | server / UI | GitHub App slug. Set both for self-hosted installs so webhook code and browser install links point at the same app. |
 | `GITHUB_MANIFEST_TOKEN` | GitHub App setup | Optional token used to exchange a GitHub App manifest code from `/install`. |
@@ -103,8 +106,16 @@ Other projects can query the directory through filterable JSON endpoints (see [`
 
 - `/api/accounts` — risky accounts with status / score / reason / search filters.
 - `/api/protectors` — maintainers who submitted review signals.
+- `/api/openrouter/free-models` — the model IDs the platform key cycles through (for transparency).
 
-Both endpoints are rate-limited per client IP (60 req/min) via the Cloudflare Rate Limiting binding configured in `wrangler.json`. Webhooks are not throttled.
+Both filterable endpoints are rate-limited per client IP (60 req/min) via the Cloudflare Rate Limiting binding configured in `wrangler.json`. Webhooks are not throttled.
+
+Authenticated maintainer endpoints (require a Better Auth session cookie, not rate-limited):
+
+- `GET / POST /api/user/preferences` — read and update your notification kinds + BYOK OpenRouter key.
+- `POST /api/openrouter/test` — validate a BYOK key against OpenRouter without consuming model credit.
+- `POST / DELETE /api/maintainer/repo-decision`, `GET /api/maintainer/repo-decisions` — per-repo allow/block decisions for a specific account.
+- `GET / POST / DELETE /api/maintainer/repo-policy?repositoryId=…` — dashboard-saved repository policy that fills in for fields not set by the committed `.github/oss-protector.json`.
 
 ## Database
 
@@ -152,9 +163,23 @@ Better Auth handles GitHub user sign-in at `/api/auth/*` once `BETTER_AUTH_SECRE
 
 The internal OpenRouter model chain only uses model IDs that end in `:free`, with a paid fallback when free-tier models hallucinate.
 
+## Maintainer dashboard
+
+Once signed in at `/login`, every maintainer gets `/dashboard` with these tabs:
+
+- **Review queue** — pending and needs-review reports from your repos.
+- **Appeals** — flagged accounts who submitted an appeal via `/appeal`. Uphold / reject from here.
+- **Audit log** — unified timeline of reports + maintainer corrections + repo overrides, filter by `all` / `decisions` / `overrides` / `reports`.
+- **Coverage** — every repo where OSS Protector is installed and active.
+- **Allowlist** — accounts you explicitly trust; their PRs bypass the analyzer.
+- **Repo overrides** — per-repo allow/block for a specific account, independent of the shared score. Allow short-circuits AI review; block synthesizes a high-confidence flag without consuming AI credit.
+- **Repo policy** — form-based editor for the same fields as `.github/oss-protector.json`. The committed file always wins per-field; the DB-saved policy fills in where the file is silent.
+
+The `/settings` page lets you toggle which **notification kinds** you receive (`report`, `dispute`, `flag`, `correction`, `ok`, `info` — muted kinds aren't even created) and **bring your own OpenRouter key** for AI scoring. The key is encrypted at rest with AES-256-GCM (HKDF off `BETTER_AUTH_SECRET`); the earliest-linked maintainer's key wins on multi-maintainer installs. Without a BYOK key, the platform-provided key runs the free-model chain only.
+
 ## Repository policy
 
-Each repository can tune OSS Protector with an optional `.github/oss-protector.json` file. See [Repository policy](./docs/repository-policy.md) for the full lifecycle, examples, and field reference.
+Each repository can tune OSS Protector with an optional `.github/oss-protector.json` file, or by editing the **Repo policy** tab in the dashboard. The committed file always takes precedence per-field; the dashboard value fills in for any field the file doesn't set. See [Repository policy](./docs/repository-policy.md) for the full lifecycle, examples, and field reference.
 
 ```json
 {

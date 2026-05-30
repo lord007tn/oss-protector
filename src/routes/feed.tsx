@@ -3,7 +3,6 @@ import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { DirectoryDashboard } from "@/actions/directory";
-import { publicAppUrl } from "@/components/landing/constants";
 import { AccountAvatar } from "@/components/oss/account-avatar";
 import { ConfidenceBadge } from "@/components/oss/confidence-badge";
 import {
@@ -22,23 +21,20 @@ import {
 	riskStatusBadge,
 	toDisplayAccount,
 } from "@/lib/directory-view";
+import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 type FeedFilter = "all" | "high" | "review" | "watch";
 
 export const Route = createFileRoute("/feed")({
 	component: FeedRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/feed`, rel: "canonical" }],
-		meta: [
-			{ title: "Public review feed | OSS Protector" },
-			{
-				content:
-					"Every flag OSS Protector makes — public, auditable, and disputable.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"Every flag OSS Protector makes — public, auditable, and disputable.",
+			path: "/feed",
+			title: "Public review feed | OSS Protector",
+		}),
 	loader: () => getDashboardFn(),
 });
 
