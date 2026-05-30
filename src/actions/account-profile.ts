@@ -25,7 +25,7 @@ export interface PublicPullRequest {
 	title: string;
 }
 
-export interface ClankerReport {
+export interface AccountReport {
 	aiVerdict: null | string;
 	confidence: number;
 	createdAt: number;
@@ -35,7 +35,7 @@ export interface ClankerReport {
 	status: ReportStatus;
 }
 
-export interface ClankerSignal {
+export interface AccountSignal {
 	observedAt: number;
 	reasonCode: ReasonCode | null;
 	repositoryFullName: null | string;
@@ -45,7 +45,7 @@ export interface ClankerSignal {
 	weight: number;
 }
 
-export interface ClankerProfileResult {
+export interface AccountProfileResult {
 	avatarUrl: null | string;
 	confidence: number;
 	htmlUrl: null | string;
@@ -58,9 +58,9 @@ export interface ClankerProfileResult {
 	publicPrs: PublicPullRequest[];
 	reasonCodes: ReasonCode[];
 	reportCount: number;
-	reports: ClankerReport[];
+	reports: AccountReport[];
 	score: number;
-	signals: ClankerSignal[];
+	signals: AccountSignal[];
 	status: RiskStatus;
 	summary: null | string;
 	totalPrs: number;
@@ -76,7 +76,7 @@ const isGithubUserLookupError = (caught: unknown) =>
 	caught.message.startsWith("Failed query:") &&
 	caught.message.includes('from "GithubUser"');
 
-export const emptyClankerProfile = (login: string): ClankerProfileResult => ({
+export const emptyAccountProfile = (login: string): AccountProfileResult => ({
 	avatarUrl: null,
 	confidence: 0,
 	htmlUrl: `https://github.com/${login}`,
@@ -98,15 +98,15 @@ export const emptyClankerProfile = (login: string): ClankerProfileResult => ({
 	validatedReportCount: 0,
 });
 
-export const getClankerProfile = async (
+export const getAccountProfile = async (
 	rawLogin: string
-): Promise<ClankerProfileResult> => {
+): Promise<AccountProfileResult> => {
 	const login = rawLogin.trim();
 	if (!login) {
-		return emptyClankerProfile(rawLogin);
+		return emptyAccountProfile(rawLogin);
 	}
 	if (!hasDatabaseBinding) {
-		return emptyClankerProfile(login);
+		return emptyAccountProfile(login);
 	}
 
 	try {
@@ -117,7 +117,7 @@ export const getClankerProfile = async (
 			.limit(1);
 
 		if (!user) {
-			return emptyClankerProfile(login);
+			return emptyAccountProfile(login);
 		}
 
 		const [[profile], reports, prs, signals] = await Promise.all([
@@ -177,7 +177,7 @@ export const getClankerProfile = async (
 		]);
 
 		if (profile?.status === "allow") {
-			return emptyClankerProfile(login);
+			return emptyAccountProfile(login);
 		}
 
 		const publicPrs = prs.filter((row) => !row.isPrivate).slice(0, PR_LIMIT);
@@ -185,7 +185,7 @@ export const getClankerProfile = async (
 		// Hide source URLs that point at private repos. Public commenters
 		// browsing the directory don't need to know a report was filed inside
 		// a private repo — that's privileged context for the maintainer.
-		const sanitizedReports: ClankerReport[] = reports
+		const sanitizedReports: AccountReport[] = reports
 			.filter((row) => row.reporterIsMaintainer && !row.repositoryIsPrivate)
 			.map((row) => ({
 				aiVerdict: row.aiVerdict,
@@ -198,7 +198,7 @@ export const getClankerProfile = async (
 			}));
 
 		const reasonCodes = parseJsonArray<ReasonCode>(profile?.reasonCodesJson);
-		const sanitizedSignals: ClankerSignal[] = signals
+		const sanitizedSignals: AccountSignal[] = signals
 			.filter((row) => !row.isPrivate)
 			.map((row) => {
 				const metadata = parseJsonObject<{ reasonCode: ReasonCode }>(
@@ -258,7 +258,7 @@ export const getClankerProfile = async (
 		};
 	} catch (caught) {
 		if (isMissingBindingError(caught) || isGithubUserLookupError(caught)) {
-			return emptyClankerProfile(login);
+			return emptyAccountProfile(login);
 		}
 		throw caught;
 	}

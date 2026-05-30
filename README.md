@@ -101,7 +101,7 @@ Copy `.env.example` to `.env` and fill what you need. None of the GitHub or Open
 
 Other projects can query the directory through filterable JSON endpoints (see [`/api-docs`](https://oss-protector.raedbahri90.workers.dev/api-docs) for the full reference):
 
-- `/api/clankers` — risky accounts with status / score / reason / search filters.
+- `/api/accounts` — risky accounts with status / score / reason / search filters.
 - `/api/protectors` — maintainers who submitted review signals.
 
 Both endpoints are rate-limited per client IP (60 req/min) via the Cloudflare Rate Limiting binding configured in `wrangler.json`. Webhooks are not throttled.

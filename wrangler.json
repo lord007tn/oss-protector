@@ -23,7 +23,7 @@
   },
   "d1_databases": [
     {
-      "binding": "clankers_db",
+      "binding": "accounts_db",
       "database_name": "oss-protector",
       "database_id": "bbf2be1c-7746-4b46-be6a-4363ea5f4a71",
       "migrations_dir": "drizzle"

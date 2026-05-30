@@ -8,9 +8,9 @@ export interface RateLimitBinding {
 export interface RuntimeBindings {
 	ALLOW_UNSIGNED_GITHUB_WEBHOOKS?: string;
 	APP_NAME?: string;
+	accounts_db?: D1Database;
 	BETTER_AUTH_SECRET?: string;
 	CLOUDFLARE_D1_DATABASE_NAME?: string;
-	clankers_db?: D1Database;
 	EMAIL_FROM?: string;
 	GITHUB_APP_CREATE_OWNER?: string;
 	GITHUB_APP_ID?: string;
@@ -42,7 +42,7 @@ export const runtimeBindings = () => {
 };
 
 export const runtimeEnv = () => {
-	const { clankers_db: _db, PUBLIC_RL: _rl, ...envVars } = runtimeBindings();
+	const { accounts_db: _db, PUBLIC_RL: _rl, ...envVars } = runtimeBindings();
 	return envVars;
 };
 

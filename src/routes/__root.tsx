@@ -56,7 +56,7 @@ export const Route = createRootRoute({
 			},
 			{
 				content:
-					"OSS Protector connects to GitHub, captures maintainer reports, and publishes a filterable clanker API for open-source projects.",
+					"OSS Protector connects to GitHub, captures maintainer reports, and publishes a filterable accounts API for open-source projects.",
 				name: "description",
 			},
 		],

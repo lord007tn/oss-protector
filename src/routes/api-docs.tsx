@@ -50,7 +50,7 @@ export const Route = createFileRoute("/api-docs")({
 			{ content: "API Documentation | OSS Protector", property: "og:title" },
 			{
 				content:
-					"Integrate the OSS Protector clanker directory into repository automation and dashboards.",
+					"Integrate the OSS Protector account directory into repository automation and dashboards.",
 				property: "og:description",
 			},
 			{
@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api-docs")({
 	}),
 });
 
-const clankerParams = [
+const accountParams = [
 	{
 		name: "q",
 		values: "string",
@@ -81,7 +81,7 @@ const clankerParams = [
 	{
 		name: "min_score",
 		values: "number",
-		description: "Only return clankers at or above this score.",
+		description: "Only return accounts at or above this score.",
 	},
 	{
 		name: "limit",
@@ -123,7 +123,7 @@ function ApiDocsRoute() {
 						API
 					</span>
 					<h1 className="mt-2 text-balance font-semibold text-2xl tracking-tight md:text-3xl">
-						Use the clanker directory in your own tooling.
+						Use the account directory in your own tooling.
 					</h1>
 					<p className="mt-2 text-muted-foreground text-sm leading-6 md:text-[15px]">
 						JSON endpoints with query-param filters. Use them for pre-merge
@@ -136,7 +136,7 @@ function ApiDocsRoute() {
 					<AlertTitle>Rate limits</AlertTitle>
 					<AlertDescription>
 						Public read endpoints (
-						<code className="font-mono text-[11px]">/api/clankers</code>,{" "}
+						<code className="font-mono text-[11px]">/api/accounts</code>,{" "}
 						<code className="font-mono text-[11px]">/api/protectors</code>) are
 						throttled at <strong>60 requests per minute per client IP</strong>{" "}
 						(IPv6 clients bucketed by{" "}
@@ -203,12 +203,12 @@ function ApiDocsRoute() {
 				<div className="grid gap-4 lg:grid-cols-2">
 					<EndpointCard
 						description="Filterable list of accounts currently published for review."
-						example="/api/clankers?status=review&reason=external_blocklist&min_score=70&limit=10"
-						href="/api/clankers"
+						example="/api/accounts?status=review&reason=external_blocklist&min_score=70&limit=10"
+						href="/api/accounts"
 						icon={<UsersRound className="size-4 text-muted-foreground" />}
 						method="GET"
-						params={clankerParams}
-						title="/api/clankers"
+						params={accountParams}
+						title="/api/accounts"
 					/>
 					<EndpointCard
 						description="Filterable list of maintainers who submitted review signals."

@@ -78,7 +78,7 @@ function PrivacyRoute() {
 				<PolicySection title="Who can see what">
 					<p>
 						The public account directory (
-						<a href="/api/clankers">/api/clankers</a> and the{" "}
+						<a href="/api/accounts">/api/accounts</a> and the{" "}
 						<a href="/accounts">/accounts</a> page) expose only:
 					</p>
 					<ul className="list-disc space-y-1 pl-4">

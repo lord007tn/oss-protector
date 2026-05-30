@@ -10,12 +10,12 @@ type GlobalWithDbBindings = typeof globalThis & {
 
 const globalWithDbBindings = globalThis as GlobalWithDbBindings;
 const d1Binding =
-	globalWithDbBindings.__env__?.clankers_db ??
-	globalWithDbBindings.__devVars?.clankers_db;
+	globalWithDbBindings.__env__?.accounts_db ??
+	globalWithDbBindings.__devVars?.accounts_db;
 
 const fallbackD1Binding = new Proxy({} as D1Database, {
 	get() {
-		throw new Error("Missing Cloudflare D1 binding: clankers_db");
+		throw new Error("Missing Cloudflare D1 binding: accounts_db");
 	},
 });
 

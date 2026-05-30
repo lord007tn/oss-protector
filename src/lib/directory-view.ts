@@ -2,7 +2,7 @@ import type { ReasonCode } from "@/constants/reason-codes";
 import { REASON_LABELS } from "@/constants/reason-codes";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { RISK_STATUS_LABELS } from "@/constants/risk-statuses";
-import type { ClankerProfile } from "@/helpers/directory-filters";
+import type { AccountProfile } from "@/helpers/directory-filters";
 
 // Maps the real DirectoryDashboard risk-profile shape onto the display props
 // the prototype-styled components consume. Keeps the UI honest about real data
@@ -58,7 +58,7 @@ export interface DisplayAccount {
 	validatedReportCount: number;
 }
 
-export function toDisplayAccount(profile: ClankerProfile): DisplayAccount {
+export function toDisplayAccount(profile: AccountProfile): DisplayAccount {
 	return {
 		avatarUrl: profile.avatarUrl,
 		// The risk score (0-100) is the primary indicator; surface it through the

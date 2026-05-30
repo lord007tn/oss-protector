@@ -46,7 +46,7 @@ Initial dashboard areas:
 - Repository list: installed repos, active/inactive state, private/public status, latest webhook activity.
 - Repo behavior settings: enabled, private AI analysis opt-in, confidence threshold, trusted authors, ignored paths.
 - Review queue: pending and needs-review reports, AI findings, duplicate campaign signals, and false-positive candidates.
-- Clanker management: repo-scoped view of risky accounts, evidence, status, PR history, and latest actions.
+- Account management: repo-scoped view of risky accounts, evidence, status, PR history, and latest actions.
 - Moderation actions: confirm, dismiss, allow, reset, and later block/unblock recommendations.
 - Block/unblock controls: repo-level blocked or allowed users, with clear distinction from shared public directory status.
 - OpenRouter key management: hosted/global key status first, then possibly organization-owned keys later.
