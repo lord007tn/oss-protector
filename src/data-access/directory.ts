@@ -1458,10 +1458,20 @@ export const getPullRequestByRepositoryNumber = async (
 	return pullRequest ?? null;
 };
 
+// Cap how many profiles each directory render loads + serializes. The Worker
+// renders the whole dashboard into every page's SSR payload, so an unbounded
+// list (the directory grew past 300 after a blocklist re-import) blew past the
+// Cloudflare per-request resource limit (error 1102 — "Worker exceeded resource
+// limits"). Ordering by score keeps every block/high_risk/review account in
+// view; the lowest-score watch tail is the only thing deferred. Accurate totals
+// come from getDirectoryCounts so the headline figures stay correct.
+const DIRECTORY_PROFILE_LIMIT = 50;
+
 export const getDirectoryDashboardRecords = async () => {
 	const [profiles, reports, repositories, imports, signals, pullRequests] =
 		await Promise.all([
 			database.query.RiskProfile.findMany({
+				limit: DIRECTORY_PROFILE_LIMIT,
 				orderBy: { score: "desc" },
 				with: { targetUser: true },
 			}),
@@ -1483,5 +1493,38 @@ export const getDirectoryDashboardRecords = async () => {
 
 	return { imports, profiles, pullRequests, reports, repositories, signals };
 };
+
+// Accurate directory tallies via a single aggregate, independent of the capped
+// profile list above. Score bands mirror RISK_SCORE_BANDS / riskStatusForScore
+// so the headline counts match how each account is bucketed in the UI.
+export const getDirectoryCounts = async () => {
+	const [row] = await database
+		.select({
+			blocked: count(sql`CASE WHEN ${RiskProfile.score} >= 90 THEN 1 END`),
+			highRisk: count(
+				sql`CASE WHEN ${RiskProfile.score} >= 75 AND ${RiskProfile.score} < 90 THEN 1 END`
+			),
+			imported: count(RiskProfile.importedSource),
+			review: count(
+				sql`CASE WHEN ${RiskProfile.score} >= 55 AND ${RiskProfile.score} < 75 THEN 1 END`
+			),
+			total: count(),
+			watch: count(sql`CASE WHEN ${RiskProfile.score} < 55 THEN 1 END`),
+		})
+		.from(RiskProfile)
+		.where(sql`${RiskProfile.status} <> 'allow'`);
+	return (
+		row ?? {
+			blocked: 0,
+			highRisk: 0,
+			imported: 0,
+			review: 0,
+			total: 0,
+			watch: 0,
+		}
+	);
+};
+
+export type DirectoryCounts = Awaited<ReturnType<typeof getDirectoryCounts>>;
 
 export type DirectoryPullRequest = PullRequestSelect;

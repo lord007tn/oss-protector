@@ -86,13 +86,14 @@ function FeedRoute() {
 	const setQuery = (value: string) =>
 		navigate({ replace: true, search: (prev) => ({ ...prev, q: value }) });
 
+	// Counts come from dashboard.stats (a full-table aggregate), not the loaded
+	// list — the list is capped server-side so the directory render stays under
+	// the Worker resource limit, but the tallies must still reflect every account.
 	const tally = {
-		all: accounts.length,
-		high: accounts.filter(
-			(a) => a.status === "block" || a.status === "high_risk"
-		).length,
-		review: accounts.filter((a) => a.status === "review").length,
-		watch: accounts.filter((a) => a.status === "watch").length,
+		all: dashboard.stats.trackedUsers,
+		high: dashboard.stats.blockedUsers + dashboard.stats.highRiskUsers,
+		review: dashboard.stats.reviewUsers,
+		watch: dashboard.stats.watchUsers,
 	};
 
 	const filtered = accounts.filter((account) => {
@@ -117,7 +118,7 @@ function FeedRoute() {
 						<div className="flex items-center gap-2">
 							<span className="pulse-ring inline-block size-1.5 rounded-full bg-success" />
 							<span className="font-mono text-muted-foreground text-xs">
-								{accounts.length} flagged accounts
+								{dashboard.stats.trackedUsers} flagged accounts
 							</span>
 						</div>
 					}

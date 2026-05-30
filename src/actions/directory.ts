@@ -12,6 +12,8 @@ import {
 	riskStatusForScore,
 } from "@/constants/risk-statuses";
 import {
+	type DirectoryCounts,
+	getDirectoryCounts,
 	getDirectoryDashboardRecords,
 	recentWebhookEventsQuery,
 } from "@/data-access/directory";
@@ -85,6 +87,7 @@ const emptyDashboard = () => ({
 		signals: 0,
 		trackedPrs: 0,
 		trackedUsers: 0,
+		watchUsers: 0,
 	},
 });
 
@@ -141,14 +144,17 @@ const buildProtectors = (reports: DashboardRecords["reports"]) => {
 	);
 };
 
-const buildDirectoryDashboard = ({
-	imports,
-	profiles,
-	pullRequests,
-	reports,
-	repositories,
-	signals,
-}: DashboardRecords) => {
+const buildDirectoryDashboard = (
+	{
+		imports,
+		profiles,
+		pullRequests,
+		reports,
+		repositories,
+		signals,
+	}: DashboardRecords,
+	counts: DirectoryCounts
+) => {
 	const publicPullRequests = pullRequests.filter(
 		(pr) => !pr.repository?.isPrivate
 	);
@@ -234,22 +240,18 @@ const buildDirectoryDashboard = ({
 			activeRepositories: repositories.filter(
 				(repo) => repo.isActive && !repo.isPrivate
 			).length,
-			blockedUsers: riskProfiles.filter((profile) => profile.status === "block")
-				.length,
-			highRiskUsers: riskProfiles.filter(
-				(profile) => profile.status === "high_risk"
-			).length,
-			importedUsers: riskProfiles.filter((profile) => profile.importedSource)
-				.length,
+			blockedUsers: counts.blocked,
+			highRiskUsers: counts.highRisk,
+			importedUsers: counts.imported,
 			openReports: publicReports.filter(
 				(report) =>
 					report.status === "pending" || report.status === "needs_review"
 			).length,
-			reviewUsers: riskProfiles.filter((profile) => profile.status === "review")
-				.length,
+			reviewUsers: counts.review,
 			signals: publicSignals.length,
 			trackedPrs: publicPullRequests.length,
-			trackedUsers: riskProfiles.length,
+			trackedUsers: counts.total,
+			watchUsers: counts.watch,
 		},
 	};
 };
@@ -283,7 +285,11 @@ const publicProtector = (
 
 export const listDirectoryDashboard = async () => {
 	try {
-		return buildDirectoryDashboard(await getDirectoryDashboardRecords());
+		const [records, counts] = await Promise.all([
+			getDirectoryDashboardRecords(),
+			getDirectoryCounts(),
+		]);
+		return buildDirectoryDashboard(records, counts);
 	} catch (caught) {
 		if (isMissingBindingError(caught)) {
 			return emptyDashboard();

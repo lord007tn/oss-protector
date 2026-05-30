@@ -77,13 +77,14 @@ function AccountsRoute() {
 	const [query, setQuery] = useState("");
 	const [view, setView] = useState<"list" | "grid">("list");
 
+	// Counts come from dashboard.stats (a full-table aggregate), not the loaded
+	// list — the list is capped server-side so the directory render stays under
+	// the Worker resource limit, but the tallies must still reflect every account.
 	const tally = {
-		all: accounts.length,
-		high: accounts.filter(
-			(a) => a.status === "block" || a.status === "high_risk"
-		).length,
-		review: accounts.filter((a) => a.status === "review").length,
-		watch: accounts.filter((a) => a.status === "watch").length,
+		all: dashboard.stats.trackedUsers,
+		high: dashboard.stats.blockedUsers + dashboard.stats.highRiskUsers,
+		review: dashboard.stats.reviewUsers,
+		watch: dashboard.stats.watchUsers,
 	};
 
 	const filtered = accounts
