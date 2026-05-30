@@ -34,18 +34,31 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/accounts_/$login")({
 	component: AccountRoute,
-	head: ({ params }) => ({
-		links: [
-			{ href: `${publicAppUrl}/accounts/${params.login}`, rel: "canonical" },
-		],
-		meta: [
-			{ title: `@${params.login} | OSS Protector` },
-			{
-				content: `Risk profile, evidence, reports, and trust graph for @${params.login}.`,
-				name: "description",
-			},
-		],
-	}),
+	head: ({ params, loaderData }) => {
+		// The loader throws notFound() for unknown accounts, leaving loaderData
+		// undefined. Without this guard the document title would echo the
+		// non-existent handle (e.g. "@does-not-exist | OSS Protector").
+		if (!loaderData) {
+			return {
+				meta: [
+					{ title: "Account not found | OSS Protector" },
+					{ content: "noindex", name: "robots" },
+				],
+			};
+		}
+		return {
+			links: [
+				{ href: `${publicAppUrl}/accounts/${params.login}`, rel: "canonical" },
+			],
+			meta: [
+				{ title: `@${params.login} | OSS Protector` },
+				{
+					content: `Risk profile, evidence, reports, and trust graph for @${params.login}.`,
+					name: "description",
+				},
+			],
+		};
+	},
 	loader: async ({ params }) => {
 		const profile = await getAccountProfileFn({
 			data: { login: params.login },

@@ -14,6 +14,9 @@ import { appealOutcome, isAppealResolution } from "@/lib/appeals";
 
 const LEADING_AT = /^@/;
 const MIN_STORY_LENGTH = 60;
+// Mirror of the client-side check in routes/appeal.tsx so a malformed email
+// can't slip through a direct POST to /api/appeal.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface SubmitAppealInput {
 	email?: string | null;
@@ -57,6 +60,14 @@ export async function submitAppeal({
 			status: 400,
 		};
 	}
+	const email = (input.email ?? "").trim();
+	if (email && !EMAIL_PATTERN.test(email)) {
+		return {
+			error: "Enter a valid email so we can send the verdict.",
+			ok: false,
+			status: 400,
+		};
+	}
 
 	let submittedByUserId: string | null = null;
 	if (getAuthConfigStatus(env).isConfigured) {
@@ -68,7 +79,7 @@ export async function submitAppeal({
 
 	const id = createId();
 	await database.insert(Appeal).values({
-		email: input.email?.trim() || null,
+		email: email || null,
 		evidenceJson: JSON.stringify(input.evidence ?? []),
 		id,
 		login,

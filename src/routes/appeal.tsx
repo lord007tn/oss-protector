@@ -12,6 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
+// Basic, dependency-free email shape check: one @, a dot in the domain, no
+// whitespace. The flagged account's verdict is emailed here, so an undeliverable
+// address means the appellant never hears back — block it before Step 1 advances.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const STEPS = [
 	{ label: "Identify" },
 	{ label: "Your story" },
@@ -227,7 +232,9 @@ function AppealRoute() {
 								</Button>
 							</a>
 							<Button
-								disabled={handle.trim().length < 2}
+								disabled={
+									handle.trim().length < 2 || !EMAIL_PATTERN.test(email.trim())
+								}
 								onClick={() => setStep(1)}
 								type="button"
 							>

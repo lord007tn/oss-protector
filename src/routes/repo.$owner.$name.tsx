@@ -80,10 +80,6 @@ function RepoRoute() {
 						Home
 					</a>
 					<ChevronRight className="size-3" />
-					<a className="hover:text-foreground" href="/accounts">
-						Accounts
-					</a>
-					<ChevronRight className="size-3" />
 					<span className="font-mono">{profile.fullName}</span>
 				</div>
 

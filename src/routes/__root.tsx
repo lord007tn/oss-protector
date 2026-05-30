@@ -22,19 +22,9 @@ export const Route = createRootRoute({
 	),
 	head: () => ({
 		links: [
-			{
-				href: "https://fonts.googleapis.com",
-				rel: "preconnect",
-			},
-			{
-				crossOrigin: "anonymous",
-				href: "https://fonts.gstatic.com",
-				rel: "preconnect",
-			},
-			{
-				href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;450;500&display=swap",
-				rel: "stylesheet",
-			},
+			// Geist + Geist Mono are self-hosted via @fontsource-variable (imported
+			// in styles.css and bundled into appCss), so there are no Google Fonts
+			// preconnects or stylesheet links — nothing leaves our origin.
 			{
 				href: appCss,
 				rel: "stylesheet",

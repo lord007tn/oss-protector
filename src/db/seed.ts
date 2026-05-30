@@ -82,7 +82,7 @@ const buildSeedSql = (entries: AccountEntry[]) => {
 		const userId = createId();
 		const profileId = createId();
 		const { score, status } = riskForTotalPrs(totalPrs);
-		const summary = `Imported from ${SOURCE_NAME}; observed ${totalPrs} PRs.`;
+		const summary = `Imported from ${SOURCE_NAME}; observed ${totalPrs} PR${totalPrs === 1 ? "" : "s"}.`;
 
 		statements.push(`
 INSERT INTO GithubUser (

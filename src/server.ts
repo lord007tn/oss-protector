@@ -68,6 +68,9 @@ const CSP_DIRECTIVES = [
 	"img-src 'self' https://github.com https://avatars.githubusercontent.com https://startupfa.me https://launchigniter.com https://api.producthunt.com",
 	"script-src 'self' 'unsafe-inline'",
 	"style-src 'self' 'unsafe-inline'",
+	// Geist is self-hosted (see styles.css / @fontsource-variable); woff2 ships
+	// from /assets on our own origin, so no external font host is needed.
+	"font-src 'self'",
 ].join("; ");
 
 // Deny-by-default Permissions-Policy. Every powerful capability we don't use

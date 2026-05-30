@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { DirectoryDashboard } from "@/actions/directory";
 import { AccountAvatar } from "@/components/oss/account-avatar";
@@ -25,6 +25,13 @@ import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 type FeedFilter = "all" | "high" | "review" | "watch";
+interface FeedSearch {
+	q: string;
+	status: FeedFilter;
+}
+
+const FEED_FILTERS: readonly FeedFilter[] = ["all", "high", "review", "watch"];
+const DEFAULT_FEED_SEARCH: FeedSearch = { q: "", status: "all" };
 
 export const Route = createFileRoute("/feed")({
 	component: FeedRoute,
@@ -36,6 +43,17 @@ export const Route = createFileRoute("/feed")({
 			title: "Public review feed | OSS Protector",
 		}),
 	loader: () => getDashboardFn(),
+	// Keep the active filter + search in the URL so a filtered feed is shareable
+	// and survives a refresh; defaults are stripped to keep /feed clean.
+	search: {
+		middlewares: [stripSearchParams(DEFAULT_FEED_SEARCH)],
+	},
+	validateSearch: (search: Record<string, unknown>): FeedSearch => ({
+		q: typeof search.q === "string" ? search.q : "",
+		status: FEED_FILTERS.includes(search.status as FeedFilter)
+			? (search.status as FeedFilter)
+			: "all",
+	}),
 });
 
 function matchesFilter(account: DisplayAccount, filter: FeedFilter) {
@@ -61,8 +79,12 @@ function FeedRoute() {
 		[dashboard.riskProfiles]
 	);
 
-	const [filter, setFilter] = useState<FeedFilter>("all");
-	const [query, setQuery] = useState("");
+	const { q: query, status: filter } = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const setFilter = (status: FeedFilter) =>
+		navigate({ replace: true, search: (prev) => ({ ...prev, status }) });
+	const setQuery = (value: string) =>
+		navigate({ replace: true, search: (prev) => ({ ...prev, q: value }) });
 
 	const tally = {
 		all: accounts.length,
