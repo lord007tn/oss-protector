@@ -401,21 +401,25 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 						sponsor us on GitHub — but the tool stays free for everyone.
 					</p>
 					<div className="relative flex flex-wrap justify-center gap-2.5">
-						<a
-							className={cn(buttonVariants({ size: "lg" }))}
-							href={githubAppInstallUrl}
-						>
+						<a className={cn(buttonVariants({ size: "lg" }))} href="/login">
 							<Github data-icon="inline-start" />
-							Install on GitHub
+							Sign in with GitHub
 						</a>
 						<a
 							className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
-							href="/sponsors"
+							href={githubAppInstallUrl}
 						>
-							<Heart data-icon="inline-start" />
-							Sponsor the project
+							<Shield data-icon="inline-start" />
+							Install the App
 						</a>
 					</div>
+					<a
+						className="relative mt-3 inline-flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
+						href="/sponsors"
+					>
+						<Heart className="size-3.5" />
+						Sponsor the project
+					</a>
 				</div>
 			</Section>
 		</>
@@ -452,21 +456,25 @@ function HeroSection({
 						transparent, and built by maintainers — for maintainers.
 					</p>
 					<div className="flex flex-wrap items-center gap-2.5">
-						<a
-							className={cn(buttonVariants({ size: "lg" }))}
-							href={githubAppInstallUrl}
-						>
+						<a className={cn(buttonVariants({ size: "lg" }))} href="/login">
 							<Github data-icon="inline-start" />
-							Install on GitHub
+							Sign in with GitHub
 						</a>
 						<a
 							className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
-							href="/feed"
+							href={githubAppInstallUrl}
 						>
-							See the public feed
-							<ArrowRight data-icon="inline-end" />
+							<Shield data-icon="inline-start" />
+							Install the App
 						</a>
 					</div>
+					<a
+						className="mt-3 inline-flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
+						href="/feed"
+					>
+						or browse the public feed
+						<ArrowRight className="size-3.5" />
+					</a>
 					<div className="mt-7 flex flex-wrap gap-6 font-mono text-muted-foreground text-xs">
 						<span>
 							<b className="font-medium text-foreground tabular-nums">

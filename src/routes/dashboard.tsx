@@ -7,14 +7,18 @@ import {
 	Github,
 	Hash,
 	Inbox,
+	Loader2,
 	RotateCcw,
+	Settings,
 	Shield,
+	Trash2,
 	User,
 	X,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
+import { RepoPolicyView } from "@/components/dashboard/repo-policy-view";
 import { AccountAvatar } from "@/components/oss/account-avatar";
 import { ConfidenceBadge } from "@/components/oss/confidence-badge";
 import {
@@ -25,6 +29,7 @@ import {
 import { SignInGate } from "@/components/site/sign-in-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { REPORT_STATUS_LABELS } from "@/constants/report-statuses";
 import type { AppealReviewItem } from "@/data-access/appeals";
 import type {
@@ -34,13 +39,24 @@ import type {
 	DashboardRepo,
 	MaintainerDashboard,
 } from "@/data-access/maintainer-dashboard";
+import type {
+	RepoDecisionKind,
+	RepoDecisionRow,
+} from "@/data-access/repo-decisions";
 import { reasonLabel, relativeTime } from "@/lib/directory-view";
 import { repoShortName } from "@/lib/oss";
 import { useMaintainerDashboard } from "@/lib/use-maintainer-dashboard";
 import { useSessionState } from "@/lib/use-session-state";
 import { cn } from "@/lib/utils";
 
-type DashTab = "activity" | "allow" | "appeals" | "coverage" | "inbox";
+type DashTab =
+	| "activity"
+	| "allow"
+	| "appeals"
+	| "coverage"
+	| "inbox"
+	| "overrides"
+	| "policy";
 type Decision = "allow" | "confirm" | "dismiss" | "reset";
 type QueueDecision = Exclude<Decision, "reset">;
 type StatusVariant = "destructive" | "info" | "success" | "warning";
@@ -50,11 +66,13 @@ const EMPTY_DASHBOARD: MaintainerDashboard = {
 	allowlist: [],
 	appeals: [],
 	queue: [],
+	repoOverrides: [],
 	repos: [],
 	stats: {
 		allowedCount: 0,
 		appealCount: 0,
 		blockedCount: 0,
+		overrideCount: 0,
 		queueCount: 0,
 		repoCount: 0,
 	},
@@ -214,7 +232,7 @@ function DashboardContent() {
 				count: String(data.activity.length),
 				icon: <Activity className="size-3.5" />,
 				key: "activity",
-				label: "Activity",
+				label: "Audit log",
 			},
 			{
 				count: String(data.stats.repoCount),
@@ -227,6 +245,18 @@ function DashboardContent() {
 				icon: <User className="size-3.5" />,
 				key: "allow",
 				label: "Allowlist",
+			},
+			{
+				count: String(data.stats.overrideCount),
+				icon: <Hash className="size-3.5" />,
+				key: "overrides",
+				label: "Repo overrides",
+			},
+			{
+				count: "—",
+				icon: <Settings className="size-3.5" />,
+				key: "policy",
+				label: "Repo policy",
 			},
 		];
 
@@ -324,6 +354,14 @@ function DashboardContent() {
 							pendingLogin={pendingLogin}
 						/>
 					) : null}
+					{active === "overrides" ? (
+						<OverridesView
+							onChange={refresh}
+							overrides={data.repoOverrides}
+							repos={data.repos}
+						/>
+					) : null}
+					{active === "policy" ? <RepoPolicyView repos={data.repos} /> : null}
 
 					<InstallCta />
 				</div>
@@ -626,7 +664,30 @@ function CoverageView({ repos }: { repos: DashboardRepo[] }) {
 	);
 }
 
-function activityDotClass(status: string) {
+type AuditFilter = "all" | "decisions" | "overrides" | "reports";
+
+const AUDIT_FILTERS: { key: AuditFilter; label: string }[] = [
+	{ key: "all", label: "All" },
+	{ key: "decisions", label: "Decisions" },
+	{ key: "overrides", label: "Repo overrides" },
+	{ key: "reports", label: "Reports" },
+];
+
+const CORRECTION_LABEL: Record<string, string> = {
+	allow: "Allowlisted",
+	confirm: "Confirmed report",
+	dismiss: "Dismissed report",
+	reset: "Reset profile",
+};
+
+const CORRECTION_DOT: Record<string, string> = {
+	allow: "border-success",
+	confirm: "border-destructive",
+	dismiss: "border-success",
+	reset: "border-info",
+};
+
+function reportDotClass(status: string) {
 	if (status === "validated") {
 		return "border-destructive";
 	}
@@ -636,44 +697,156 @@ function activityDotClass(status: string) {
 	return "border-info";
 }
 
-function ActivityView({ items }: { items: DashboardActivityItem[] }) {
-	if (items.length === 0) {
-		return (
-			<div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground text-sm">
-				No activity yet. Reports captured on your repos will appear here.
+function ReportTimelineRow({
+	item,
+}: {
+	item: Extract<DashboardActivityItem, { eventType: "report" }>;
+}) {
+	return (
+		<div className="relative pb-5 last:pb-0">
+			<div
+				className={cn(
+					"absolute top-1.5 left-[1px] size-2.5 rounded-full border-2 bg-background",
+					reportDotClass(item.status)
+				)}
+			/>
+			<div className="font-mono text-muted-foreground text-xs">
+				{relativeTime(item.createdAt)}
 			</div>
-		);
+			<div className="mt-0.5 font-medium text-sm">
+				Report · @{item.login} · {reasonLabel(item.reasonCode)}
+			</div>
+			<div className="mt-0.5 text-[13px] text-muted-foreground">
+				{item.repoFullName} · {REPORT_STATUS_LABELS[item.status]}
+			</div>
+		</div>
+	);
+}
+
+function CorrectionTimelineRow({
+	item,
+}: {
+	item: Extract<DashboardActivityItem, { eventType: "correction" }>;
+}) {
+	return (
+		<div className="relative pb-5 last:pb-0">
+			<div
+				className={cn(
+					"absolute top-1.5 left-[1px] size-2.5 rounded-full border-2 bg-background",
+					CORRECTION_DOT[item.correctionKind] ?? "border-info"
+				)}
+			/>
+			<div className="font-mono text-muted-foreground text-xs">
+				{relativeTime(item.createdAt)}
+			</div>
+			<div className="mt-0.5 font-medium text-sm">
+				{CORRECTION_LABEL[item.correctionKind] ?? "Decision"} · @{item.login}
+			</div>
+			<div className="mt-0.5 text-[13px] text-muted-foreground">
+				by @{item.correctedByLogin}
+				{item.repoFullName ? ` · ${item.repoFullName}` : ""}
+			</div>
+		</div>
+	);
+}
+
+function RepoDecisionTimelineRow({
+	item,
+}: {
+	item: Extract<DashboardActivityItem, { eventType: "repo_decision" }>;
+}) {
+	return (
+		<div className="relative pb-5 last:pb-0">
+			<div
+				className={cn(
+					"absolute top-1.5 left-[1px] size-2.5 rounded-full border-2 bg-background",
+					item.decision === "block" ? "border-destructive" : "border-success"
+				)}
+			/>
+			<div className="font-mono text-muted-foreground text-xs">
+				{relativeTime(item.createdAt)}
+			</div>
+			<div className="mt-0.5 font-medium text-sm">
+				Repo override · @{item.login} ·{" "}
+				{item.decision === "block" ? "Block" : "Allow"}
+			</div>
+			<div className="mt-0.5 text-[13px] text-muted-foreground">
+				{item.repoFullName} · by @{item.correctedByLogin}
+				{item.note ? ` · "${item.note}"` : ""}
+			</div>
+		</div>
+	);
+}
+
+function TimelineRow({ item }: { item: DashboardActivityItem }) {
+	if (item.eventType === "report") {
+		return <ReportTimelineRow item={item} />;
 	}
+	if (item.eventType === "correction") {
+		return <CorrectionTimelineRow item={item} />;
+	}
+	return <RepoDecisionTimelineRow item={item} />;
+}
+
+function ActivityView({ items }: { items: DashboardActivityItem[] }) {
+	const [filter, setFilter] = useState<AuditFilter>("all");
+
+	const filtered = items.filter((item) => {
+		if (filter === "decisions") {
+			return item.eventType === "correction";
+		}
+		if (filter === "overrides") {
+			return item.eventType === "repo_decision";
+		}
+		if (filter === "reports") {
+			return item.eventType === "report";
+		}
+		return true;
+	});
+
 	return (
 		<div className="rounded-2xl border bg-card p-6">
-			<div className="mb-5">
-				<div className="font-medium text-[16px]">Activity</div>
-				<div className="mt-0.5 text-[13px] text-muted-foreground">
-					Recent reports captured across your repos. Read-only ledger.
+			<div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<div className="font-medium text-[16px]">Audit log</div>
+					<div className="mt-0.5 text-[13px] text-muted-foreground">
+						Reports captured and maintainer decisions applied across your repos.
+						Read-only.
+					</div>
+				</div>
+				<div className="inline-flex gap-0.5 rounded-lg border bg-muted p-0.5">
+					{AUDIT_FILTERS.map((option) => (
+						<button
+							className={cn(
+								"rounded-md px-2.5 py-1 text-xs transition-colors",
+								filter === option.key
+									? "bg-background text-foreground shadow-sm"
+									: "text-muted-foreground hover:text-foreground"
+							)}
+							key={option.key}
+							onClick={() => setFilter(option.key)}
+							type="button"
+						>
+							{option.label}
+						</button>
+					))}
 				</div>
 			</div>
-			<div className="relative pl-6">
-				<div className="absolute top-1 bottom-1 left-[6px] w-px bg-border" />
-				{items.map((item) => (
-					<div className="relative pb-5 last:pb-0" key={item.id}>
-						<div
-							className={cn(
-								"absolute top-1.5 left-[1px] size-2.5 rounded-full border-2 bg-background",
-								activityDotClass(item.status)
-							)}
-						/>
-						<div className="font-mono text-muted-foreground text-xs">
-							{relativeTime(item.createdAt)}
-						</div>
-						<div className="mt-0.5 font-medium text-sm">
-							@{item.login} · {reasonLabel(item.reasonCode)}
-						</div>
-						<div className="mt-0.5 text-[13px] text-muted-foreground">
-							{item.repoFullName} · {REPORT_STATUS_LABELS[item.status]}
-						</div>
-					</div>
-				))}
-			</div>
+
+			{filtered.length === 0 ? (
+				<div className="rounded-xl border bg-muted/30 p-8 text-center text-muted-foreground text-sm">
+					{filter === "all"
+						? "No activity yet. Reports and decisions on your repos will appear here."
+						: `No ${filter} yet on your repos.`}
+				</div>
+			) : (
+				<div className="relative pl-6">
+					<div className="absolute top-1 bottom-1 left-[6px] w-px bg-border" />
+					{filtered.map((item) => (
+						<TimelineRow item={item} key={item.id} />
+					))}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -801,6 +974,258 @@ function AppealsView({
 					/>
 				))
 			)}
+		</div>
+	);
+}
+
+function OverridesView({
+	onChange,
+	overrides,
+	repos,
+}: {
+	onChange: () => void;
+	overrides: RepoDecisionRow[];
+	repos: DashboardRepo[];
+}) {
+	const [login, setLogin] = useState("");
+	const [note, setNote] = useState("");
+	const [repositoryId, setRepositoryId] = useState(repos[0]?.id ?? "");
+	const [decision, setDecision] = useState<RepoDecisionKind>("block");
+	const [pending, setPending] = useState(false);
+	const [pendingRow, setPendingRow] = useState<null | string>(null);
+
+	const submit = async () => {
+		if (!repositoryId) {
+			toast.error("Pick a repository.");
+			return;
+		}
+		if (login.trim().length < 1) {
+			toast.error("Provide an account handle.");
+			return;
+		}
+		setPending(true);
+		try {
+			const response = await fetch("/api/maintainer/repo-decision", {
+				body: JSON.stringify({
+					decision,
+					note: note.trim() || null,
+					repositoryId,
+					targetLogin: login.trim(),
+				}),
+				headers: { "Content-Type": "application/json" },
+				method: "POST",
+			});
+			const data = (await response.json()) as { error?: string };
+			if (!response.ok) {
+				toast.error(data.error ?? "Couldn't save the override.");
+				return;
+			}
+			toast.success(`Saved ${decision} for @${login.trim()}.`);
+			setLogin("");
+			setNote("");
+			onChange();
+		} finally {
+			setPending(false);
+		}
+	};
+
+	const remove = async (row: RepoDecisionRow) => {
+		setPendingRow(row.id);
+		try {
+			const response = await fetch("/api/maintainer/repo-decision", {
+				body: JSON.stringify({
+					repositoryId: row.repositoryId,
+					targetLogin: row.login,
+				}),
+				headers: { "Content-Type": "application/json" },
+				method: "DELETE",
+			});
+			const data = (await response.json()) as { error?: string };
+			if (!response.ok) {
+				toast.error(data.error ?? "Couldn't remove the override.");
+				return;
+			}
+			toast.success(`Removed override for @${row.login}.`);
+			onChange();
+		} finally {
+			setPendingRow(null);
+		}
+	};
+
+	if (repos.length === 0) {
+		return (
+			<div className="rounded-2xl border bg-card p-10 text-center">
+				<Shield className="mx-auto size-7 text-muted-foreground" />
+				<div className="mt-3 font-medium text-[15px]">No repositories yet</div>
+				<p className="mx-auto mt-1.5 max-w-md text-[13.5px] text-muted-foreground">
+					Install OSS Protector on a repo before adding per-repo allow / block
+					overrides.
+				</p>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="rounded-2xl border bg-card p-6">
+				<div className="mb-4">
+					<div className="font-medium text-[16px]">Add repo override</div>
+					<div className="mt-0.5 text-[13px] text-muted-foreground">
+						Override the shared score for one account on one of your repos.
+						Block force-flags every PR; Allow short-circuits AI review for that
+						author on that repo.
+					</div>
+				</div>
+				<div className="grid gap-3 md:grid-cols-[2fr_1fr_auto]">
+					<div className="grid gap-1.5">
+						<label
+							className="font-medium text-[12.5px]"
+							htmlFor="override-login"
+						>
+							Account handle
+						</label>
+						<Input
+							autoComplete="off"
+							id="override-login"
+							onChange={(event) => setLogin(event.target.value)}
+							placeholder="@autopr-helper-99"
+							value={login}
+						/>
+					</div>
+					<div className="grid gap-1.5">
+						<label
+							className="font-medium text-[12.5px]"
+							htmlFor="override-repo"
+						>
+							Repository
+						</label>
+						<select
+							className={cn(
+								"h-9 rounded-md border bg-background px-3 text-sm",
+								"focus:border-input focus:outline-none"
+							)}
+							id="override-repo"
+							onChange={(event) => setRepositoryId(event.target.value)}
+							value={repositoryId}
+						>
+							{repos.map((repo) => (
+								<option key={repo.id} value={repo.id}>
+									{repo.fullName}
+								</option>
+							))}
+						</select>
+					</div>
+					<fieldset className="grid gap-1.5">
+						<legend className="font-medium text-[12.5px]">Decision</legend>
+						<div className="inline-flex gap-0.5 rounded-md border bg-muted p-0.5">
+							{(["block", "allow"] as RepoDecisionKind[]).map((kind) => (
+								<button
+									className={cn(
+										"rounded px-2.5 py-1 text-xs transition-colors",
+										decision === kind
+											? "bg-background text-foreground shadow-sm"
+											: "text-muted-foreground hover:text-foreground"
+									)}
+									key={kind}
+									onClick={() => setDecision(kind)}
+									type="button"
+								>
+									{kind === "block" ? "Block" : "Allow"}
+								</button>
+							))}
+						</div>
+					</fieldset>
+				</div>
+				<div className="mt-3 grid gap-1.5">
+					<label className="font-medium text-[12.5px]" htmlFor="override-note">
+						Note (optional)
+					</label>
+					<Input
+						id="override-note"
+						maxLength={280}
+						onChange={(event) => setNote(event.target.value)}
+						placeholder="Why this override applies — surfaced in the audit log."
+						value={note}
+					/>
+				</div>
+				<div className="mt-4">
+					<Button disabled={pending} onClick={submit} type="button">
+						{pending ? (
+							<Loader2 className="size-3.5 animate-spin" />
+						) : (
+							<Check className="size-3.5" />
+						)}
+						Save override
+					</Button>
+				</div>
+			</div>
+
+			<div className="overflow-hidden rounded-2xl border bg-card">
+				<div className="flex items-center justify-between border-b px-5 py-4">
+					<div>
+						<div className="font-medium text-[16px]">Active overrides</div>
+						<div className="mt-0.5 text-[13px] text-muted-foreground">
+							Repo-scoped. Don't affect the shared OSS Protector score.
+						</div>
+					</div>
+				</div>
+				{overrides.length === 0 ? (
+					<div className="p-10 text-center text-muted-foreground text-sm">
+						No overrides on your repos yet.
+					</div>
+				) : (
+					overrides.map((row) => (
+						<div
+							className="grid grid-cols-[32px_1fr_auto] items-center gap-3.5 border-t px-5 py-3.5"
+							key={row.id}
+						>
+							<AccountAvatar
+								avatarUrl={row.avatarUrl}
+								className="size-8 text-[10px]"
+								login={row.login}
+							/>
+							<div className="min-w-0">
+								<div className="flex flex-wrap items-center gap-2">
+									<a
+										className="font-medium text-[14px] hover:underline"
+										href={`/accounts/${row.login}`}
+									>
+										@{row.login}
+									</a>
+									<Badge
+										variant={
+											row.decision === "block" ? "destructive" : "success"
+										}
+									>
+										{row.decision === "block" ? "Block" : "Allow"}
+									</Badge>
+									<span className="font-mono text-muted-foreground text-xs">
+										{row.repoFullName}
+									</span>
+								</div>
+								<div className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
+									{row.note ? `"${row.note}"` : "No note."} ·{" "}
+									{relativeTime(row.updatedAt)}
+								</div>
+							</div>
+							<Button
+								disabled={pendingRow === row.id}
+								onClick={() => remove(row)}
+								size="sm"
+								type="button"
+								variant="ghost"
+							>
+								{pendingRow === row.id ? (
+									<Loader2 className="size-3 animate-spin" />
+								) : (
+									<Trash2 className="size-3" />
+								)}
+								Remove
+							</Button>
+						</div>
+					))
+				)}
+			</div>
 		</div>
 	);
 }

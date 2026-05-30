@@ -70,6 +70,9 @@ export function LoginForm({
 			setPending(false);
 			toast.error(error.message ?? "GitHub sign-in failed.");
 		}
+		// On success Better Auth returns a github.com authorize URL and triggers a
+		// full-page navigation. Leave `pending` true so the button stays in its
+		// loading state until the browser actually unloads the page.
 	};
 
 	return (
@@ -95,8 +98,12 @@ export function LoginForm({
 						type="button"
 						variant="outline"
 					>
-						<Github data-icon="inline-start" />
-						Continue with GitHub
+						{pending ? (
+							<Loader2 className="animate-spin" data-icon="inline-start" />
+						) : (
+							<Github data-icon="inline-start" />
+						)}
+						{pending ? "Redirecting to GitHub…" : "Continue with GitHub"}
 					</Button>
 					{emailOtpEnabled ? (
 						<div className="my-5 flex items-center gap-3 text-muted-foreground text-xs">
@@ -178,9 +185,9 @@ export function LoginForm({
 			) : null}
 
 			<div className="mt-6 rounded-xl bg-muted p-3.5 text-muted-foreground text-xs leading-relaxed">
-				New to OSS Protector?{" "}
+				Next step after sign-in:{" "}
 				<a className="text-primary" href={githubAppInstallUrl}>
-					Install the GitHub App →
+					install OSS Protector on your repos →
 				</a>
 			</div>
 		</div>

@@ -1,5 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 
+import { userAllowsNotificationKind } from "@/data-access/user-preferences";
 import { database } from "@/db";
 import {
 	Installation,
@@ -52,7 +53,16 @@ export async function notifyInstallationMaintainers({
 		)
 		.where(eq(Installation.githubInstallationId, String(installationGithubId)));
 
+	const effectiveKind = kind ?? "info";
+	let delivered = 0;
 	for (const member of members) {
+		const allowed = await userAllowsNotificationKind(
+			member.userId,
+			effectiveKind
+		);
+		if (!allowed) {
+			continue;
+		}
 		await createNotification({
 			body,
 			kind,
@@ -60,8 +70,9 @@ export async function notifyInstallationMaintainers({
 			title,
 			userId: member.userId,
 		});
+		delivered += 1;
 	}
-	return members.length;
+	return delivered;
 }
 
 export async function listNotifications(userId: string, limit = 30) {

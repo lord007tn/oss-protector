@@ -428,6 +428,89 @@ export const Notification = sqliteTable(
 	]
 );
 
+// Per-repo policy edits made from the dashboard. Mirrors the fields in
+// `.github/oss-protector.json`. Each column is nullable — a missing value
+// means "fall through to the committed file or the default". When both DB and
+// file have a value for a field, the committed file wins (code-as-config).
+export const RepoPolicy = sqliteTable("RepoPolicy", {
+	repositoryId: text("repositoryId")
+		.primaryKey()
+		.references(() => Repository.id, { onDelete: "cascade" }),
+	enabled: integer("enabled", { mode: "boolean" }),
+	analyzePrivateRepositories: integer("analyzePrivateRepositories", {
+		mode: "boolean",
+	}),
+	minimumLikelyAbuseConfidence: integer("minimumLikelyAbuseConfidence", {
+		mode: "number",
+	}),
+	trustedAuthorsJson: text("trustedAuthorsJson"),
+	ignoredPathsJson: text("ignoredPathsJson"),
+	updatedByUserId: text("updatedByUserId"),
+	updatedByLogin: text("updatedByLogin"),
+	updatedAt: integer("updatedAt", { mode: "number" })
+		.notNull()
+		.default(unixNow),
+});
+
+// Repo-scoped allow/block decision for a specific account. Distinct from the
+// shared RiskProfile.status: this is a maintainer saying "for MY repo,
+// override the shared score." On webhook analysis we check this table before
+// applying the shared score so a local allow short-circuits the flag (and a
+// local block force-flags regardless of the shared profile).
+export const RepoAccountDecision = sqliteTable(
+	"RepoAccountDecision",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		repositoryId: text("repositoryId")
+			.notNull()
+			.references(() => Repository.id, { onDelete: "cascade" }),
+		targetUserId: text("targetUserId")
+			.notNull()
+			.references(() => GithubUser.id, { onDelete: "cascade" }),
+		decision: text("decision").notNull(),
+		note: text("note"),
+		correctedByLogin: text("correctedByLogin").notNull(),
+		correctedByUserId: text("correctedByUserId"),
+		createdAt: integer("createdAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+		updatedAt: integer("updatedAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [
+		uniqueIndex("repo_account_decisions_repo_target_idx").on(
+			table.repositoryId,
+			table.targetUserId
+		),
+		index("repo_account_decisions_repo_idx").on(table.repositoryId),
+		index("repo_account_decisions_target_idx").on(table.targetUserId),
+	]
+);
+
+// Per-maintainer preferences: BYOK OpenRouter key (AES-GCM encrypted with a
+// secret-derived key) and per-kind notification toggles. One row per better-auth
+// userId. Absent row means defaults (no BYOK, all notification kinds on).
+export const UserPreferences = sqliteTable(
+	"UserPreferences",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		userId: text("userId").notNull(),
+		openrouterApiKeyEncrypted: text("openrouterApiKeyEncrypted"),
+		notificationKindsJson: text("notificationKindsJson")
+			.notNull()
+			.default('["report","dispute","flag","correction","ok","info"]'),
+		updatedAt: integer("updatedAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [uniqueIndex("user_preferences_user_idx").on(table.userId)]
+);
+
 // Durable, D1-backed work queue for one-time account PR backfills. Replaces the
 // Cloudflare Queue (which needs Workers Paid): a cron-triggered handler drains
 // pending rows. One row per login — re-enqueueing an existing login is a no-op.
@@ -464,9 +547,12 @@ export const appSchema = {
 	InstallationMaintainer,
 	Notification,
 	PullRequest,
+	RepoAccountDecision,
+	RepoPolicy,
 	Repository,
 	RiskProfile,
 	SourceImport,
+	UserPreferences,
 };
 
 export type AppEventSelect = typeof AppEvent.$inferSelect;
@@ -482,4 +568,7 @@ export type NotificationSelect = typeof Notification.$inferSelect;
 export type PullRequestSelect = typeof PullRequest.$inferSelect;
 export type RepositorySelect = typeof Repository.$inferSelect;
 export type RiskProfileSelect = typeof RiskProfile.$inferSelect;
+export type RepoAccountDecisionSelect = typeof RepoAccountDecision.$inferSelect;
+export type RepoPolicySelect = typeof RepoPolicy.$inferSelect;
 export type SourceImportSelect = typeof SourceImport.$inferSelect;
+export type UserPreferencesSelect = typeof UserPreferences.$inferSelect;

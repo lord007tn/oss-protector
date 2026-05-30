@@ -11,7 +11,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
-import type { ClankerProfileResult } from "@/actions/clanker-profile";
+import type { AccountProfileResult } from "@/actions/account-profile";
 import { publicAppUrl } from "@/components/landing/constants";
 import { AccountAvatar } from "@/components/oss/account-avatar";
 import { ConfidenceBadge } from "@/components/oss/confidence-badge";
@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { REASON_DESCRIPTIONS } from "@/constants/reason-codes";
-import { getClankerProfileFn } from "@/functions/clanker-profile";
+import { getAccountProfileFn } from "@/functions/account-profile";
 import {
 	avatarInitials,
 	reasonLabel,
@@ -47,7 +47,7 @@ export const Route = createFileRoute("/accounts_/$login")({
 		],
 	}),
 	loader: async ({ params }) => {
-		const profile = await getClankerProfileFn({
+		const profile = await getAccountProfileFn({
 			data: { login: params.login },
 		});
 		if (profile.notFound) {
@@ -71,7 +71,7 @@ function humanizeSignal(signalType: string): string {
 }
 
 function AccountRoute() {
-	const profile = Route.useLoaderData() as ClankerProfileResult;
+	const profile = Route.useLoaderData() as AccountProfileResult;
 	const [disputing, setDisputing] = useState(false);
 	const [disputeText, setDisputeText] = useState("");
 	const [disputeSent, setDisputeSent] = useState(false);
@@ -227,7 +227,6 @@ function AccountRoute() {
 									>
 										Cancel
 									</Button>
-									{/* TODO(real-data): persist via a dispute server function (W4). */}
 									<Button
 										disabled={disputeText.trim().length < 60 || disputePending}
 										onClick={submitDispute}

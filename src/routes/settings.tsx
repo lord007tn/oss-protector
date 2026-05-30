@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, Check, Github, LogOut, Shield } from "lucide-react";
+import { Check, Github, LogOut, Shield } from "lucide-react";
 import type { ReactNode } from "react";
 import { githubAppInstallUrl } from "@/components/landing/constants";
+import { PreferencesPanel } from "@/components/settings/preferences-panel";
 import {
 	PageContainer,
 	PageHeader,
@@ -81,17 +82,7 @@ function SettingsRoute() {
 						</FieldRow>
 					</Section>
 
-					<Section
-						desc="Reports, flags, and maintainer corrections show up in your in-app inbox (the bell in the top bar). There's no email or third-party delivery."
-						title="Notifications"
-					>
-						<FieldRow hint="Top-right bell, updates in real time" label="Inbox">
-							<span className="inline-flex items-center gap-2 text-muted-foreground text-sm">
-								<Bell className="size-3.5" />
-								In-app only
-							</span>
-						</FieldRow>
-					</Section>
+					<PreferencesPanel />
 
 					<Section
 						desc="Protection is controlled by the GitHub App installation. Add or remove repositories, or uninstall, from GitHub."

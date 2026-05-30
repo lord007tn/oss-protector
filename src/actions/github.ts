@@ -21,6 +21,8 @@ import {
 } from "@/data-access/directory";
 import { linkInstallerByGithubId } from "@/data-access/maintainers";
 import { notifyInstallationMaintainers } from "@/data-access/notifications";
+import { getRepoAccountDecision } from "@/data-access/repo-decisions";
+import { getRepoPolicy } from "@/data-access/repo-policy";
 import {
 	type CorrectionCommand,
 	type GithubRepositoryPayload,
@@ -38,8 +40,8 @@ import {
 } from "@/helpers/github-webhook";
 import {
 	applyRepositoryPolicy,
-	DEFAULT_REPOSITORY_POLICY,
-	parseRepositoryPolicy,
+	parseRepositoryPolicyPartial,
+	resolveRepositoryPolicy,
 	shouldSkipPullRequestAnalysis,
 } from "@/helpers/repository-policy";
 import { createInstallationClient } from "@/integrations/github/client";
@@ -94,7 +96,7 @@ const decodeBase64Text = (value: string): string => {
 // once per call.
 type InstallationClient = Awaited<ReturnType<typeof createInstallationClient>>;
 
-const fetchRepositoryPolicy = async ({
+const getCommittedPolicy = async ({
 	octokit,
 	repositoryFullName,
 }: {
@@ -102,11 +104,8 @@ const fetchRepositoryPolicy = async ({
 	repositoryFullName: string;
 }) => {
 	const repository = parseRepositoryFullName(repositoryFullName);
-	if (!repository) {
-		return DEFAULT_REPOSITORY_POLICY;
-	}
-	if (!octokit) {
-		return DEFAULT_REPOSITORY_POLICY;
+	if (!(repository && octokit)) {
+		return {};
 	}
 	try {
 		const response = await octokit.rest.repos.getContent({
@@ -116,9 +115,9 @@ const fetchRepositoryPolicy = async ({
 		});
 		const data = response.data;
 		if (!("content" in data) || data.type !== "file") {
-			return DEFAULT_REPOSITORY_POLICY;
+			return {};
 		}
-		return parseRepositoryPolicy(decodeBase64Text(data.content));
+		return parseRepositoryPolicyPartial(decodeBase64Text(data.content));
 	} catch (caught) {
 		const status =
 			typeof caught === "object" && caught !== null && "status" in caught
@@ -127,8 +126,30 @@ const fetchRepositoryPolicy = async ({
 		if (status !== 404) {
 			console.warn("Failed to fetch OSS Protector repository policy", caught);
 		}
-		return DEFAULT_REPOSITORY_POLICY;
+		return {};
 	}
+};
+
+const getEffectiveRepositoryPolicy = async ({
+	octokit,
+	repositoryFullName,
+	repositoryId,
+}: {
+	octokit: InstallationClient;
+	repositoryFullName: string;
+	repositoryId?: null | string;
+}) => {
+	const [filePolicy, dbView] = await Promise.all([
+		getCommittedPolicy({ octokit, repositoryFullName }),
+		repositoryId
+			? getRepoPolicy(repositoryId).catch(() => ({ dbPolicy: {} }))
+			: Promise.resolve({ dbPolicy: {} }),
+	]);
+	const { policy } = resolveRepositoryPolicy({
+		dbPolicy: dbView.dbPolicy,
+		filePolicy,
+	});
+	return policy;
 };
 
 const MAX_FILES = 40;
@@ -138,7 +159,7 @@ const MAX_COMMENT_LENGTH = 1000;
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
 const COMMENTS_PER_PAGE = 50;
 
-const fetchPullRequestFiles = async ({
+const listPullRequestFiles = async ({
 	octokit,
 	pullNumber,
 	repositoryFullName,
@@ -207,7 +228,7 @@ const normalizePullRequestComments = (
 			};
 		});
 
-const fetchPullRequestComments = async ({
+const listPullRequestComments = async ({
 	octokit,
 	prAuthorLogin,
 	pullNumber,
@@ -255,7 +276,7 @@ const fetchPullRequestComments = async ({
 	}
 };
 
-const fetchPullRequestCommits = async ({
+const listPullRequestCommits = async ({
 	octokit,
 	pullNumber,
 	repositoryFullName,
@@ -302,7 +323,7 @@ const ACCOUNT_ENRICHMENT_TTL_SECONDS = 7 * 86_400;
 
 // Sum stargazers across the account's owned (non-fork) repos — a reputation
 // signal. Bounded to one page so it stays cheap; most stars sit on top repos.
-const fetchAccountStars = async (
+const getAccountStars = async (
 	octokit: NonNullable<InstallationClient>,
 	username: string
 ): Promise<number> => {
@@ -323,7 +344,7 @@ const fetchAccountStars = async (
 };
 
 // Total public PRs the account has authored, via the search API total_count.
-const fetchTotalContributions = async (
+const getTotalContributions = async (
 	octokit: NonNullable<InstallationClient>,
 	login: string
 ): Promise<number> => {
@@ -343,7 +364,7 @@ const fetchTotalContributions = async (
 // stars, contributions, bio). The embedded webhook user object doesn't carry
 // these, so we read the user/repos/search APIs. Heavier than a single call, so
 // callers gate this behind a staleness check (see ACCOUNT_ENRICHMENT_TTL).
-const fetchAccountContext = async ({
+const getAccountContext = async ({
 	login,
 	octokit,
 }: {
@@ -361,8 +382,8 @@ const fetchAccountContext = async ({
 			? Math.floor(Date.parse(data.created_at) / 1000)
 			: Number.NaN;
 		const [totalStars, totalContributions] = await Promise.all([
-			fetchAccountStars(octokit, login),
-			fetchTotalContributions(octokit, login),
+			getAccountStars(octokit, login),
+			getTotalContributions(octokit, login),
 		]);
 		return {
 			bio: data.bio ?? null,
@@ -508,7 +529,7 @@ const enrichAuthorAccount = async ({
 		!author.lastEnrichedAt ||
 		nowSeconds - author.lastEnrichedAt > ACCOUNT_ENRICHMENT_TTL_SECONDS;
 	const fresh = isStale
-		? await fetchAccountContext({ login: author.login, octokit })
+		? await getAccountContext({ login: author.login, octokit })
 		: null;
 	// First time we've ever enriched this account → queue a one-time backfill of
 	// their accessible prior PRs (no-op when no queue is bound).
@@ -540,6 +561,7 @@ const enrichAuthorAccount = async ({
 	};
 };
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: webhook entry point fans out into many guarded subcases by design; extracting each branch would obscure the linear pipeline.
 const handlePullRequest = async (payload: GithubWebhookPayload) => {
 	if (!(payload.repository && payload.pull_request)) {
 		return;
@@ -615,14 +637,15 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			installationId: payload.installation?.id,
 		});
 		const [files, policy] = await Promise.all([
-			fetchPullRequestFiles({
+			listPullRequestFiles({
 				octokit,
 				pullNumber: payload.pull_request.number,
 				repositoryFullName: payload.repository.full_name,
 			}),
-			fetchRepositoryPolicy({
+			getEffectiveRepositoryPolicy({
 				octokit,
 				repositoryFullName: payload.repository.full_name,
+				repositoryId: repository.id,
 			}),
 		]);
 		if (
@@ -644,13 +667,13 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		// Account enrichment hits the user/repos/search APIs, so only refresh it
 		// when this author's signals are missing or stale — not on every PR.
 		const [comments, commitMessages, analysisAccount] = await Promise.all([
-			fetchPullRequestComments({
+			listPullRequestComments({
 				octokit,
 				prAuthorLogin: author.login,
 				pullNumber: payload.pull_request.number,
 				repositoryFullName: payload.repository.full_name,
 			}),
-			fetchPullRequestCommits({
+			listPullRequestCommits({
 				octokit,
 				pullNumber: payload.pull_request.number,
 				repositoryFullName: payload.repository.full_name,
@@ -666,19 +689,58 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 			currentPullRequest: pullRequestRecord,
 			repository,
 		});
-		const analysis = applyRepositoryPolicy(
-			await validatePullRequestWithOpenRouter({
-				account: analysisAccount,
-				body: payload.pull_request.body,
-				comments,
-				commitMessages,
-				files,
-				targetLogin: author.login,
-				title: payload.pull_request.title,
-				url: payload.pull_request.html_url,
-			}),
-			policy
-		);
+
+		// Repo-local override applies before the (expensive) AI call. A local
+		// "allow" short-circuits the entire review path for this PR on this repo
+		// — no AI cost, no flag, no notification. A local "block" synthesizes a
+		// flag with maximum confidence so the maintainer's intent is recorded
+		// even when the AI couldn't have inferred it.
+		const localDecision = await getRepoAccountDecision({
+			repositoryId: repository.id,
+			targetUserId: author.id,
+		});
+		if (localDecision === "allow") {
+			console.log(
+				`pr-analysis: skipped by repo-local allow author=${author.login} pr=${payload.repository.full_name}#${payload.pull_request.number}`
+			);
+			return;
+		}
+
+		const analysis =
+			localDecision === "block"
+				? {
+						causes: ["Manually blocked for this repo by a maintainer."],
+						confidence: 95,
+						evidenceSummary: `Repo-local block for @${author.login} on ${payload.repository.full_name}.`,
+						rationale:
+							"This account is on the repo-local block list. No AI review was performed; the maintainer's decision is authoritative for this repository.",
+						reasonCode: "maintainer_report" as const,
+						scoreBreakdown: {
+							aiQuality: 0,
+							contributionValue: 0,
+							credentialRisk: 0,
+							farmingRisk: 0,
+							maliciousRisk: 0,
+							novelty: 0,
+						},
+						verdict: "likely_abuse" as const,
+					}
+				: applyRepositoryPolicy(
+						await validatePullRequestWithOpenRouter(
+							{
+								account: analysisAccount,
+								body: payload.pull_request.body,
+								comments,
+								commitMessages,
+								files,
+								targetLogin: author.login,
+								title: payload.pull_request.title,
+								url: payload.pull_request.html_url,
+							},
+							{ installationGithubId: payload.installation?.id }
+						),
+						policy
+					);
 		await notifyPullRequestFlag({
 			analysis,
 			authorLogin: author.login,
@@ -853,18 +915,22 @@ const writeIssueCommentReport = async ({
 		return;
 	}
 	const reasonCode = inferReasonCode(command);
-	const validation = await validateReportWithOpenRouter({
-		commandText: command,
-		pullRequest: {
-			body: pullRequest?.body ?? null,
-			title: pullRequest?.title ?? payload.issue.title ?? null,
-			url: pullRequest?.htmlUrl ?? payload.issue.pull_request?.html_url ?? null,
+	const validation = await validateReportWithOpenRouter(
+		{
+			commandText: command,
+			pullRequest: {
+				body: pullRequest?.body ?? null,
+				title: pullRequest?.title ?? payload.issue.title ?? null,
+				url:
+					pullRequest?.htmlUrl ?? payload.issue.pull_request?.html_url ?? null,
+			},
+			reasonText: command,
+			reporterAssociation,
+			reporterIsMaintainer,
+			targetLogin: targetUser.login,
 		},
-		reasonText: command,
-		reporterAssociation,
-		reporterIsMaintainer,
-		targetLogin: targetUser.login,
-	});
+		{ installationGithubId: payload.installation?.id }
+	);
 
 	await createRiskReport({
 		aiRationale: validation.rationale,
@@ -1036,18 +1102,21 @@ const writeReviewCommentReport = async ({
 		return;
 	}
 	const reasonCode = inferReasonCode(command);
-	const validation = await validateReportWithOpenRouter({
-		commandText: command,
-		pullRequest: {
-			body: payload.pull_request.body,
-			title: payload.pull_request.title,
-			url: payload.pull_request.html_url,
+	const validation = await validateReportWithOpenRouter(
+		{
+			commandText: command,
+			pullRequest: {
+				body: payload.pull_request.body,
+				title: payload.pull_request.title,
+				url: payload.pull_request.html_url,
+			},
+			reasonText: command,
+			reporterAssociation,
+			reporterIsMaintainer,
+			targetLogin: targetUser.login,
 		},
-		reasonText: command,
-		reporterAssociation,
-		reporterIsMaintainer,
-		targetLogin: targetUser.login,
-	});
+		{ installationGithubId: payload.installation?.id }
+	);
 
 	await createRiskReport({
 		aiRationale: validation.rationale,

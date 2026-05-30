@@ -2,7 +2,7 @@ import handler from "@tanstack/react-start/server-entry";
 import { resolveAppeal, submitAppeal } from "./actions/appeal";
 import { drainBackfillJobs } from "./actions/backfill";
 import {
-	listClankersApi,
+	listAccountsApi,
 	listProtectorsApi,
 	recentWebhookEvents,
 } from "./actions/directory";
@@ -18,13 +18,30 @@ import {
 	markAllNotificationsReadForRequest,
 	markNotificationReadForRequest,
 } from "./actions/notifications";
+import {
+	applyRepoDecision,
+	clearRepoDecision,
+	listMyRepoDecisions,
+} from "./actions/repo-decisions";
+import {
+	applyRepoPolicy,
+	clearRepoPolicyForMaintainer,
+	getRepoPolicyForMaintainer,
+} from "./actions/repo-policy";
+import {
+	applyUserPreferencesUpdate,
+	getCurrentUserPreferences,
+	testOpenRouterKey,
+} from "./actions/user-preferences";
 import { createAuth, getAuthConfigStatus } from "./auth";
 import type { RuntimeBindings } from "./env";
 import {
-	parseClankerFilters,
+	FilterValidationError,
+	parseAccountFilters,
 	parseProtectorFilters,
 } from "./helpers/directory-filters";
 import { verifyGithubSignature } from "./helpers/github-webhook";
+import { PLATFORM_FREE_MODEL_CHAIN } from "./integrations/openrouter/validation";
 
 type GlobalWithRuntime = typeof globalThis & {
 	__env__?: RuntimeBindings;
@@ -155,7 +172,7 @@ const authResponse = (request: Request, env: RuntimeBindings | undefined) => {
 	return withSecurityHeaders(createAuth({ env, request }).handler(request));
 };
 
-const clankersResponse = async (
+const accountsResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined,
 	searchParams: URLSearchParams
@@ -164,9 +181,25 @@ const clankersResponse = async (
 	if (limited) {
 		return limited;
 	}
-	return withSecurityHeaders(
-		Response.json(await listClankersApi(parseClankerFilters(searchParams)))
-	);
+	try {
+		const filters = parseAccountFilters(searchParams);
+		return withSecurityHeaders(Response.json(await listAccountsApi(filters)));
+	} catch (caught) {
+		if (caught instanceof FilterValidationError) {
+			return withSecurityHeaders(
+				Response.json(
+					{
+						allowed: caught.allowed,
+						error: caught.message,
+						field: caught.field,
+						value: caught.value,
+					},
+					{ status: 400 }
+				)
+			);
+		}
+		throw caught;
+	}
 };
 
 const protectorsResponse = async (
@@ -432,6 +465,394 @@ const sessionApiRoute = (
 	return null;
 };
 
+const userPreferencesGetResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await getCurrentUserPreferences({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, preferences: result.preferences })
+	);
+};
+
+const userPreferencesPostResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await applyUserPreferencesUpdate({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, preferences: result.preferences })
+	);
+};
+
+const openRouterTestResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const session = await createAuth({ env, request }).api.getSession({
+		headers: request.headers,
+	});
+	if (!session?.user) {
+		return withSecurityHeaders(
+			Response.json({ error: "Sign in required." }, { status: 401 })
+		);
+	}
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	const apiKey =
+		typeof (payload as Record<string, unknown> | null)?.apiKey === "string"
+			? ((payload as Record<string, unknown>).apiKey as string)
+			: "";
+	const result = await testOpenRouterKey({ apiKey });
+	return withSecurityHeaders(
+		Response.json(result, { status: result.ok ? 200 : result.status })
+	);
+};
+
+const repoDecisionPostResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await applyRepoDecision({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ decision: result.decision, ok: true })
+	);
+};
+
+const repoDecisionDeleteResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await clearRepoDecision({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ cleared: result.cleared, ok: true })
+	);
+};
+
+const repoDecisionListResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await listMyRepoDecisions({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ decisions: result.decisions, ok: true })
+	);
+};
+
+const repoPolicyGetResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined,
+	searchParams: URLSearchParams
+) => {
+	const repositoryId = searchParams.get("repositoryId") ?? "";
+	if (!repositoryId) {
+		return withSecurityHeaders(
+			Response.json(
+				{ error: "Missing repositoryId query param." },
+				{ status: 400 }
+			)
+		);
+	}
+	const result = await getRepoPolicyForMaintainer({
+		env,
+		repositoryId,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, policy: result.policy })
+	);
+};
+
+const repoPolicyPostResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await applyRepoPolicy({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, policy: result.policy })
+	);
+};
+
+const repoPolicyDeleteResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await clearRepoPolicyForMaintainer({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, policy: result.policy })
+	);
+};
+
+const FREE_MODEL_SUFFIX = /:free$/;
+
+const openRouterFreeModelsResponse = () =>
+	withSecurityHeaders(
+		Response.json({
+			generated_at: new Date().toISOString(),
+			models: PLATFORM_FREE_MODEL_CHAIN.map((model) => ({
+				id: model,
+				tier: "free",
+				url: `https://openrouter.ai/${model.replace(FREE_MODEL_SUFFIX, "")}`,
+			})),
+			note: "Model IDs ending in :free are no-cost via OpenRouter's free tier. Maintainers who bring their own OpenRouter key get the full catalog including paid fallback.",
+		})
+	);
+
+type RouteHandler = (input: {
+	context: ExecutionContext | undefined;
+	env: RuntimeBindings | undefined;
+	request: Request;
+	url: URL;
+}) => Promise<Response>;
+
+interface RouteEntry {
+	handler: RouteHandler;
+	method?: string;
+	path: string | ((path: string) => boolean);
+}
+
+const ROUTES: RouteEntry[] = [
+	{ path: "/sitemap.xml", handler: () => sitemapResponse() },
+	{
+		path: (path) => path.startsWith("/api/auth"),
+		handler: ({ env, request }) => authResponse(request, env),
+	},
+	{
+		path: "/api/accounts",
+		handler: ({ env, request, url }) =>
+			accountsResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/protectors",
+		handler: ({ env, request, url }) =>
+			protectorsResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/health/recent-webhook",
+		handler: ({ env, request, url }) =>
+			recentWebhookResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/github/manifest",
+		handler: () =>
+			Promise.resolve(withSecurityHeaders(Response.json(githubAppManifest()))),
+	},
+	{
+		path: "/api/github/manifest/convert",
+		method: "POST",
+		handler: ({ request }) => manifestConvertResponse(request),
+	},
+	{
+		path: "/api/maintainer/decision",
+		method: "POST",
+		handler: ({ env, request }) => maintainerDecisionResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-decision",
+		method: "POST",
+		handler: ({ env, request }) => repoDecisionPostResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-decision",
+		method: "DELETE",
+		handler: ({ env, request }) => repoDecisionDeleteResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-decisions",
+		method: "GET",
+		handler: ({ env, request }) => repoDecisionListResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-policy",
+		method: "GET",
+		handler: ({ env, request, url }) =>
+			repoPolicyGetResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/maintainer/repo-policy",
+		method: "POST",
+		handler: ({ env, request }) => repoPolicyPostResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-policy",
+		method: "DELETE",
+		handler: ({ env, request }) => repoPolicyDeleteResponse(request, env),
+	},
+	{
+		path: "/api/user/preferences",
+		method: "GET",
+		handler: ({ env, request }) => userPreferencesGetResponse(request, env),
+	},
+	{
+		path: "/api/user/preferences",
+		method: "POST",
+		handler: ({ env, request }) => userPreferencesPostResponse(request, env),
+	},
+	{
+		path: "/api/openrouter/test",
+		method: "POST",
+		handler: ({ env, request }) => openRouterTestResponse(request, env),
+	},
+	{
+		path: "/api/openrouter/free-models",
+		method: "GET",
+		handler: () => Promise.resolve(openRouterFreeModelsResponse()),
+	},
+	{
+		path: "/api/appeal",
+		method: "POST",
+		handler: ({ env, request }) => appealResponse(request, env),
+	},
+	{
+		path: "/api/github/webhook",
+		method: "POST",
+		handler: ({ context, request }) => webhookResponse(request, context),
+	},
+];
+
+const matchesRoute = (entry: RouteEntry, path: string, method: string) => {
+	const pathMatches =
+		typeof entry.path === "string" ? entry.path === path : entry.path(path);
+	if (!pathMatches) {
+		return false;
+	}
+	if (entry.method && entry.method !== method) {
+		return false;
+	}
+	return true;
+};
+
 const routeFetch = (
 	request: Request,
 	env: RuntimeBindings | undefined,
@@ -441,41 +862,16 @@ const routeFetch = (
 	const path = url.pathname;
 	const method = request.method;
 
-	if (path === "/sitemap.xml") {
-		return sitemapResponse();
-	}
-	if (path.startsWith("/api/auth")) {
-		return authResponse(request, env);
-	}
-	if (path === "/api/clankers") {
-		return clankersResponse(request, env, url.searchParams);
-	}
-	if (path === "/api/protectors") {
-		return protectorsResponse(request, env, url.searchParams);
-	}
-	if (path === "/api/health/recent-webhook") {
-		return recentWebhookResponse(request, env, url.searchParams);
-	}
-	if (path === "/api/github/manifest") {
-		return withSecurityHeaders(Response.json(githubAppManifest()));
-	}
-	if (path === "/api/github/manifest/convert" && method === "POST") {
-		return manifestConvertResponse(request);
-	}
-	if (path === "/api/maintainer/decision" && method === "POST") {
-		return maintainerDecisionResponse(request, env);
+	for (const entry of ROUTES) {
+		if (matchesRoute(entry, path, method)) {
+			return entry.handler({ context, env, request, url });
+		}
 	}
 	const sessionRoute = sessionApiRoute(request, env, path, method);
 	if (sessionRoute) {
 		return sessionRoute;
 	}
-	if (path === "/api/appeal" && method === "POST") {
-		return appealResponse(request, env);
-	}
-	if (path === "/api/github/webhook" && method === "POST") {
-		return webhookResponse(request, context);
-	}
-	return withSecurityHeaders(handler.fetch(request));
+	return Promise.resolve(withSecurityHeaders(handler.fetch(request)));
 };
 
 export default {

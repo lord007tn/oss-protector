@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/install")({
 	component: InstallRoute,
-	validateSearch: (search) => ({
+	validateSearch: (search: Record<string, unknown>) => ({
 		code: typeof search.code === "string" ? search.code : undefined,
 		installation_id:
 			typeof search.installation_id === "string" ||
@@ -40,6 +40,16 @@ export const Route = createFileRoute("/install")({
 		setup_action:
 			typeof search.setup_action === "string" ? search.setup_action : undefined,
 	}),
+	head: ({ match }) => {
+		const search = match.search;
+		let title = "Install | OSS Protector";
+		if (search.installation_id && !search.code) {
+			title = "Install complete | OSS Protector";
+		} else if (search.code) {
+			title = "GitHub App setup | OSS Protector";
+		}
+		return { meta: [{ title }] };
+	},
 });
 
 function InstallRoute() {
@@ -171,8 +181,15 @@ function InstallSuccess({
 				</Card>
 
 				<div className="flex flex-wrap gap-2">
-					<a className={buttonVariants({ size: "sm" })} href="/feed">
-						Browse the public review feed
+					<a className={buttonVariants({ size: "sm" })} href="/dashboard">
+						<Shield data-icon="inline-start" />
+						Open your dashboard
+					</a>
+					<a
+						className={buttonVariants({ size: "sm", variant: "outline" })}
+						href="/feed"
+					>
+						Browse the public feed
 						<ArrowRight data-icon="inline-end" />
 					</a>
 					<a
@@ -260,7 +277,7 @@ function NoParamsLanding() {
 						href={githubAppInstallUrl}
 					>
 						<Github data-icon="inline-start" />
-						Authorize on GitHub
+						Install on GitHub
 					</a>
 				</div>
 			</div>

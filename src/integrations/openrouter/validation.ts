@@ -1,6 +1,9 @@
 import { OpenRouter } from "@openrouter/sdk";
-
 import { REASON_CODES, type ReasonCode } from "@/constants/reason-codes";
+import {
+	getInstallationOpenrouterKey,
+	getUserOpenrouterKey,
+} from "@/data-access/user-preferences";
 import { env, runtimeEnv } from "@/env";
 
 import {
@@ -279,12 +282,63 @@ const scoreBreakdown = (input: Partial<ScoreBreakdown>): ScoreBreakdown => ({
 	novelty: clampScore(input.novelty ?? DEFAULT_SCORE_BREAKDOWN.novelty),
 });
 
-const configuredModels = () => {
+type OpenRouterMode = "byok" | "platform";
+
+export interface OpenRouterContext {
+	installationGithubId?: number | string | null;
+	userId?: null | string;
+}
+
+export const PLATFORM_FREE_MODEL_CHAIN: readonly string[] =
+	OPENROUTER_FREE_MODEL_CHAIN;
+
+const configuredModels = (mode: OpenRouterMode) => {
 	const free = OPENROUTER_FREE_MODEL_CHAIN.filter(isFreeOpenRouterModel);
-	// Paid fallback fires only if every free model errors or times out. Costs a
-	// few cents per failure burst, but guarantees a real verdict instead of the
-	// deterministic fallback when the :free tier is rate-limited.
+	if (mode === "platform") {
+		// Platform mode: only :free models. We never charge the platform key for
+		// paid model fallback — if every free model fails, we drop to the
+		// deterministic fallback instead.
+		return [...free];
+	}
+	// BYOK mode: same chain we always used (free attempts first to keep latency
+	// down and BYOK costs at $0 for healthy traffic, paid fallback when free
+	// tier rate-limits or hallucinates).
 	return [...free, OPENROUTER_PAID_FALLBACK_MODEL];
+};
+
+const resolveOpenRouterConfig = async (
+	context: OpenRouterContext
+): Promise<{ apiKey: null | string; mode: OpenRouterMode }> => {
+	const bindings = runtimeEnv();
+	const masterSecret = bindings.BETTER_AUTH_SECRET;
+	const platformKey = bindings.OPENROUTER_API_KEY ?? env.OPENROUTER_API_KEY;
+
+	if (masterSecret && (context.userId || context.installationGithubId)) {
+		try {
+			if (context.userId) {
+				const userKey = await getUserOpenrouterKey(
+					context.userId,
+					masterSecret
+				);
+				if (userKey) {
+					return { apiKey: userKey, mode: "byok" };
+				}
+			}
+			if (context.installationGithubId) {
+				const installationKey = await getInstallationOpenrouterKey({
+					installationGithubId: String(context.installationGithubId),
+					masterSecret,
+				});
+				if (installationKey) {
+					return { apiKey: installationKey, mode: "byok" };
+				}
+			}
+		} catch {
+			// Database unavailable or query failed (e.g. test environment, missing
+			// binding). Fall through to platform key.
+		}
+	}
+	return { apiKey: platformKey ?? null, mode: "platform" };
 };
 
 const openRouterClient = (apiKey: string) =>
@@ -312,29 +366,31 @@ const safeParseJson = <TResult>(value: unknown) => {
 };
 
 const callOpenRouterJson = async <TResult>({
+	context,
 	input,
 	schema,
 	schemaName,
 	system,
 }: {
+	context: OpenRouterContext;
 	input: unknown;
 	schema: Record<string, unknown>;
 	schemaName: string;
 	system: string;
 }) => {
-	const key = runtimeEnv().OPENROUTER_API_KEY ?? env.OPENROUTER_API_KEY;
-	if (!key) {
+	const { apiKey, mode } = await resolveOpenRouterConfig(context);
+	if (!apiKey) {
 		console.log(`openrouter: kind=${schemaName} skipped=missing_api_key`);
 		return { error: "OpenRouter is not configured." };
 	}
 
-	const models = configuredModels();
+	const models = configuredModels(mode);
 	if (models.length === 0) {
 		console.log(`openrouter: kind=${schemaName} skipped=no_models`);
-		return { error: "No OpenRouter :free models are configured." };
+		return { error: "No OpenRouter models are configured." };
 	}
 
-	const client = openRouterClient(key);
+	const client = openRouterClient(apiKey);
 	let lastError = "OpenRouter did not return a usable response.";
 	const attempts: string[] = [];
 	const overallStart = Date.now();
@@ -374,7 +430,7 @@ const callOpenRouterJson = async <TResult>({
 			}
 			const tier = isFreeOpenRouterModel(model) ? "free" : "paid";
 			console.log(
-				`openrouter: kind=${schemaName} winner=${model} tier=${tier} latency_ms=${latencyMs} total_ms=${
+				`openrouter: kind=${schemaName} mode=${mode} winner=${model} tier=${tier} latency_ms=${latencyMs} total_ms=${
 					Date.now() - overallStart
 				} attempts=[${attempts.concat(`${model}=${latencyMs}ms:ok`).join("|")}]`
 			);
@@ -392,7 +448,7 @@ const callOpenRouterJson = async <TResult>({
 	}
 
 	console.log(
-		`openrouter: kind=${schemaName} winner=none total_ms=${
+		`openrouter: kind=${schemaName} mode=${mode} winner=none total_ms=${
 			Date.now() - overallStart
 		} attempts=[${attempts.join("|")}] fallback=deterministic`
 	);
@@ -1466,7 +1522,8 @@ const normalizeScoreBreakdown = (
 		: (fallbackBreakdown ?? DEFAULT_SCORE_BREAKDOWN);
 
 export const validateReportWithOpenRouter = async (
-	input: ReportValidationInput
+	input: ReportValidationInput,
+	context: OpenRouterContext = {}
 ): Promise<ReportValidationResult> => {
 	const fallback = fallbackValidateReport(input);
 	const structuredPr = buildStructuredPullRequestContext({
@@ -1477,6 +1534,7 @@ export const validateReportWithOpenRouter = async (
 		url: input.pullRequest?.url ?? "",
 	});
 	const aiResponse = await callOpenRouterJson<ReportValidationResult>({
+		context,
 		input: {
 			allowed_statuses: [
 				ReportReviewStatus.Submitted,
@@ -1534,11 +1592,13 @@ export const validateReportWithOpenRouter = async (
 };
 
 export const validatePullRequestWithOpenRouter = async (
-	input: PullRequestAnalysisInput
+	input: PullRequestAnalysisInput,
+	context: OpenRouterContext = {}
 ): Promise<PullRequestAnalysisResult> => {
 	const structuredContext = buildStructuredPullRequestContext(input);
 	const fallback = fallbackAnalyzePullRequest(input);
 	const aiResponse = await callOpenRouterJson<PullRequestAnalysisResult>({
+		context,
 		input: {
 			allowed_reason_codes: REASON_CODES,
 			allowed_verdicts: [

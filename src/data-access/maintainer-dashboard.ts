@@ -7,14 +7,20 @@ import {
 	listAppealsForReview,
 } from "@/data-access/appeals";
 import { listMaintainerInstallationIds } from "@/data-access/maintainers";
+import {
+	listRepoDecisionsForMaintainer,
+	type RepoDecisionRow,
+} from "@/data-access/repo-decisions";
 import { database } from "@/db";
 import {
 	BotReport,
+	BotSignal,
 	GithubUser,
 	PullRequest,
 	Repository,
 	RiskProfile,
 } from "@/db/schema";
+import { parseJsonObject } from "@/lib/json";
 
 export interface DashboardRepo {
 	flaggedCount: number;
@@ -47,25 +53,50 @@ export interface DashboardAllowEntry {
 	updatedAt: number;
 }
 
-export interface DashboardActivityItem {
-	createdAt: number;
-	id: string;
-	login: string;
-	reasonCode: ReasonCode;
-	repoFullName: string;
-	status: ReportStatus;
-}
+export type CorrectionKind = "allow" | "confirm" | "dismiss" | "reset";
+
+export type DashboardActivityItem =
+	| {
+			eventType: "report";
+			createdAt: number;
+			id: string;
+			login: string;
+			reasonCode: ReasonCode;
+			repoFullName: string;
+			status: ReportStatus;
+	  }
+	| {
+			eventType: "correction";
+			createdAt: number;
+			id: string;
+			login: string;
+			correctionKind: CorrectionKind;
+			correctedByLogin: string;
+			repoFullName: string | null;
+	  }
+	| {
+			eventType: "repo_decision";
+			createdAt: number;
+			id: string;
+			login: string;
+			decision: "allow" | "block";
+			correctedByLogin: string;
+			repoFullName: string;
+			note: string | null;
+	  };
 
 export interface MaintainerDashboard {
 	activity: DashboardActivityItem[];
 	allowlist: DashboardAllowEntry[];
 	appeals: AppealReviewItem[];
 	queue: DashboardQueueItem[];
+	repoOverrides: RepoDecisionRow[];
 	repos: DashboardRepo[];
 	stats: {
 		allowedCount: number;
 		appealCount: number;
 		blockedCount: number;
+		overrideCount: number;
 		queueCount: number;
 		repoCount: number;
 	};
@@ -73,8 +104,27 @@ export interface MaintainerDashboard {
 
 const QUEUE_STATUSES = ["pending", "needs_review"] as const;
 const BLOCKED_STATUSES = ["block", "high_risk"] as const;
-const ACTIVITY_LIMIT = 20;
+const ACTIVITY_LIMIT = 30;
 const QUEUE_LIMIT = 50;
+const CORRECTION_SIGNAL_TYPES = [
+	"maintainer_correction_allow",
+	"maintainer_correction_confirm",
+	"maintainer_correction_dismiss",
+	"maintainer_correction_reset",
+] as const;
+
+const correctionKindFromSignalType = (signalType: string): CorrectionKind => {
+	if (signalType === "maintainer_correction_allow") {
+		return "allow";
+	}
+	if (signalType === "maintainer_correction_confirm") {
+		return "confirm";
+	}
+	if (signalType === "maintainer_correction_dismiss") {
+		return "dismiss";
+	}
+	return "reset";
+};
 
 const emptyDashboard = (
 	appeals: AppealReviewItem[] = []
@@ -83,11 +133,13 @@ const emptyDashboard = (
 	allowlist: [],
 	appeals,
 	queue: [],
+	repoOverrides: [],
 	repos: [],
 	stats: {
 		allowedCount: 0,
 		appealCount: appeals.length,
 		blockedCount: 0,
+		overrideCount: 0,
 		queueCount: 0,
 		repoCount: 0,
 	},
@@ -130,7 +182,7 @@ export async function getMaintainerDashboard(
 		return emptyDashboard(appeals);
 	}
 
-	const [queueRows, repoCounts, reportTargets, prAuthors, activityRows] =
+	const [queueRows, repoCounts, reportTargets, prAuthors, reportActivityRows] =
 		await Promise.all([
 			database
 				.select({
@@ -203,6 +255,30 @@ export async function getMaintainerDashboard(
 		]),
 	];
 
+	const correctionActivityRows =
+		candidateIds.length === 0
+			? []
+			: await database
+					.select({
+						id: BotSignal.id,
+						login: GithubUser.login,
+						metadataJson: BotSignal.metadataJson,
+						observedAt: BotSignal.observedAt,
+						repoFullName: Repository.fullName,
+						signalType: BotSignal.signalType,
+					})
+					.from(BotSignal)
+					.innerJoin(GithubUser, eq(GithubUser.id, BotSignal.targetUserId))
+					.leftJoin(Repository, eq(Repository.id, BotSignal.repositoryId))
+					.where(
+						and(
+							inArray(BotSignal.targetUserId, candidateIds),
+							inArray(BotSignal.signalType, [...CORRECTION_SIGNAL_TYPES])
+						)
+					)
+					.orderBy(desc(BotSignal.observedAt))
+					.limit(ACTIVITY_LIMIT);
+
 	const [allowRows, blockedRows] = await Promise.all([
 		candidateIds.length === 0
 			? Promise.resolve([])
@@ -272,25 +348,71 @@ export async function getMaintainerDashboard(
 		updatedAt: row.updatedAt,
 	}));
 
-	const activity: DashboardActivityItem[] = activityRows.map((row) => ({
-		createdAt: row.createdAt,
-		id: row.id,
-		login: row.login,
-		reasonCode: row.reasonCode as ReasonCode,
-		repoFullName: row.repoFullName,
-		status: row.status as ReportStatus,
-	}));
+	const reportActivity: DashboardActivityItem[] = reportActivityRows.map(
+		(row) => ({
+			createdAt: row.createdAt,
+			eventType: "report" as const,
+			id: row.id,
+			login: row.login,
+			reasonCode: row.reasonCode as ReasonCode,
+			repoFullName: row.repoFullName,
+			status: row.status as ReportStatus,
+		})
+	);
+	const correctionActivity: DashboardActivityItem[] =
+		correctionActivityRows.flatMap((row) => {
+			const metadata = parseJsonObject<{ correctedByLogin?: string }>(
+				row.metadataJson
+			);
+			const correctedByLogin = metadata.correctedByLogin?.trim();
+			if (!correctedByLogin) {
+				return [];
+			}
+			return [
+				{
+					correctedByLogin,
+					correctionKind: correctionKindFromSignalType(row.signalType),
+					createdAt: row.observedAt,
+					eventType: "correction" as const,
+					id: row.id,
+					login: row.login,
+					repoFullName: row.repoFullName ?? null,
+				},
+			];
+		});
+	const repoOverrides = await listRepoDecisionsForMaintainer(userId);
+	const repoDecisionActivity: DashboardActivityItem[] = repoOverrides.map(
+		(row) => ({
+			correctedByLogin: row.correctedByLogin,
+			createdAt: row.updatedAt,
+			decision: row.decision,
+			eventType: "repo_decision" as const,
+			id: `repo-decision-${row.id}`,
+			login: row.login,
+			note: row.note,
+			repoFullName: row.repoFullName,
+		})
+	);
+	const activity: DashboardActivityItem[] = [
+		...reportActivity,
+		...correctionActivity,
+		...repoDecisionActivity,
+	]
+		.sort((a, b) => b.createdAt - a.createdAt)
+		.slice(0, ACTIVITY_LIMIT);
 
 	return {
 		activity,
 		allowlist,
 		appeals,
 		queue,
+		repoOverrides,
 		repos,
 		stats: {
 			allowedCount: allowlist.length,
 			appealCount: appeals.length,
 			blockedCount: blockedRows.length,
+			overrideCount: repoOverrides.length,
 			queueCount: queue.length,
 			repoCount: repos.length,
 		},

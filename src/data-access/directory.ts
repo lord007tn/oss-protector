@@ -1458,7 +1458,7 @@ export const getPullRequestByRepositoryNumber = async (
 	return pullRequest ?? null;
 };
 
-export const fetchDirectoryDashboardRecords = async () => {
+export const getDirectoryDashboardRecords = async () => {
 	const [profiles, reports, repositories, imports, signals, pullRequests] =
 		await Promise.all([
 			database.query.RiskProfile.findMany({

@@ -14,6 +14,8 @@ type OtpType =
 	| "forget-password"
 	| "change-email";
 
+const LOCAL_APP_URL_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)/;
+
 const OTP_SUBJECTS: Record<OtpType, string> = {
 	"change-email": "Confirm your new OSS Protector email",
 	"email-verification": "Verify your OSS Protector email",
@@ -31,7 +33,6 @@ const otpEmailHtml = (otp: string) =>
 // Sends a one-time code. Uses Resend when RESEND_API_KEY is configured; in local
 // development with no provider it logs the code to the server console so the
 // flow stays testable.
-// TODO(real-data): wire a production email provider + verified sending domain.
 async function sendOtpEmail({
 	env,
 	email,
@@ -45,6 +46,13 @@ async function sendOtpEmail({
 }) {
 	const apiKey = env.RESEND_API_KEY;
 	if (!apiKey) {
+		const appUrl = env.VITE_APP_URL ?? "";
+		const isLocalDev = LOCAL_APP_URL_PATTERN.test(appUrl);
+		if (!isLocalDev) {
+			throw new Error(
+				"Email delivery is not configured. Ask the maintainer to set RESEND_API_KEY, or sign in with GitHub instead."
+			);
+		}
 		// biome-ignore lint/suspicious/noConsole: dev-only OTP delivery fallback
 		console.log(`[email-otp] ${type} code for ${email}: ${otp}`);
 		return;
@@ -101,7 +109,7 @@ export const createAuth = ({
 			{
 				autoDetectIpAddress: true,
 				cf: cfRequest.cf ?? null,
-				d1Native: bindings.clankers_db,
+				d1Native: bindings.accounts_db,
 				geolocationTracking: false,
 			},
 			{
@@ -139,7 +147,7 @@ export const getAuthConfigStatus = (env?: RuntimeBindings) => {
 	// email) are optional and surfaced separately via getAuthMethods.
 	const missing = [
 		["BETTER_AUTH_SECRET", bindings.BETTER_AUTH_SECRET],
-		["clankers_db", bindings.clankers_db],
+		["accounts_db", bindings.accounts_db],
 	]
 		.filter(([, value]) => !value)
 		.map(([key]) => key);

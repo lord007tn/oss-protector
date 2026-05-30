@@ -317,10 +317,7 @@ export function SiteHeader() {
 							</DropdownMenu>
 						</>
 					) : (
-						<a
-							className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
-							href="/login"
-						>
+						<a className={cn(buttonVariants({ size: "sm" }))} href="/login">
 							<Github data-icon="inline-start" />
 							<span className="hidden sm:inline">Sign in</span>
 						</a>
@@ -336,7 +333,10 @@ export function SiteHeader() {
 						</a>
 					) : (
 						<a
-							className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
+							className={cn(
+								buttonVariants({ size: "sm", variant: "outline" }),
+								"shrink-0"
+							)}
 							href={githubAppInstallUrl}
 						>
 							<Shield data-icon="inline-start" />
