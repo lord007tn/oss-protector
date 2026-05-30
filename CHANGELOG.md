@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-30
+
+OAuth UI, pagination, tighter security headers, and a real docs site at `/docs`.
+
+### Added
+
+- `/docs` — developer documentation page with sidebar navigation, full API reference (public + maintainer endpoints), pagination guide, rate-limit + error semantics, bot commands, repository policy, and authentication notes. The previous `/api-docs` URL 301-redirects.
+- Pagination on `/api/accounts` and `/api/protectors`: new `offset` query param plus a `page_info` response block `{ limit, offset, total, hasMore }`.
+- `VITE_ENABLE_GITHUB_AUTH` and `VITE_ENABLE_EMAIL_OTP` are now set in `wrangler.json` `vars` so the GitHub OAuth button + email OTP form ship on the deployed Worker. (Previously the build saw them as undefined, hiding the GitHub sign-in button on prod.)
+
+### Changed
+
+- **Default page size lowered from 250 → 50** on `/api/accounts` and `/api/protectors`. Pass `limit=250` explicitly to keep the previous behavior. `total_available` and the new `page_info` make it explicit when more data exists.
+- Out-of-range `limit`, `offset`, and `min_score` now return `HTTP 400` with `{ error, field, value, allowed }` instead of silently clamping.
+- `Referrer-Policy` tightened from `strict-origin-when-cross-origin` to `strict-origin` — origin only on cross-origin, no referrer on HTTPS→HTTP downgrades.
+- `Permissions-Policy` extended to a deny-by-default list (26 features explicitly disabled; `fullscreen` left enabled for `self`).
+- Content-Security-Policy: explicit `object-src 'none'; frame-src 'none'`; `data:` dropped from `img-src` (was unused). `'unsafe-inline'` on script-src and style-src deliberately retained because TanStack Start emits an inline bootstrap and Tailwind injects runtime style nodes — both fail under strict CSP.
+- `/api-docs` → `/docs` (with 301 redirect; sitemap updated).
+
+### Fixed
+
+- GitHub sign-in button now actually shows on the production `/login` page (root cause: `VITE_ENABLE_GITHUB_AUTH` wasn't in the deploy build env).
+
 ## [1.0.0] - 2026-05-30
 
 Maintainer console expansion. Renames the public surface and ships per-maintainer controls that were previously only available via JSON files or PR comment commands.
@@ -67,6 +90,7 @@ First public release. Tags the state of the MVP that has been running on the hos
 
 The initial clanker seed data is sourced from the [Clankers Leaderboard](https://clankers-leaderboard.pages.dev/) by [@heyandras](https://x.com/heyandras), via the [`Bounty-Hunters/clankers.json`](https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json) dataset.
 
-[Unreleased]: https://github.com/lord007tn/oss-protector/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/lord007tn/oss-protector/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/lord007tn/oss-protector/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/lord007tn/oss-protector/compare/v0.0.1...v1.0.0
 [0.0.1]: https://github.com/lord007tn/oss-protector/releases/tag/v0.0.1

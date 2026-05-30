@@ -1,5 +1,5 @@
 export const appName = "OSS Protector";
-export const apiDocsPath = "/api-docs";
+export const apiDocsPath = "/docs";
 export const publicAppUrl = "https://oss-protector.raedbahri90.workers.dev";
 const githubAppSlug = import.meta.env.VITE_GITHUB_APP_SLUG ?? "oss-protector";
 export const githubAppInstallUrl = `https://github.com/apps/${githubAppSlug}/installations/new`;
