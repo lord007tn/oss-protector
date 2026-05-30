@@ -124,7 +124,16 @@ const getCommittedPolicy = async ({
 				? (caught as { status?: unknown }).status
 				: null;
 		if (status !== 404) {
-			console.warn("Failed to fetch OSS Protector repository policy", caught);
+			// Loud error log instead of warn so a 403/429/5xx from GitHub is
+			// visible in `wrangler tail`/observability dashboards. The analyzer
+			// continues with DB/default policy (so transient GitHub failures
+			// don't block PR review), but the operator can see when a maintainer's
+			// committed file is silently being ignored.
+			const reason =
+				caught instanceof Error ? caught.message.slice(0, 200) : "unknown";
+			console.error(
+				`repo-policy-fetch failed status=${status ?? "unknown"} repo=${repositoryFullName} reason=${reason}; analyzer falling back to DB/default policy`
+			);
 		}
 		return {};
 	}

@@ -1,22 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { publicAppUrl } from "@/components/landing/constants";
 import { PolicyPage, PolicySection } from "@/components/landing/policy-page";
 import { PageShell } from "@/components/site/page-shell";
+import { buildSharedHead } from "@/lib/head";
 
 export const Route = createFileRoute("/privacy")({
 	component: PrivacyRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/privacy`, rel: "canonical" }],
-		meta: [
-			{ title: "Privacy | OSS Protector" },
-			{
-				content:
-					"What OSS Protector collects, how it's used, and how to request changes or deletion.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"What OSS Protector collects, how it's used, and how to request changes or deletion.",
+			ogType: "article",
+			path: "/privacy",
+			title: "Privacy | OSS Protector",
+		}),
 });
 
 function PrivacyRoute() {

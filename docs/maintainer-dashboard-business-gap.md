@@ -1,5 +1,7 @@
 # Maintainer Dashboard Business Gap
 
+> **Status: shipped in v1.0.0 (2026-05-30).** This doc is kept as historical product-planning context — the MVP it proposes (review queue, repo-local decisions, audit log, dashboard settings editor, BYOK key) is now live at `/dashboard` and documented in [README.md](../README.md#maintainer-dashboard). See `src/components/dashboard/`, `src/routes/dashboard.tsx`, and the `RepoPolicy` / `RepoAccountDecision` / `UserPreferences` tables for current behavior.
+
 ## Product Understanding
 
 OSS Protector is currently a shared GitHub App and public review directory for suspicious open-source pull request activity. It watches repository events, analyzes external pull requests, scores risky accounts, accepts maintainer correction commands in GitHub comments, and publishes validated risk profiles through the public site and API.

@@ -3,13 +3,13 @@ import { Activity, Check, Loader2, Shield } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { publicAppUrl } from "@/components/landing/constants";
 import { Stepper } from "@/components/oss/stepper";
 import { PageShell } from "@/components/site/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
@@ -46,17 +46,13 @@ type EvidenceKey = (typeof EVIDENCE)[number]["key"];
 
 export const Route = createFileRoute("/appeal")({
 	component: AppealRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/appeal`, rel: "canonical" }],
-		meta: [
-			{ title: "Appeal a flag | OSS Protector" },
-			{
-				content:
-					"Wrongly flagged? Submit an appeal — three trust-graph maintainers review within 48 hours. No fees, no gatekeeping.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"Wrongly flagged? Submit an appeal — three trust-graph maintainers review within 48 hours. No fees, no gatekeeping.",
+			path: "/appeal",
+			title: "Appeal a flag | OSS Protector",
+		}),
 });
 
 function FieldRow({

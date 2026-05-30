@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Github, Shield } from "lucide-react";
 
-import { githubRepoUrl, publicAppUrl } from "@/components/landing/constants";
+import { githubRepoUrl } from "@/components/landing/constants";
 import {
 	PageContainer,
 	PageHeader,
@@ -14,6 +14,7 @@ import {
 	RISK_STATUS_DESCRIPTIONS,
 	RISK_STATUS_LABELS,
 } from "@/constants/risk-statuses";
+import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 // The signals that actually move the published score, with the maximum points
@@ -91,17 +92,14 @@ ageDecay = 1.0 (≤30d) → 0.2 (≥365d), linear between`,
 
 export const Route = createFileRoute("/methodology")({
 	component: MethodologyRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/methodology`, rel: "canonical" }],
-		meta: [
-			{ title: "Methodology | OSS Protector" },
-			{
-				content:
-					"How OSS Protector computes a risk score: a deterministic core (account, cross-repo, PR heuristics, maintainer reports) with an LLM review on top, time-decay, reporter-trust, and a reputation dampener.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"How OSS Protector computes a risk score: a deterministic core (account, cross-repo, PR heuristics, maintainer reports) with an LLM review on top, time-decay, reporter-trust, and a reputation dampener.",
+			ogType: "article",
+			path: "/methodology",
+			title: "Methodology | OSS Protector",
+		}),
 });
 
 function CodeBlock({ children }: { children: string }) {
@@ -157,9 +155,9 @@ function MethodologyRoute() {
 										{method.contribution}
 									</span>
 								</div>
-								<h3 className="font-medium text-xl tracking-tight">
+								<h2 className="font-medium text-xl tracking-tight">
 									{method.title}
-								</h3>
+								</h2>
 								<p className="mt-2 mb-3 text-[14px] text-muted-foreground leading-relaxed">
 									{method.body}
 								</p>

@@ -49,3 +49,4 @@ pnpm-debug.log*
 coverage
 *.lcov
 .kbx/
+OSS protector.zip

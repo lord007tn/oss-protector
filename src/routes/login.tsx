@@ -2,15 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { LoginForm } from "@/components/site/login-form";
 import { PageShell } from "@/components/site/page-shell";
+import { buildSharedHead } from "@/lib/head";
 
 export const Route = createFileRoute("/login")({
 	component: LoginRoute,
-	head: () => ({
-		meta: [
-			{ title: "Sign in | OSS Protector" },
-			{ content: "noindex", name: "robots" },
-		],
-	}),
+	head: () => {
+		const shared = buildSharedHead({
+			description:
+				"Sign in to OSS Protector with GitHub to access your maintainer console — review queue, repo policy editor, and audit log.",
+			path: "/login",
+			title: "Sign in | OSS Protector",
+		});
+		return {
+			...shared,
+			meta: [...shared.meta, { content: "noindex", name: "robots" }],
+		};
+	},
 	validateSearch: (search) => ({
 		redirect:
 			typeof search.redirect === "string" && search.redirect.startsWith("/")

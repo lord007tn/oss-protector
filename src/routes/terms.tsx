@@ -1,22 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { publicAppUrl } from "@/components/landing/constants";
 import { PolicyPage, PolicySection } from "@/components/landing/policy-page";
 import { PageShell } from "@/components/site/page-shell";
+import { buildSharedHead } from "@/lib/head";
 
 export const Route = createFileRoute("/terms")({
 	component: TermsRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/terms`, rel: "canonical" }],
-		meta: [
-			{ title: "Terms | OSS Protector" },
-			{
-				content:
-					"How to use the OSS Protector feed responsibly: it's a review aid, not a verdict.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"How to use the OSS Protector feed responsibly: it's a review aid, not a verdict.",
+			ogType: "article",
+			path: "/terms",
+			title: "Terms | OSS Protector",
+		}),
 });
 
 function TermsRoute() {

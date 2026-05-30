@@ -3,7 +3,6 @@ import { Hash, LayoutGrid, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { DirectoryDashboard } from "@/actions/directory";
-import { publicAppUrl } from "@/components/landing/constants";
 import { AccountAvatar } from "@/components/oss/account-avatar";
 import { ConfidenceBadge } from "@/components/oss/confidence-badge";
 import {
@@ -23,6 +22,7 @@ import {
 	riskStatusBadge,
 	toDisplayAccount,
 } from "@/lib/directory-view";
+import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 type DirectoryFilter = "all" | "high" | "review" | "watch";
@@ -42,17 +42,13 @@ const NEXT_SORT: Record<SortKey, SortKey> = {
 
 export const Route = createFileRoute("/accounts")({
 	component: AccountsRoute,
-	head: () => ({
-		links: [{ href: `${publicAppUrl}/accounts`, rel: "canonical" }],
-		meta: [
-			{ title: "Account directory | OSS Protector" },
-			{
-				content:
-					"Browse, search, and sort every flagged GitHub account. The public data behind the OSS Protector trust graph.",
-				name: "description",
-			},
-		],
-	}),
+	head: () =>
+		buildSharedHead({
+			description:
+				"Browse, search, and sort every flagged GitHub account. The public data behind the OSS Protector trust graph.",
+			path: "/accounts",
+			title: "Account directory | OSS Protector",
+		}),
 	loader: () => getDashboardFn(),
 });
 

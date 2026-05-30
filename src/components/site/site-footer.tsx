@@ -53,9 +53,9 @@ export function SiteFooter() {
 				</div>
 				{COLUMNS.map((column) => (
 					<div key={column.title}>
-						<h4 className="mb-3.5 font-medium font-mono text-muted-foreground text-xs uppercase tracking-wider">
+						<p className="mb-3.5 font-medium font-mono text-muted-foreground text-xs uppercase tracking-wider">
 							{column.title}
-						</h4>
+						</p>
 						<ul className="flex flex-col gap-2.5">
 							{column.links.map((link) => (
 								<li key={link.label}>

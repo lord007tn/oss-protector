@@ -1,7 +1,11 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { database } from "@/db";
-import { UserPreferences } from "@/db/schema";
+import {
+	Installation,
+	InstallationMaintainer,
+	UserPreferences,
+} from "@/db/schema";
 import { parseJsonArray } from "@/lib/json";
 import { decryptSecret, encryptSecret } from "@/lib/secret-crypto";
 
@@ -197,21 +201,27 @@ export async function getInstallationOpenrouterKey({
 	installationGithubId: string;
 	masterSecret: string;
 }): Promise<string | null> {
+	// Join through InstallationMaintainer at the outer level so we can ORDER BY
+	// reliably. SQLite ignores ORDER BY inside an IN-subquery, which silently
+	// breaks the "earliest-linked maintainer wins" contract: the loop below
+	// would pick the first decryptable row in undefined order, so different
+	// runs could bill different maintainers for the same installation.
 	const rows = await database
 		.select({
+			createdAt: InstallationMaintainer.createdAt,
 			openrouterApiKeyEncrypted: UserPreferences.openrouterApiKeyEncrypted,
 		})
 		.from(UserPreferences)
-		.where(
-			sql`${UserPreferences.userId} IN (
-				SELECT InstallationMaintainer.userId
-				FROM InstallationMaintainer
-				INNER JOIN Installation
-					ON Installation.id = InstallationMaintainer.installationId
-				WHERE Installation.githubInstallationId = ${installationGithubId}
-				ORDER BY InstallationMaintainer.createdAt ASC
-			)`
-		);
+		.innerJoin(
+			InstallationMaintainer,
+			eq(InstallationMaintainer.userId, UserPreferences.userId)
+		)
+		.innerJoin(
+			Installation,
+			eq(Installation.id, InstallationMaintainer.installationId)
+		)
+		.where(eq(Installation.githubInstallationId, installationGithubId))
+		.orderBy(asc(InstallationMaintainer.createdAt));
 	for (const row of rows) {
 		if (!row.openrouterApiKeyEncrypted) {
 			continue;

@@ -8,7 +8,7 @@ export function Logo({ className }: { className?: string }) {
 			href="/"
 		>
 			<img
-				alt=""
+				alt="OSS Protector"
 				className="size-6"
 				height={24}
 				src="/oss-protector-mark.svg"
