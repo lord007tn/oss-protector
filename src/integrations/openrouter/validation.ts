@@ -1,6 +1,9 @@
 import { OpenRouter } from "@openrouter/sdk";
-
 import { REASON_CODES, type ReasonCode } from "@/constants/reason-codes";
+import {
+	getInstallationOpenrouterKey,
+	getUserOpenrouterKey,
+} from "@/data-access/user-preferences";
 import { env, runtimeEnv } from "@/env";
 
 import {
@@ -61,8 +64,25 @@ export interface ReportValidationResult {
 	verdict: ReviewVerdictValue;
 }
 
+export interface PullRequestCommentInput {
+	author: string;
+	authorAssociation: string;
+	body: string;
+	isPrAuthor: boolean;
+	kind: string;
+}
+
+export interface PullRequestAccountInput {
+	followers: number;
+	githubCreatedAt: null | number;
+	publicRepos: number;
+}
+
 export interface PullRequestAnalysisInput {
+	account?: null | PullRequestAccountInput;
 	body?: null | string;
+	comments?: PullRequestCommentInput[];
+	commitMessages?: string[];
 	files?: Array<{
 		additions: number;
 		changes: number;
@@ -104,7 +124,10 @@ interface EvidenceSignal {
 }
 
 interface StructuredPrContext {
+	account: null | PullRequestAccountInput;
 	body: string;
+	comments: PullRequestCommentInput[];
+	commitMessages: string[];
 	files: Array<{
 		additions: number;
 		deletions: number;
@@ -140,9 +163,9 @@ interface StructuredPrContext {
 //
 // Chain length × per-call timeout must stay well under Cloudflare's 30s
 // waitUntil budget. 3 models × 4.5s = 13.5s worst-case AI, leaving ~15s for
-// listFiles paginate, posting the comment, and the check run. We also keep
-// the chain short because each :free attempt costs against our 20 RPM
-// pay-as-you-go cap; fewer attempts on rate-limited bursts is healthier.
+// listFiles paginate plus the risk-profile recompute. We also keep the chain
+// short because each :free attempt costs against our 20 RPM pay-as-you-go cap;
+// fewer attempts on rate-limited bursts is healthier.
 const OPENROUTER_FREE_MODEL_CHAIN = [
 	"qwen/qwen3-next-80b-a3b-instruct:free",
 	"google/gemma-4-31b-it:free",
@@ -259,12 +282,63 @@ const scoreBreakdown = (input: Partial<ScoreBreakdown>): ScoreBreakdown => ({
 	novelty: clampScore(input.novelty ?? DEFAULT_SCORE_BREAKDOWN.novelty),
 });
 
-const configuredModels = () => {
+type OpenRouterMode = "byok" | "platform";
+
+export interface OpenRouterContext {
+	installationGithubId?: number | string | null;
+	userId?: null | string;
+}
+
+export const PLATFORM_FREE_MODEL_CHAIN: readonly string[] =
+	OPENROUTER_FREE_MODEL_CHAIN;
+
+const configuredModels = (mode: OpenRouterMode) => {
 	const free = OPENROUTER_FREE_MODEL_CHAIN.filter(isFreeOpenRouterModel);
-	// Paid fallback fires only if every free model errors or times out. Costs a
-	// few cents per failure burst, but guarantees a real verdict instead of the
-	// deterministic fallback when the :free tier is rate-limited.
+	if (mode === "platform") {
+		// Platform mode: only :free models. We never charge the platform key for
+		// paid model fallback — if every free model fails, we drop to the
+		// deterministic fallback instead.
+		return [...free];
+	}
+	// BYOK mode: same chain we always used (free attempts first to keep latency
+	// down and BYOK costs at $0 for healthy traffic, paid fallback when free
+	// tier rate-limits or hallucinates).
 	return [...free, OPENROUTER_PAID_FALLBACK_MODEL];
+};
+
+const resolveOpenRouterConfig = async (
+	context: OpenRouterContext
+): Promise<{ apiKey: null | string; mode: OpenRouterMode }> => {
+	const bindings = runtimeEnv();
+	const masterSecret = bindings.BETTER_AUTH_SECRET;
+	const platformKey = bindings.OPENROUTER_API_KEY ?? env.OPENROUTER_API_KEY;
+
+	if (masterSecret && (context.userId || context.installationGithubId)) {
+		try {
+			if (context.userId) {
+				const userKey = await getUserOpenrouterKey(
+					context.userId,
+					masterSecret
+				);
+				if (userKey) {
+					return { apiKey: userKey, mode: "byok" };
+				}
+			}
+			if (context.installationGithubId) {
+				const installationKey = await getInstallationOpenrouterKey({
+					installationGithubId: String(context.installationGithubId),
+					masterSecret,
+				});
+				if (installationKey) {
+					return { apiKey: installationKey, mode: "byok" };
+				}
+			}
+		} catch {
+			// Database unavailable or query failed (e.g. test environment, missing
+			// binding). Fall through to platform key.
+		}
+	}
+	return { apiKey: platformKey ?? null, mode: "platform" };
 };
 
 const openRouterClient = (apiKey: string) =>
@@ -292,29 +366,31 @@ const safeParseJson = <TResult>(value: unknown) => {
 };
 
 const callOpenRouterJson = async <TResult>({
+	context,
 	input,
 	schema,
 	schemaName,
 	system,
 }: {
+	context: OpenRouterContext;
 	input: unknown;
 	schema: Record<string, unknown>;
 	schemaName: string;
 	system: string;
 }) => {
-	const key = runtimeEnv().OPENROUTER_API_KEY ?? env.OPENROUTER_API_KEY;
-	if (!key) {
+	const { apiKey, mode } = await resolveOpenRouterConfig(context);
+	if (!apiKey) {
 		console.log(`openrouter: kind=${schemaName} skipped=missing_api_key`);
 		return { error: "OpenRouter is not configured." };
 	}
 
-	const models = configuredModels();
+	const models = configuredModels(mode);
 	if (models.length === 0) {
 		console.log(`openrouter: kind=${schemaName} skipped=no_models`);
-		return { error: "No OpenRouter :free models are configured." };
+		return { error: "No OpenRouter models are configured." };
 	}
 
-	const client = openRouterClient(key);
+	const client = openRouterClient(apiKey);
 	let lastError = "OpenRouter did not return a usable response.";
 	const attempts: string[] = [];
 	const overallStart = Date.now();
@@ -354,7 +430,7 @@ const callOpenRouterJson = async <TResult>({
 			}
 			const tier = isFreeOpenRouterModel(model) ? "free" : "paid";
 			console.log(
-				`openrouter: kind=${schemaName} winner=${model} tier=${tier} latency_ms=${latencyMs} total_ms=${
+				`openrouter: kind=${schemaName} mode=${mode} winner=${model} tier=${tier} latency_ms=${latencyMs} total_ms=${
 					Date.now() - overallStart
 				} attempts=[${attempts.concat(`${model}=${latencyMs}ms:ok`).join("|")}]`
 			);
@@ -372,7 +448,7 @@ const callOpenRouterJson = async <TResult>({
 	}
 
 	console.log(
-		`openrouter: kind=${schemaName} winner=none total_ms=${
+		`openrouter: kind=${schemaName} mode=${mode} winner=none total_ms=${
 			Date.now() - overallStart
 		} attempts=[${attempts.join("|")}] fallback=deterministic`
 	);
@@ -520,39 +596,19 @@ const pushCredentialRiskSignal = (signals: EvidenceSignal[], text: string) => {
 const isDocLikeFile = (filename: string) =>
 	DOC_EXTENSION_PATTERN.test(filename) || DOC_PATH_PATTERN.test(filename);
 
-const buildStructuredPullRequestContext = (
-	input: PullRequestAnalysisInput
-): StructuredPrContext => {
-	const files =
-		input.files?.map((file) => ({
-			additions: file.additions,
-			deletions: file.deletions,
-			filename: file.filename,
-			patchExcerpt: file.patch?.slice(0, MAX_PATCH_EXCERPT_LENGTH) ?? "",
-			status: file.status,
-		})) ?? [];
-	const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
-	const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
-	const netLines = totalAdditions + totalDeletions;
-	const docsOnly =
-		files.length > 0 && files.every((file) => isDocLikeFile(file.filename));
-	const hasCodeFile = files.some((file) => !isDocLikeFile(file.filename));
-	const meaningfulPatchText = files
-		.map((file) => file.patchExcerpt)
-		.join("\n")
-		.replace(/^[+\-\s#/*`_.,;:()[\]{}'"|\\]+$/gm, "")
-		.trim();
-	const hasMeaningfulCodeChange =
-		hasCodeFile && meaningfulPatchText.length > 30;
-	const trivialChange = netLines <= 4 || (docsOnly && netLines <= 12);
-	const text = lowerText(
-		`${input.title}\n${input.body ?? ""}\n${files
-			.map(
-				(file) =>
-					`${file.filename} ${file.status} +${file.additions} -${file.deletions}\n${file.patchExcerpt}`
-			)
-			.join("\n")}`.slice(0, MAX_CONTEXT_TEXT_LENGTH)
-	);
+const collectHeuristicSignals = ({
+	filesLength,
+	hasMeaningfulCodeChange,
+	netLines,
+	text,
+	trivialChange,
+}: {
+	filesLength: number;
+	hasMeaningfulCodeChange: boolean;
+	netLines: number;
+	text: string;
+	trivialChange: boolean;
+}): EvidenceSignal[] => {
 	const signals: EvidenceSignal[] = [];
 	const hasFarmingLanguage = includesAny(text, [
 		"bounty",
@@ -613,20 +669,20 @@ const buildStructuredPullRequestContext = (
 		(hasFarmingLanguage ||
 			hasGeneratedLanguage ||
 			hasGenericLowValueLanguage ||
-			files.length === 0)
+			filesLength === 0)
 	) {
 		pushSignal(signals, {
 			cause: "No meaningful project addition",
-			evidence: `${files.length} file(s), ${netLines} changed line(s), no substantive code signal.`,
+			evidence: `${filesLength} file(s), ${netLines} changed line(s), no substantive code signal.`,
 			kind: ReviewSignalKind.NoMeaningfulAddition,
 			score: 30,
 			severity: "low",
 		});
 	}
-	if (files.length > 20 || netLines > 1200) {
+	if (filesLength > 20 || netLines > 1200) {
 		pushSignal(signals, {
 			cause: "Broad unaudited scope",
-			evidence: `${files.length} files and ${netLines} changed lines.`,
+			evidence: `${filesLength} files and ${netLines} changed lines.`,
 			kind: ReviewSignalKind.BroadScope,
 			score: 40,
 			severity: "medium",
@@ -655,8 +711,60 @@ const buildStructuredPullRequestContext = (
 		});
 	}
 
+	return signals;
+};
+
+const buildStructuredPullRequestContext = (
+	input: PullRequestAnalysisInput
+): StructuredPrContext => {
+	const files =
+		input.files?.map((file) => ({
+			additions: file.additions,
+			deletions: file.deletions,
+			filename: file.filename,
+			patchExcerpt: file.patch?.slice(0, MAX_PATCH_EXCERPT_LENGTH) ?? "",
+			status: file.status,
+		})) ?? [];
+	const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
+	const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
+	const netLines = totalAdditions + totalDeletions;
+	const docsOnly =
+		files.length > 0 && files.every((file) => isDocLikeFile(file.filename));
+	const hasCodeFile = files.some((file) => !isDocLikeFile(file.filename));
+	const meaningfulPatchText = files
+		.map((file) => file.patchExcerpt)
+		.join("\n")
+		.replace(/^[+\-\s#/*`_.,;:()[\]{}'"|\\]+$/gm, "")
+		.trim();
+	const hasMeaningfulCodeChange =
+		hasCodeFile && meaningfulPatchText.length > 30;
+	const trivialChange = netLines <= 4 || (docsOnly && netLines <= 12);
+	const commitMessages = input.commitMessages ?? [];
+	// Commit messages are the contributor's own text about the change, so they
+	// belong in the deterministic keyword haystack. Comment bodies are NOT folded
+	// in here — a third party writing "this looks malicious" shouldn't trip the
+	// crude fallback signals; the AI path weighs comments with author context.
+	const text = lowerText(
+		`${input.title}\n${input.body ?? ""}\n${commitMessages.join("\n")}\n${files
+			.map(
+				(file) =>
+					`${file.filename} ${file.status} +${file.additions} -${file.deletions}\n${file.patchExcerpt}`
+			)
+			.join("\n")}`.slice(0, MAX_CONTEXT_TEXT_LENGTH)
+	);
+	const signals = collectHeuristicSignals({
+		filesLength: files.length,
+		hasMeaningfulCodeChange,
+		netLines,
+		text,
+		trivialChange,
+	});
+
 	return {
+		account: input.account ?? null,
 		body: input.body?.slice(0, 3000) ?? "",
+		comments: input.comments ?? [],
+		commitMessages,
 		files,
 		metrics: {
 			changedFiles: files.length,
@@ -1414,7 +1522,8 @@ const normalizeScoreBreakdown = (
 		: (fallbackBreakdown ?? DEFAULT_SCORE_BREAKDOWN);
 
 export const validateReportWithOpenRouter = async (
-	input: ReportValidationInput
+	input: ReportValidationInput,
+	context: OpenRouterContext = {}
 ): Promise<ReportValidationResult> => {
 	const fallback = fallbackValidateReport(input);
 	const structuredPr = buildStructuredPullRequestContext({
@@ -1425,6 +1534,7 @@ export const validateReportWithOpenRouter = async (
 		url: input.pullRequest?.url ?? "",
 	});
 	const aiResponse = await callOpenRouterJson<ReportValidationResult>({
+		context,
 		input: {
 			allowed_statuses: [
 				ReportReviewStatus.Submitted,
@@ -1482,11 +1592,13 @@ export const validateReportWithOpenRouter = async (
 };
 
 export const validatePullRequestWithOpenRouter = async (
-	input: PullRequestAnalysisInput
+	input: PullRequestAnalysisInput,
+	context: OpenRouterContext = {}
 ): Promise<PullRequestAnalysisResult> => {
 	const structuredContext = buildStructuredPullRequestContext(input);
 	const fallback = fallbackAnalyzePullRequest(input);
 	const aiResponse = await callOpenRouterJson<PullRequestAnalysisResult>({
+		context,
 		input: {
 			allowed_reason_codes: REASON_CODES,
 			allowed_verdicts: [

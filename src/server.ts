@@ -1,6 +1,8 @@
 import handler from "@tanstack/react-start/server-entry";
+import { resolveAppeal, submitAppeal } from "./actions/appeal";
+import { drainBackfillJobs } from "./actions/backfill";
 import {
-	listClankersApi,
+	listAccountsApi,
 	listProtectorsApi,
 	recentWebhookEvents,
 } from "./actions/directory";
@@ -9,13 +11,37 @@ import {
 	convertGithubManifestCode,
 	githubAppManifest,
 } from "./actions/github-manifest";
+import { applyMaintainerDecision } from "./actions/maintainer";
+import { getMaintainerDashboardForRequest } from "./actions/maintainer-dashboard";
+import {
+	listNotificationsForRequest,
+	markAllNotificationsReadForRequest,
+	markNotificationReadForRequest,
+} from "./actions/notifications";
+import {
+	applyRepoDecision,
+	clearRepoDecision,
+	listMyRepoDecisions,
+} from "./actions/repo-decisions";
+import {
+	applyRepoPolicy,
+	clearRepoPolicyForMaintainer,
+	getRepoPolicyForMaintainer,
+} from "./actions/repo-policy";
+import {
+	applyUserPreferencesUpdate,
+	getCurrentUserPreferences,
+	testOpenRouterKey,
+} from "./actions/user-preferences";
 import { createAuth, getAuthConfigStatus } from "./auth";
 import type { RuntimeBindings } from "./env";
 import {
-	parseClankerFilters,
+	FilterValidationError,
+	parseAccountFilters,
 	parseProtectorFilters,
 } from "./helpers/directory-filters";
 import { verifyGithubSignature } from "./helpers/github-webhook";
+import { PLATFORM_FREE_MODEL_CHAIN } from "./integrations/openrouter/validation";
 
 type GlobalWithRuntime = typeof globalThis & {
 	__env__?: RuntimeBindings;
@@ -35,29 +61,17 @@ const SECURITY_HEADERS = {
 	"X-Frame-Options": "DENY",
 } as const;
 
-const GITHUB_LOGIN_PATTERN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
-
-const isInvalidClankerProfilePath = (path: string) => {
-	if (!path.startsWith("/clankers/")) {
-		return false;
-	}
-	const login = path.slice("/clankers/".length);
-	try {
-		return !GITHUB_LOGIN_PATTERN.test(decodeURIComponent(login));
-	} catch {
-		return true;
-	}
-};
-
 const sitemap = () =>
 	[
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/</loc></url>",
-		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/clankers</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/accounts</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/feed</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/protectors</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/api-docs</loc></url>",
-		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/contest</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/appeal</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/methodology</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/privacy</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/terms</loc></url>",
 		"</urlset>",
@@ -148,7 +162,7 @@ const authResponse = (request: Request, env: RuntimeBindings | undefined) => {
 		return withSecurityHeaders(
 			Response.json(
 				{
-					error: "GitHub sign-in is not configured.",
+					error: "Sign-in is not configured on this deployment.",
 					missing: authConfig.missing,
 				},
 				{ status: 503 }
@@ -158,7 +172,7 @@ const authResponse = (request: Request, env: RuntimeBindings | undefined) => {
 	return withSecurityHeaders(createAuth({ env, request }).handler(request));
 };
 
-const clankersResponse = async (
+const accountsResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined,
 	searchParams: URLSearchParams
@@ -167,9 +181,25 @@ const clankersResponse = async (
 	if (limited) {
 		return limited;
 	}
-	return withSecurityHeaders(
-		Response.json(await listClankersApi(parseClankerFilters(searchParams)))
-	);
+	try {
+		const filters = parseAccountFilters(searchParams);
+		return withSecurityHeaders(Response.json(await listAccountsApi(filters)));
+	} catch (caught) {
+		if (caught instanceof FilterValidationError) {
+			return withSecurityHeaders(
+				Response.json(
+					{
+						allowed: caught.allowed,
+						error: caught.message,
+						field: caught.field,
+						value: caught.value,
+					},
+					{ status: 400 }
+				)
+			);
+		}
+		throw caught;
+	}
 };
 
 const protectorsResponse = async (
@@ -218,6 +248,152 @@ const recentWebhookResponse = async (
 	);
 };
 
+const maintainerDecisionResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as {
+		decision?: string;
+		login?: string;
+	};
+	if (!(body.login && body.decision)) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing login or decision." }, { status: 400 })
+		);
+	}
+	const result = await applyMaintainerDecision({
+		decision: body.decision,
+		env,
+		login: body.login,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const maintainerDashboardResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await getMaintainerDashboardForRequest({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const notificationsListResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await listNotificationsForRequest({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const notificationReadResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as { id?: string };
+	if (!body.id) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing notification id." }, { status: 400 })
+		);
+	}
+	const result = await markNotificationReadForRequest({
+		env,
+		id: body.id,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const notificationReadAllResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await markAllNotificationsReadForRequest({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const appealResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as {
+		email?: string;
+		evidence?: string[];
+		login?: string;
+		relationship?: string;
+		story?: string;
+	};
+	const result = await submitAppeal({
+		env,
+		input: {
+			email: body.email,
+			evidence: body.evidence,
+			login: body.login ?? "",
+			relationship: body.relationship,
+			story: body.story ?? "",
+		},
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
+const appealResolveResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const body = (await request.json()) as {
+		id?: string;
+		resolution?: string;
+	};
+	if (!(body.id && body.resolution)) {
+		return withSecurityHeaders(
+			Response.json({ error: "Missing id or resolution." }, { status: 400 })
+		);
+	}
+	const result = await resolveAppeal({
+		env,
+		id: body.id,
+		request,
+		resolution: body.resolution,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(Response.json(result));
+};
+
 const manifestConvertResponse = async (request: Request) => {
 	const body = (await request.json()) as { code?: string };
 	if (!body.code) {
@@ -263,6 +439,420 @@ const webhookResponse = async (
 	);
 };
 
+// Grouped so routeFetch stays under the cognitive-complexity budget. Returns
+// null when the path/method pair isn't one of these session-guarded routes.
+const sessionApiRoute = (
+	request: Request,
+	env: RuntimeBindings | undefined,
+	path: string,
+	method: string
+): Promise<Response> | null => {
+	if (path === "/api/dashboard" && method === "GET") {
+		return maintainerDashboardResponse(request, env);
+	}
+	if (path === "/api/notifications" && method === "GET") {
+		return notificationsListResponse(request, env);
+	}
+	if (path === "/api/notifications/read" && method === "POST") {
+		return notificationReadResponse(request, env);
+	}
+	if (path === "/api/notifications/read-all" && method === "POST") {
+		return notificationReadAllResponse(request, env);
+	}
+	if (path === "/api/appeals/resolve" && method === "POST") {
+		return appealResolveResponse(request, env);
+	}
+	return null;
+};
+
+const userPreferencesGetResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await getCurrentUserPreferences({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, preferences: result.preferences })
+	);
+};
+
+const userPreferencesPostResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await applyUserPreferencesUpdate({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, preferences: result.preferences })
+	);
+};
+
+const openRouterTestResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const session = await createAuth({ env, request }).api.getSession({
+		headers: request.headers,
+	});
+	if (!session?.user) {
+		return withSecurityHeaders(
+			Response.json({ error: "Sign in required." }, { status: 401 })
+		);
+	}
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	const apiKey =
+		typeof (payload as Record<string, unknown> | null)?.apiKey === "string"
+			? ((payload as Record<string, unknown>).apiKey as string)
+			: "";
+	const result = await testOpenRouterKey({ apiKey });
+	return withSecurityHeaders(
+		Response.json(result, { status: result.ok ? 200 : result.status })
+	);
+};
+
+const repoDecisionPostResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await applyRepoDecision({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ decision: result.decision, ok: true })
+	);
+};
+
+const repoDecisionDeleteResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await clearRepoDecision({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ cleared: result.cleared, ok: true })
+	);
+};
+
+const repoDecisionListResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	const result = await listMyRepoDecisions({ env, request });
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ decisions: result.decisions, ok: true })
+	);
+};
+
+const repoPolicyGetResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined,
+	searchParams: URLSearchParams
+) => {
+	const repositoryId = searchParams.get("repositoryId") ?? "";
+	if (!repositoryId) {
+		return withSecurityHeaders(
+			Response.json(
+				{ error: "Missing repositoryId query param." },
+				{ status: 400 }
+			)
+		);
+	}
+	const result = await getRepoPolicyForMaintainer({
+		env,
+		repositoryId,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, policy: result.policy })
+	);
+};
+
+const repoPolicyPostResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await applyRepoPolicy({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, policy: result.policy })
+	);
+};
+
+const repoPolicyDeleteResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined
+) => {
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid JSON body." }, { status: 400 })
+		);
+	}
+	if (!payload || typeof payload !== "object") {
+		return withSecurityHeaders(
+			Response.json({ error: "Invalid payload." }, { status: 400 })
+		);
+	}
+	const result = await clearRepoPolicyForMaintainer({
+		env,
+		payload: payload as Record<string, unknown>,
+		request,
+	});
+	if (!result.ok) {
+		return withSecurityHeaders(
+			Response.json({ error: result.error }, { status: result.status })
+		);
+	}
+	return withSecurityHeaders(
+		Response.json({ ok: true, policy: result.policy })
+	);
+};
+
+const FREE_MODEL_SUFFIX = /:free$/;
+
+const openRouterFreeModelsResponse = () =>
+	withSecurityHeaders(
+		Response.json({
+			generated_at: new Date().toISOString(),
+			models: PLATFORM_FREE_MODEL_CHAIN.map((model) => ({
+				id: model,
+				tier: "free",
+				url: `https://openrouter.ai/${model.replace(FREE_MODEL_SUFFIX, "")}`,
+			})),
+			note: "Model IDs ending in :free are no-cost via OpenRouter's free tier. Maintainers who bring their own OpenRouter key get the full catalog including paid fallback.",
+		})
+	);
+
+type RouteHandler = (input: {
+	context: ExecutionContext | undefined;
+	env: RuntimeBindings | undefined;
+	request: Request;
+	url: URL;
+}) => Promise<Response>;
+
+interface RouteEntry {
+	handler: RouteHandler;
+	method?: string;
+	path: string | ((path: string) => boolean);
+}
+
+const ROUTES: RouteEntry[] = [
+	{ path: "/sitemap.xml", handler: () => sitemapResponse() },
+	{
+		path: (path) => path.startsWith("/api/auth"),
+		handler: ({ env, request }) => authResponse(request, env),
+	},
+	{
+		path: "/api/accounts",
+		handler: ({ env, request, url }) =>
+			accountsResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/protectors",
+		handler: ({ env, request, url }) =>
+			protectorsResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/health/recent-webhook",
+		handler: ({ env, request, url }) =>
+			recentWebhookResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/github/manifest",
+		handler: () =>
+			Promise.resolve(withSecurityHeaders(Response.json(githubAppManifest()))),
+	},
+	{
+		path: "/api/github/manifest/convert",
+		method: "POST",
+		handler: ({ request }) => manifestConvertResponse(request),
+	},
+	{
+		path: "/api/maintainer/decision",
+		method: "POST",
+		handler: ({ env, request }) => maintainerDecisionResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-decision",
+		method: "POST",
+		handler: ({ env, request }) => repoDecisionPostResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-decision",
+		method: "DELETE",
+		handler: ({ env, request }) => repoDecisionDeleteResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-decisions",
+		method: "GET",
+		handler: ({ env, request }) => repoDecisionListResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-policy",
+		method: "GET",
+		handler: ({ env, request, url }) =>
+			repoPolicyGetResponse(request, env, url.searchParams),
+	},
+	{
+		path: "/api/maintainer/repo-policy",
+		method: "POST",
+		handler: ({ env, request }) => repoPolicyPostResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/repo-policy",
+		method: "DELETE",
+		handler: ({ env, request }) => repoPolicyDeleteResponse(request, env),
+	},
+	{
+		path: "/api/user/preferences",
+		method: "GET",
+		handler: ({ env, request }) => userPreferencesGetResponse(request, env),
+	},
+	{
+		path: "/api/user/preferences",
+		method: "POST",
+		handler: ({ env, request }) => userPreferencesPostResponse(request, env),
+	},
+	{
+		path: "/api/openrouter/test",
+		method: "POST",
+		handler: ({ env, request }) => openRouterTestResponse(request, env),
+	},
+	{
+		path: "/api/openrouter/free-models",
+		method: "GET",
+		handler: () => Promise.resolve(openRouterFreeModelsResponse()),
+	},
+	{
+		path: "/api/appeal",
+		method: "POST",
+		handler: ({ env, request }) => appealResponse(request, env),
+	},
+	{
+		path: "/api/github/webhook",
+		method: "POST",
+		handler: ({ context, request }) => webhookResponse(request, context),
+	},
+];
+
+const matchesRoute = (entry: RouteEntry, path: string, method: string) => {
+	const pathMatches =
+		typeof entry.path === "string" ? entry.path === path : entry.path(path);
+	if (!pathMatches) {
+		return false;
+	}
+	if (entry.method && entry.method !== method) {
+		return false;
+	}
+	return true;
+};
+
 const routeFetch = (
 	request: Request,
 	env: RuntimeBindings | undefined,
@@ -272,36 +862,16 @@ const routeFetch = (
 	const path = url.pathname;
 	const method = request.method;
 
-	if (path === "/sitemap.xml") {
-		return sitemapResponse();
+	for (const entry of ROUTES) {
+		if (matchesRoute(entry, path, method)) {
+			return entry.handler({ context, env, request, url });
+		}
 	}
-	if (path.startsWith("/api/auth")) {
-		return authResponse(request, env);
+	const sessionRoute = sessionApiRoute(request, env, path, method);
+	if (sessionRoute) {
+		return sessionRoute;
 	}
-	if (path === "/api/clankers") {
-		return clankersResponse(request, env, url.searchParams);
-	}
-	if (path === "/api/protectors") {
-		return protectorsResponse(request, env, url.searchParams);
-	}
-	if (path === "/api/health/recent-webhook") {
-		return recentWebhookResponse(request, env, url.searchParams);
-	}
-	if (path === "/api/github/manifest") {
-		return withSecurityHeaders(Response.json(githubAppManifest()));
-	}
-	if (path === "/api/github/manifest/convert" && method === "POST") {
-		return manifestConvertResponse(request);
-	}
-	if (path === "/api/github/webhook" && method === "POST") {
-		return webhookResponse(request, context);
-	}
-	if (isInvalidClankerProfilePath(path)) {
-		return withSecurityHeaders(
-			Response.redirect(new URL("/clankers", request.url))
-		);
-	}
-	return withSecurityHeaders(handler.fetch(request));
+	return Promise.resolve(withSecurityHeaders(handler.fetch(request)));
 };
 
 export default {
@@ -319,5 +889,19 @@ export default {
 			(globalThis as GlobalWithRuntime).__env__ = env;
 		}
 		return routeFetch(request, env, context);
+	},
+	// Cron-triggered drain of the D1-backed backfill queue (replaces Cloudflare
+	// Queues so backfill runs on the free Workers tier). Schedule is declared in
+	// wrangler.json under triggers.crons.
+	async scheduled(
+		_controller: ScheduledController,
+		envArg: RuntimeBindings | undefined
+	) {
+		const env =
+			envArg ?? (globalThis as GlobalWithRuntime).__env__ ?? undefined;
+		if (env) {
+			(globalThis as GlobalWithRuntime).__env__ = env;
+		}
+		await drainBackfillJobs();
 	},
 };

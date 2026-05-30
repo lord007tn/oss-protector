@@ -12,34 +12,34 @@ import {
 	riskStatusForScore,
 } from "@/constants/risk-statuses";
 import {
-	fetchDirectoryDashboardRecords,
+	getDirectoryDashboardRecords,
 	recentWebhookEventsQuery,
 } from "@/data-access/directory";
 import { isMissingBindingError } from "@/db/errors";
 import {
-	type ClankerFilters,
-	filterClankers,
+	type AccountFilters,
+	filterAccounts,
 	filterProtectors,
 	type ProtectorFilters,
 } from "@/helpers/directory-filters";
 import { parseJsonArray } from "@/lib/json";
 
-const CLANKER_LEADERBOARD_CREDIT = {
+const LEADERBOARD_CREDIT = {
 	creator: "@heyandras",
 	creator_url: "https://x.com/heyandras",
 	inspiration_url: "https://clankers-leaderboard.pages.dev/",
-	note: "Initial inspiration and first clanker data layer.",
+	note: "Initial inspiration and seed data layer.",
 } as const;
 
 const PUBLIC_APP_URL = "https://oss-protector.raedbahri90.workers.dev";
 const DELISTING = {
-	contest_url: `${PUBLIC_APP_URL}/contest`,
+	appeal_url: `${PUBLIC_APP_URL}/appeal`,
 	maintainer_command: "@oss-protector dismiss",
-	note: "If you are listed and believe it is wrong, ask any maintainer of the repo where the report came from to run the maintainer command in any PR comment, or open a delisting issue at the contest URL.",
+	note: "If you are listed and believe it is wrong, ask any maintainer of the repo where the report came from to run the maintainer command in any PR comment, or submit an appeal at the appeal URL.",
 } as const;
 
 type DashboardRecords = Awaited<
-	ReturnType<typeof fetchDirectoryDashboardRecords>
+	ReturnType<typeof getDirectoryDashboardRecords>
 >;
 type DashboardReport = DashboardRecords["reports"][number];
 
@@ -73,6 +73,7 @@ const emptyDashboard = () => ({
 	protectors: [],
 	imports: [],
 	reports: [],
+	repositories: [] as { fullName: string; name: string; ownerLogin: string }[],
 	riskProfiles: [],
 	stats: {
 		activeRepositories: 0,
@@ -221,6 +222,13 @@ const buildDirectoryDashboard = ({
 			id: report.id,
 			status: report.status,
 		})),
+		repositories: repositories
+			.filter((repo) => repo.isActive && !repo.isPrivate)
+			.map((repo) => ({
+				fullName: repo.fullName,
+				name: repo.name,
+				ownerLogin: repo.ownerLogin,
+			})),
 		riskProfiles,
 		stats: {
 			activeRepositories: repositories.filter(
@@ -275,7 +283,7 @@ const publicProtector = (
 
 export const listDirectoryDashboard = async () => {
 	try {
-		return buildDirectoryDashboard(await fetchDirectoryDashboardRecords());
+		return buildDirectoryDashboard(await getDirectoryDashboardRecords());
 	} catch (caught) {
 		if (isMissingBindingError(caught)) {
 			return emptyDashboard();
@@ -288,22 +296,22 @@ export type DirectoryDashboard = Awaited<
 	ReturnType<typeof listDirectoryDashboard>
 >;
 
-export const listClankersApi = async (filters: ClankerFilters) => {
+export const listAccountsApi = async (filters: AccountFilters) => {
 	const dashboard = await listDirectoryDashboard();
-	const clankers = filterClankers(dashboard.riskProfiles, filters);
+	const accounts = filterAccounts(dashboard.riskProfiles, filters);
 
 	return {
-		clankers: clankers.map((profile) => ({
+		accounts: accounts.map((profile) => ({
 			...publicUser(profile),
 			score: profile.score,
 			score_detail: scoreDetails(profile.score),
 		})),
-		count: clankers.length,
-		credits: CLANKER_LEADERBOARD_CREDIT,
+		count: accounts.length,
+		credits: LEADERBOARD_CREDIT,
 		delisting: DELISTING,
 		filters,
 		generated_at: new Date().toISOString(),
-		schema_version: "2026-05-15",
+		schema_version: "2026-05-23",
 		source: "oss-protector",
 		total_available: dashboard.riskProfiles.filter(
 			(profile) => profile.status !== "allow"
@@ -334,7 +342,7 @@ export const listProtectorsApi = async (filters: ProtectorFilters) => {
 
 	return {
 		count: protectors.length,
-		credits: CLANKER_LEADERBOARD_CREDIT,
+		credits: LEADERBOARD_CREDIT,
 		delisting: DELISTING,
 		filters,
 		generated_at: new Date().toISOString(),

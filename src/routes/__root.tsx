@@ -2,26 +2,39 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import type { ReactNode } from "react";
-import { ErrorPage, NotFoundPage } from "@/components/landing/status-page";
 import { JsonLd, siteJsonLd } from "@/components/seo/json-ld";
+import { ErrorView, NotFoundView } from "@/components/site/error-states";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RootProvider } from "@/integrations/tanstack-query/root-provider";
 
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
-	errorComponent: ({ error, reset }) => (
-		<ErrorPage
+	errorComponent: ({ error }) => (
+		<ErrorView
 			digest={
 				error && typeof error === "object" && "digest" in error
 					? String((error as { digest: unknown }).digest ?? "")
 					: undefined
 			}
-			onReset={reset}
 		/>
 	),
 	head: () => ({
 		links: [
+			{
+				href: "https://fonts.googleapis.com",
+				rel: "preconnect",
+			},
+			{
+				crossOrigin: "anonymous",
+				href: "https://fonts.gstatic.com",
+				rel: "preconnect",
+			},
+			{
+				href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;450;500&display=swap",
+				rel: "stylesheet",
+			},
 			{
 				href: appCss,
 				rel: "stylesheet",
@@ -43,12 +56,12 @@ export const Route = createRootRoute({
 			},
 			{
 				content:
-					"OSS Protector connects to GitHub, captures maintainer reports, and publishes a filterable clanker API for open-source projects.",
+					"OSS Protector connects to GitHub, captures maintainer reports, and publishes a filterable accounts API for open-source projects.",
 				name: "description",
 			},
 		],
 	}),
-	notFoundComponent: () => <NotFoundPage />,
+	notFoundComponent: () => <NotFoundView />,
 	shellComponent: RootDocument,
 });
 
@@ -57,7 +70,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 		import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEVTOOLS === "true";
 
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html className="dark" lang="en" suppressHydrationWarning>
 			<head>
 				{showDevtools ? (
 					<script src="/node_modules/react-scan/dist/auto.global.js" />
@@ -68,6 +81,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 			<body>
 				<RootProvider>
 					<TooltipProvider>{children}</TooltipProvider>
+					<Toaster />
 				</RootProvider>
 				{showDevtools ? (
 					<TanStackDevtools

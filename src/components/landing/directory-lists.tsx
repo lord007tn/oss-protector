@@ -258,7 +258,7 @@ function AccountCell({
 			<div className="min-w-0">
 				<a
 					className="inline-flex max-w-40 items-center gap-1 truncate font-medium text-sm hover:underline md:max-w-52"
-					href={`/clankers/${profile.login}`}
+					href={`/accounts/${profile.login}`}
 				>
 					@{profile.login}
 				</a>

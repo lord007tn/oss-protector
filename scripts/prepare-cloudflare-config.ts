@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const wranglerConfigPath = resolve("wrangler.json");
-const d1BindingName = "clankers_db";
+const d1BindingName = "accounts_db";
 const defaultDatabaseId = "bbf2be1c-7746-4b46-be6a-4363ea5f4a71";
 const zeroPlaceholderDatabaseId = "00000000-0000-0000-0000-000000000000";
 const legacyPlaceholderDatabaseId = "REPLACE_WITH_YOUR_D1_DATABASE_ID";

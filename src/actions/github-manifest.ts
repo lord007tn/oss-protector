@@ -21,11 +21,15 @@ export const githubAppManifest = () => {
 			"pull_request",
 			"pull_request_review_comment",
 		],
+		// Read-only by design: the app reads PR diffs, the policy file, and
+		// report-command comments, then surfaces everything in-app. It never
+		// writes back to GitHub (no comments, no check runs), so it needs no
+		// write scopes and no `checks` permission.
 		default_permissions: {
-			checks: "write",
 			contents: "read",
-			issues: "write",
-			pull_requests: "write",
+			issues: "read",
+			metadata: "read",
+			pull_requests: "read",
 		},
 		description:
 			"OSS Protector publishes shared maintainer reports for risky open-source contribution activity.",

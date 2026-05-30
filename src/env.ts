@@ -8,9 +8,10 @@ export interface RateLimitBinding {
 export interface RuntimeBindings {
 	ALLOW_UNSIGNED_GITHUB_WEBHOOKS?: string;
 	APP_NAME?: string;
+	accounts_db?: D1Database;
 	BETTER_AUTH_SECRET?: string;
 	CLOUDFLARE_D1_DATABASE_NAME?: string;
-	clankers_db?: D1Database;
+	EMAIL_FROM?: string;
 	GITHUB_APP_CREATE_OWNER?: string;
 	GITHUB_APP_ID?: string;
 	GITHUB_APP_PRIVATE_KEY?: string;
@@ -21,6 +22,7 @@ export interface RuntimeBindings {
 	GITHUB_WEBHOOK_SECRET?: string;
 	OPENROUTER_API_KEY?: string;
 	PUBLIC_RL?: RateLimitBinding;
+	RESEND_API_KEY?: string;
 	SMOKE_HEALTH_TOKEN?: string;
 	VITE_APP_URL?: string;
 }
@@ -40,7 +42,7 @@ export const runtimeBindings = () => {
 };
 
 export const runtimeEnv = () => {
-	const { clankers_db: _db, PUBLIC_RL: _rl, ...envVars } = runtimeBindings();
+	const { accounts_db: _db, PUBLIC_RL: _rl, ...envVars } = runtimeBindings();
 	return envVars;
 };
 
@@ -48,6 +50,7 @@ export const env = createEnv({
 	clientPrefix: "VITE_",
 	client: {
 		VITE_APP_URL: z.string().url().default("http://localhost:3000"),
+		VITE_ENABLE_EMAIL_OTP: z.string().optional(),
 		VITE_ENABLE_GITHUB_AUTH: z.string().optional(),
 	},
 	runtimeEnv: runtimeEnv(),
@@ -59,6 +62,7 @@ export const env = createEnv({
 		CLOUDFLARE_D1_DATABASE_ID: z.string().optional(),
 		CLOUDFLARE_D1_DATABASE_NAME: z.string().default("oss-protector"),
 		CLOUDFLARE_D1_TOKEN: z.string().optional(),
+		EMAIL_FROM: z.string().optional(),
 		GITHUB_APP_CREATE_OWNER: z.string().optional(),
 		GITHUB_APP_ID: z.string().optional(),
 		GITHUB_APP_PRIVATE_KEY: z.string().optional(),
@@ -68,6 +72,7 @@ export const env = createEnv({
 		GITHUB_MANIFEST_TOKEN: z.string().optional(),
 		GITHUB_WEBHOOK_SECRET: z.string().optional(),
 		OPENROUTER_API_KEY: z.string().optional(),
+		RESEND_API_KEY: z.string().optional(),
 		SMOKE_HEALTH_TOKEN: z.string().optional(),
 	},
 });

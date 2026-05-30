@@ -9,8 +9,7 @@ import {
 import type { ReactNode } from "react";
 
 import { publicAppUrl } from "@/components/landing/constants";
-import { Footer } from "@/components/landing/footer";
-import { SiteHeader } from "@/components/landing/site-header";
+import { PageShell } from "@/components/site/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -51,7 +50,7 @@ export const Route = createFileRoute("/api-docs")({
 			{ content: "API Documentation | OSS Protector", property: "og:title" },
 			{
 				content:
-					"Integrate the OSS Protector clanker directory into repository automation and dashboards.",
+					"Integrate the OSS Protector account directory into repository automation and dashboards.",
 				property: "og:description",
 			},
 			{
@@ -63,7 +62,7 @@ export const Route = createFileRoute("/api-docs")({
 	}),
 });
 
-const clankerParams = [
+const accountParams = [
 	{
 		name: "q",
 		values: "string",
@@ -82,7 +81,7 @@ const clankerParams = [
 	{
 		name: "min_score",
 		values: "number",
-		description: "Only return clankers at or above this score.",
+		description: "Only return accounts at or above this score.",
 	},
 	{
 		name: "limit",
@@ -117,15 +116,14 @@ const protectorParams = [
 
 function ApiDocsRoute() {
 	return (
-		<main className="min-h-screen bg-background text-foreground">
-			<SiteHeader />
+		<PageShell>
 			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<div className="max-w-2xl">
 					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
 						API
 					</span>
 					<h1 className="mt-2 text-balance font-semibold text-2xl tracking-tight md:text-3xl">
-						Use the clanker directory in your own tooling.
+						Use the account directory in your own tooling.
 					</h1>
 					<p className="mt-2 text-muted-foreground text-sm leading-6 md:text-[15px]">
 						JSON endpoints with query-param filters. Use them for pre-merge
@@ -138,7 +136,7 @@ function ApiDocsRoute() {
 					<AlertTitle>Rate limits</AlertTitle>
 					<AlertDescription>
 						Public read endpoints (
-						<code className="font-mono text-[11px]">/api/clankers</code>,{" "}
+						<code className="font-mono text-[11px]">/api/accounts</code>,{" "}
 						<code className="font-mono text-[11px]">/api/protectors</code>) are
 						throttled at <strong>60 requests per minute per client IP</strong>{" "}
 						(IPv6 clients bucketed by{" "}
@@ -182,8 +180,9 @@ function ApiDocsRoute() {
 							</CardTitle>
 							<CardDescription className="text-xs leading-5">
 								Repo owners and members (author_association OWNER, MEMBER, or
-								COLLABORATOR) can correct the system from a PR comment. The bot
-								posts a confirmation comment for every correction.
+								COLLABORATOR) can correct the system from a PR comment. Each
+								correction is applied silently and recorded as an in-app
+								notification — no reply is posted to the PR.
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -204,12 +203,12 @@ function ApiDocsRoute() {
 				<div className="grid gap-4 lg:grid-cols-2">
 					<EndpointCard
 						description="Filterable list of accounts currently published for review."
-						example="/api/clankers?status=review&reason=external_blocklist&min_score=70&limit=10"
-						href="/api/clankers"
+						example="/api/accounts?status=review&reason=external_blocklist&min_score=70&limit=10"
+						href="/api/accounts"
 						icon={<UsersRound className="size-4 text-muted-foreground" />}
 						method="GET"
-						params={clankerParams}
-						title="/api/clankers"
+						params={accountParams}
+						title="/api/accounts"
 					/>
 					<EndpointCard
 						description="Filterable list of maintainers who submitted review signals."
@@ -222,8 +221,7 @@ function ApiDocsRoute() {
 					/>
 				</div>
 			</div>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }
 

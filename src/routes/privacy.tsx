@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { publicAppUrl } from "@/components/landing/constants";
-import { Footer } from "@/components/landing/footer";
 import { PolicyPage, PolicySection } from "@/components/landing/policy-page";
-import { SiteHeader } from "@/components/landing/site-header";
+import { PageShell } from "@/components/site/page-shell";
 
 export const Route = createFileRoute("/privacy")({
 	component: PrivacyRoute,
@@ -22,8 +21,7 @@ export const Route = createFileRoute("/privacy")({
 
 function PrivacyRoute() {
 	return (
-		<main className="min-h-screen bg-background text-foreground">
-			<SiteHeader />
+		<PageShell>
 			<PolicyPage
 				description="What OSS Protector collects, how it's used, and how to ask us to change or delete it."
 				eyebrow="Privacy"
@@ -79,9 +77,9 @@ function PrivacyRoute() {
 
 				<PolicySection title="Who can see what">
 					<p>
-						The public clanker directory (
-						<a href="/api/clankers">/api/clankers</a> and the{" "}
-						<a href="/clankers">/clankers</a> page) expose only:
+						The public account directory (
+						<a href="/api/accounts">/api/accounts</a> and the{" "}
+						<a href="/accounts">/accounts</a> page) expose only:
 					</p>
 					<ul className="list-disc space-y-1 pl-4">
 						<li>Login, avatar URL, GitHub profile URL.</li>
@@ -100,16 +98,15 @@ function PrivacyRoute() {
 						Webhook event logs are retained indefinitely while the project is
 						operating, since they're our audit trail against retroactive edits.
 						Risk profile rows are retained as long as the listing is published.
-						If your listing is removed via the{" "}
-						<a href="/contest">contest path</a>, the profile score drops to 0
-						and the entry disappears from the public directory, but the audit
-						log of the underlying events stays.
+						If your listing is removed via the <a href="/appeal">appeal path</a>
+						, the profile score drops to 0 and the entry disappears from the
+						public directory, but the audit log of the underlying events stays.
 					</p>
 				</PolicySection>
 
 				<PolicySection title="Removing your data">
 					<p>
-						Use the <a href="/contest">contest a listing</a> page. The fastest
+						Use the <a href="/appeal">appeal a listing</a> page. The fastest
 						path is asking a maintainer of the repo where the report came from
 						to run{" "}
 						<code className="font-mono text-[12px]">
@@ -146,7 +143,6 @@ function PrivacyRoute() {
 					</p>
 				</PolicySection>
 			</PolicyPage>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-
+import type { DirectoryDashboard } from "@/actions/directory";
+import { HomePage } from "@/components/home/home-page";
 import { publicAppUrl } from "@/components/landing/constants";
-import { LandingPage } from "@/components/landing/landing-page";
+import { PageShell } from "@/components/site/page-shell";
 import { getDashboardFn } from "@/functions/dashboard";
-import { useDashboard } from "@/hooks/api/dashboard/use-dashboard";
 
 export const Route = createFileRoute("/")({
 	component: LandingRoute,
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/")({
 			{ title: "OSS Protector | Shared OSS Abuse Intelligence" },
 			{
 				content:
-					"OSS Protector helps open-source maintainers review risky GitHub pull request activity with a shared GitHub App and a public review directory.",
+					"OSS Protector is a community-run GitHub App that flags AI-generated spam pull requests before they hit your review queue. Free, transparent, built by maintainers.",
 				name: "description",
 			},
 			{
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
 			},
 			{
 				content:
-					"Install a shared GitHub App and browse the public review directory for suspicious OSS contribution patterns.",
+					"A community-run GitHub App and public directory for suspicious OSS contribution patterns.",
 				property: "og:description",
 			},
 			{
@@ -37,13 +37,14 @@ export const Route = createFileRoute("/")({
 			{ content: "summary_large_image", name: "twitter:card" },
 		],
 	}),
-	loader: async () => getDashboardFn(),
+	loader: () => getDashboardFn(),
 });
 
 function LandingRoute() {
-	const initialData = Route.useLoaderData();
-	const dashboardQuery = useDashboard({ initialData });
-	const dashboard = dashboardQuery.data ?? initialData;
-
-	return <LandingPage dashboard={dashboard} />;
+	const dashboard = Route.useLoaderData() as DirectoryDashboard;
+	return (
+		<PageShell>
+			<HomePage dashboard={dashboard} />
+		</PageShell>
+	);
 }

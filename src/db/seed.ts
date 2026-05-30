@@ -7,11 +7,11 @@ import { config as loadEnv } from "dotenv";
 
 loadEnv();
 
-const CLANKERS_SOURCE_URL =
+const IMPORT_SOURCE_URL =
 	"https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json";
 const SOURCE_NAME = "UnsafeLabs/Bounty-Hunters clankers.json";
 
-interface ClankerEntry {
+interface AccountEntry {
 	first_pr?: string;
 	last_pr?: string;
 	total_prs?: number;
@@ -65,7 +65,7 @@ const riskForTotalPrs = (totalPrs: number) => {
 
 const WINDOWS_SHELL_SPECIAL_CHARACTERS = /[\s&()^[\]{}=;!'+,`~|<>"]/;
 
-const buildSeedSql = (entries: ClankerEntry[]) => {
+const buildSeedSql = (entries: AccountEntry[]) => {
 	const now = Math.floor(Date.now() / 1000);
 	const statements: string[] = ["PRAGMA foreign_keys = ON;"];
 
@@ -147,7 +147,7 @@ INSERT INTO SourceImport (
 ) VALUES (
 	${sqlString(createId())},
 	${sqlString(SOURCE_NAME)},
-	${sqlString(CLANKERS_SOURCE_URL)},
+	${sqlString(IMPORT_SOURCE_URL)},
 	'completed',
 	${entries.length},
 	${now}
@@ -157,7 +157,7 @@ INSERT INTO SourceImport (
 };
 
 const runWrangler = async (sql: string) => {
-	const filePath = join(tmpdir(), `clankers-seed-${Date.now()}.sql`);
+	const filePath = join(tmpdir(), `accounts-seed-${Date.now()}.sql`);
 	await writeFile(filePath, sql, "utf8");
 
 	const wranglerArgs = [
@@ -204,14 +204,12 @@ const windowsShellArg = (value: string) => {
 };
 
 const main = async () => {
-	const response = await fetch(CLANKERS_SOURCE_URL);
+	const response = await fetch(IMPORT_SOURCE_URL);
 	if (!response.ok) {
-		throw new Error(
-			`Failed to fetch ${CLANKERS_SOURCE_URL}: ${response.status}`
-		);
+		throw new Error(`Failed to fetch ${IMPORT_SOURCE_URL}: ${response.status}`);
 	}
 
-	const entries = (await response.json()) as ClankerEntry[];
+	const entries = (await response.json()) as AccountEntry[];
 	const sql = buildSeedSql(entries);
 	if (printOnly) {
 		console.log(sql);
@@ -220,7 +218,7 @@ const main = async () => {
 
 	await runWrangler(sql);
 	console.log(
-		`Seeded ${entries.length} imported clanker profiles into ${databaseName} (${remoteMode ? "remote" : "local"}).`
+		`Seeded ${entries.length} imported account profiles into ${databaseName} (${remoteMode ? "remote" : "local"}).`
 	);
 };
 

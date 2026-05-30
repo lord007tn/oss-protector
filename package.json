@@ -119,6 +119,7 @@
     "db:migrate:local": "wrangler d1 migrations apply oss-protector --local",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx ./src/db/seed.ts --local",
+    "db:seed:demo": "tsx ./src/db/seed-maintainer-demo.ts --local",
     "predb:seed:remote": "tsx ./scripts/prepare-cloudflare-config.ts --required",
     "db:seed:remote": "tsx ./src/db/seed.ts --remote",
     "postdb:seed:remote": "tsx ./scripts/prepare-cloudflare-config.ts --restore-placeholder",

@@ -3,14 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { publicAppUrl } from "@/components/landing/constants";
 import { ProtectorsCard } from "@/components/landing/directory-lists";
 import { ProtectorFilters } from "@/components/landing/filter-controls";
-import { Footer } from "@/components/landing/footer";
 import {
 	DirectoryPagination,
 	paginateItems,
 } from "@/components/landing/pagination";
 import { SectionHeading } from "@/components/landing/shared";
-import { SiteHeader } from "@/components/landing/site-header";
 import { JsonLd } from "@/components/seo/json-ld";
+import { PageShell } from "@/components/site/page-shell";
 import { MAX_RISK_SCORE } from "@/constants/risk-statuses";
 import { getDashboardFn } from "@/functions/dashboard";
 import { filterProtectors } from "@/helpers/directory-filters";
@@ -83,7 +82,7 @@ function ProtectorsRoute() {
 	});
 
 	return (
-		<main className="min-h-screen bg-background text-foreground">
+		<PageShell>
 			<JsonLd
 				data={{
 					"@context": "https://schema.org",
@@ -128,7 +127,6 @@ function ProtectorsRoute() {
 					url: `${publicAppUrl}/protectors`,
 				}}
 			/>
-			<SiteHeader />
 			<div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 md:px-6">
 				<SectionHeading
 					description="Maintainer reports are captured as review signals. Submitted and needs-review reports stay visible, but only validated or independently corroborated evidence affects public score."
@@ -150,8 +148,7 @@ function ProtectorsRoute() {
 					params={filters}
 				/>
 			</div>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }
 

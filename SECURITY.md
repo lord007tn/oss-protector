@@ -31,7 +31,7 @@ In scope:
 
 - The hosted instance at `https://oss-protector.raedbahri90.workers.dev`.
 - The GitHub App webhook handler and any code path reachable from a webhook event.
-- Public API endpoints (`/api/clankers`, `/api/protectors`).
+- Public API endpoints (`/api/accounts`, `/api/protectors`).
 - Authentication flows (Better Auth, GitHub App installation).
 
 Out of scope:

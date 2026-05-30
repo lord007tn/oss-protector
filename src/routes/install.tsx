@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	ArrowRight,
+	Check,
 	CheckCircle2,
 	Github,
 	KeyRound,
 	Loader2,
+	Shield,
+	X,
 } from "lucide-react";
 import { useState } from "react";
 import type { GithubManifestConversion } from "@/actions/github-manifest";
@@ -12,8 +15,7 @@ import {
 	githubAppInstallUrl,
 	githubRepoUrl,
 } from "@/components/landing/constants";
-import { Footer } from "@/components/landing/footer";
-import { SiteHeader } from "@/components/landing/site-header";
+import { PageShell } from "@/components/site/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -28,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/install")({
 	component: InstallRoute,
-	validateSearch: (search) => ({
+	validateSearch: (search: Record<string, unknown>) => ({
 		code: typeof search.code === "string" ? search.code : undefined,
 		installation_id:
 			typeof search.installation_id === "string" ||
@@ -38,6 +40,16 @@ export const Route = createFileRoute("/install")({
 		setup_action:
 			typeof search.setup_action === "string" ? search.setup_action : undefined,
 	}),
+	head: ({ match }) => {
+		const search = match.search;
+		let title = "Install | OSS Protector";
+		if (search.installation_id && !search.code) {
+			title = "Install complete | OSS Protector";
+		} else if (search.code) {
+			title = "GitHub App setup | OSS Protector";
+		}
+		return { meta: [{ title }] };
+	},
 });
 
 function InstallRoute() {
@@ -73,8 +85,7 @@ function InstallSuccess({
 	installationId: string;
 }) {
 	return (
-		<main className="min-h-screen bg-background">
-			<SiteHeader />
+		<PageShell>
 			<div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-10 md:px-6 md:py-14">
 				<div className="grid gap-2">
 					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
@@ -115,8 +126,8 @@ function InstallSuccess({
 						</CardTitle>
 						<CardDescription className="text-xs leading-5">
 							The bot records the webhook, reviews supported PR events, and
-							posts a comment with confidence, reason code, and scoring
-							breakdown when there is enough signal.
+							notifies linked maintainers in their dashboard with confidence,
+							reason code, and scoring breakdown when there is enough signal.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -170,8 +181,15 @@ function InstallSuccess({
 				</Card>
 
 				<div className="flex flex-wrap gap-2">
-					<a className={buttonVariants({ size: "sm" })} href="/clankers">
-						Browse the public review feed
+					<a className={buttonVariants({ size: "sm" })} href="/dashboard">
+						<Shield data-icon="inline-start" />
+						Open your dashboard
+					</a>
+					<a
+						className={buttonVariants({ size: "sm", variant: "outline" })}
+						href="/feed"
+					>
+						Browse the public feed
 						<ArrowRight data-icon="inline-end" />
 					</a>
 					<a
@@ -184,54 +202,112 @@ function InstallSuccess({
 					</a>
 					<a
 						className={buttonVariants({ size: "sm", variant: "ghost" })}
-						href="/contest"
+						href="/appeal"
 					>
-						Contest a listing
+						Appeal a listing
 					</a>
 				</div>
 			</div>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }
 
 function NoParamsLanding() {
 	return (
-		<main className="min-h-screen bg-background">
-			<SiteHeader />
-			<div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-10 md:px-6 md:py-14">
+		<PageShell>
+			<div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-12 md:px-6 md:py-16">
 				<div className="grid gap-2">
-					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
+					<span className="font-mono text-primary text-xs uppercase tracking-[0.08em]">
 						Install
 					</span>
-					<h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
-						Install the OSS Protector GitHub App.
+					<h1 className="font-medium text-3xl tracking-tight">
+						Install OSS Protector on your GitHub.
 					</h1>
-					<p className="text-muted-foreground text-sm leading-6 md:text-[15px]">
-						Add one shared GitHub App to the repositories you want protected.
-						The bot will post a structured PR assessment on every new pull
-						request and accept maintainer commands in comments.
+					<p className="text-[15px] text-muted-foreground leading-relaxed">
+						We'll only ask for what we need: read-only access to pull request
+						metadata and diffs so we can review them. We never write to your
+						repos — no comments, no status checks — and never clone code.
 					</p>
 				</div>
-				<div className="flex flex-wrap gap-2">
+
+				<div className="rounded-2xl border bg-card p-7">
+					<div className="mb-4 font-medium text-[15px]">
+						Required GitHub permissions
+					</div>
+					<PermRow
+						body="Read PR metadata and diffs. We never post comments or status checks."
+						ok
+						title="Pull requests · read"
+					/>
+					<PermRow
+						body="Repo names, stars, and contributor counts."
+						ok
+						title="Metadata · read"
+					/>
+					<PermRow
+						body="Public handle, account age, public commit history."
+						ok
+						title="Account profile · read (limited)"
+					/>
+					<PermRow
+						body="We never read your code, never clone, never store diffs."
+						title="Code contents"
+					/>
+					<PermRow
+						body="We don't touch issues, comments outside our own, or wikis."
+						title="Issues & discussions"
+					/>
+					<div className="mt-4 flex items-start gap-2.5 rounded-xl border border-info/25 bg-info/10 p-3.5 text-[13.5px] text-muted-foreground leading-relaxed">
+						<Shield className="mt-0.5 size-3.5 shrink-0 text-info" />
+						<div>
+							<b className="text-foreground">Open audit trail.</b> Every API
+							call we make is logged to the public audit ledger. Your security
+							team can review the call history per-org.
+						</div>
+					</div>
+				</div>
+
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<a className={buttonVariants({ variant: "ghost" })} href="/feed">
+						See what the feed looks like
+						<ArrowRight data-icon="inline-end" />
+					</a>
 					<a
-						className={buttonVariants({ size: "sm" })}
+						className={buttonVariants({ size: "lg" })}
 						href={githubAppInstallUrl}
 					>
 						<Github data-icon="inline-start" />
 						Install on GitHub
 					</a>
-					<a
-						className={buttonVariants({ size: "sm", variant: "outline" })}
-						href="/clankers"
-					>
-						See what the feed looks like
-						<ArrowRight data-icon="inline-end" />
-					</a>
 				</div>
 			</div>
-			<Footer />
-		</main>
+		</PageShell>
+	);
+}
+
+function PermRow({
+	ok = false,
+	title,
+	body,
+}: {
+	ok?: boolean;
+	title: string;
+	body: string;
+}) {
+	return (
+		<div className="grid grid-cols-[22px_1fr] gap-3 border-border border-t py-2.5 first:border-0">
+			<div className="flex justify-center">
+				{ok ? (
+					<Check className="size-4 text-success" />
+				) : (
+					<X className="size-4 text-destructive" />
+				)}
+			</div>
+			<div>
+				<div className="font-medium text-[13.5px]">{title}</div>
+				<div className="mt-0.5 text-[12.5px] text-muted-foreground">{body}</div>
+			</div>
+		</div>
 	);
 }
 
@@ -275,8 +351,7 @@ function ManifestExchange({
 	};
 
 	return (
-		<main className="min-h-screen bg-background">
-			<SiteHeader />
+		<PageShell>
 			<div className="mx-auto grid w-full max-w-3xl gap-5 px-4 py-10 md:px-6 md:py-14">
 				<header className="grid gap-2">
 					<span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.18em]">
@@ -329,8 +404,7 @@ function ManifestExchange({
 
 				{conversion ? <ConvertedApp conversion={conversion} /> : null}
 			</div>
-			<Footer />
-		</main>
+		</PageShell>
 	);
 }
 

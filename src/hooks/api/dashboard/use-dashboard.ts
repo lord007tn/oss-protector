@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getDashboardFn } from "@/functions/dashboard";
 
-const fetchDashboardSchema = z.object({});
+const getDashboardSchema = z.object({});
 
-export function fetchDashboard() {
-	fetchDashboardSchema.parse({});
+export function getDashboard() {
+	getDashboardSchema.parse({});
 	return getDashboardFn();
 }
 
@@ -16,7 +16,7 @@ export function useDashboard({
 } = {}) {
 	return useQuery({
 		initialData,
-		queryFn: fetchDashboard,
+		queryFn: getDashboard,
 		queryKey: ["dashboard"],
 		staleTime: 30_000,
 	});

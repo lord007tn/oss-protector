@@ -4,14 +4,14 @@ import { REASON_CODES } from "@/constants/reason-codes";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { MAX_RISK_SCORE, RISK_STATUSES } from "@/constants/risk-statuses";
 
-export type ClankerStatusFilter = Exclude<RiskStatus, "allow"> | "all";
+export type AccountStatusFilter = Exclude<RiskStatus, "allow"> | "all";
 
-export interface ClankerFilters {
+export interface AccountFilters {
 	limit: number;
 	minScore: number;
 	q: string;
 	reason: ReasonCode | "all";
-	status: ClankerStatusFilter;
+	status: AccountStatusFilter;
 }
 
 export interface ProtectorFilters {
@@ -21,18 +21,18 @@ export interface ProtectorFilters {
 	q: string;
 }
 
-export type ClankerProfile = DirectoryDashboard["riskProfiles"][number];
+export type AccountProfile = DirectoryDashboard["riskProfiles"][number];
 export type ProtectorProfile = DirectoryDashboard["protectors"][number];
 
 const DEFAULT_LIMIT = 250;
 const MAX_LIMIT = 500;
-const VALID_CLANKER_STATUSES = new Set<string>([
+const VALID_ACCOUNT_STATUSES = new Set<string>([
 	"all",
 	...RISK_STATUSES.filter((status) => status !== "allow"),
 ]);
 const VALID_REASONS = new Set<string>(["all", ...REASON_CODES]);
 
-const defaultClankerFilters: ClankerFilters = {
+const defaultAccountFilters: AccountFilters = {
 	limit: DEFAULT_LIMIT,
 	minScore: 0,
 	q: "",
@@ -40,11 +40,33 @@ const defaultClankerFilters: ClankerFilters = {
 	status: "all",
 };
 
-export function parseClankerFilters(
+export class FilterValidationError extends Error {
+	readonly field: "status" | "reason";
+	readonly value: string;
+	readonly allowed: string[];
+
+	constructor(field: "status" | "reason", value: string, allowed: string[]) {
+		super(`Invalid ${field} "${value}". Allowed: ${allowed.join(", ")}.`);
+		this.field = field;
+		this.value = value;
+		this.allowed = allowed;
+	}
+}
+
+export function parseAccountFilters(
 	searchParams: URLSearchParams
-): ClankerFilters {
-	const status = searchParams.get("status") ?? defaultClankerFilters.status;
-	const reason = searchParams.get("reason") ?? defaultClankerFilters.reason;
+): AccountFilters {
+	const status = searchParams.get("status") ?? defaultAccountFilters.status;
+	const reason = searchParams.get("reason") ?? defaultAccountFilters.reason;
+
+	if (!VALID_ACCOUNT_STATUSES.has(status)) {
+		throw new FilterValidationError("status", status, [
+			...VALID_ACCOUNT_STATUSES,
+		]);
+	}
+	if (!VALID_REASONS.has(reason)) {
+		throw new FilterValidationError("reason", reason, [...VALID_REASONS]);
+	}
 
 	return {
 		limit: parseBoundedNumber(
@@ -60,12 +82,8 @@ export function parseClankerFilters(
 			MAX_RISK_SCORE
 		),
 		q: (searchParams.get("q") ?? "").trim(),
-		reason: VALID_REASONS.has(reason)
-			? (reason as ClankerFilters["reason"])
-			: defaultClankerFilters.reason,
-		status: VALID_CLANKER_STATUSES.has(status)
-			? (status as ClankerStatusFilter)
-			: defaultClankerFilters.status,
+		reason: reason as AccountFilters["reason"],
+		status: status as AccountStatusFilter,
 	};
 }
 
@@ -95,9 +113,9 @@ export function parseProtectorFilters(
 	};
 }
 
-export function filterClankers(
-	profiles: ClankerProfile[],
-	filters: ClankerFilters
+export function filterAccounts(
+	profiles: AccountProfile[],
+	filters: AccountFilters
 ) {
 	const query = filters.q.toLowerCase();
 
