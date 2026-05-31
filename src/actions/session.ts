@@ -1,6 +1,7 @@
 import { createAuth, getAuthConfigStatus } from "@/auth";
 import { hasDatabaseBinding } from "@/db";
 import type { RuntimeBindings } from "@/env";
+import { isPlatformAdmin } from "@/lib/moderation-authz";
 
 export type SessionResolution =
 	| { ok: false; status: number; error: string }
@@ -18,7 +19,11 @@ export interface SessionUser {
 	role: string | null;
 }
 
-export type RouterSession = { user: SessionUser } | null;
+// `isAdmin` is resolved server-side with the same `isPlatformAdmin` logic the
+// backend authz uses (admin role OR an ADMIN_EMAILS match), so the header and
+// route guards agree with the server and don't depend on the `role` column
+// alone propagating through the session.
+export type RouterSession = { user: SessionUser; isAdmin: boolean } | null;
 
 // Auth state injected into the TanStack Router context by the root route.
 export interface RouterContext {
@@ -52,6 +57,7 @@ export async function getSessionUser({
 		role?: null | string;
 	};
 	return {
+		isAdmin: isPlatformAdmin(env, user),
 		user: {
 			email: user.email,
 			id: user.id,

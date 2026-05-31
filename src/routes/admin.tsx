@@ -29,7 +29,7 @@ export const Route = createFileRoute("/admin")({
 		if (!context.session) {
 			throw redirect({ search: { redirect: location.href }, to: "/login" });
 		}
-		if (context.session.user.role !== "admin") {
+		if (!context.session.isAdmin) {
 			throw redirect({ to: "/" });
 		}
 	},

@@ -75,7 +75,7 @@ export function SiteHeader() {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const { notifications, unread, markRead, markAllRead } =
 		useNotifications(signedIn);
-	const isAdmin = session?.user?.role === "admin";
+	const isAdmin = Boolean(session?.isAdmin);
 	const displayName =
 		session?.user?.name?.trim() ||
 		session?.user?.email?.split("@")[0] ||

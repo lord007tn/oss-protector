@@ -31,7 +31,7 @@ export interface AdminOverview {
 // function layer turns the throw into a 401/403 for the client.
 async function requireAdmin(request: Request): Promise<void> {
 	const session = await getSessionUser({ request });
-	if (session?.user.role !== "admin") {
+	if (!session?.isAdmin) {
 		throw new Error("Admin access required.");
 	}
 }
