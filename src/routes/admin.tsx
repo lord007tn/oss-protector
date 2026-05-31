@@ -4,6 +4,7 @@ import { Ban, Loader2, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SponsorsTab } from "@/components/admin/sponsors-tab";
 import { InitialsAvatar } from "@/components/oss/initials-avatar";
 import {
 	PageContainer,
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/admin")({
 	loader: () => getAdminOverviewFn(),
 });
 
-type AdminTab = "overview" | "users";
+type AdminTab = "overview" | "sponsors" | "users";
 
 function AdminRoute() {
 	const overview = Route.useLoaderData();
@@ -74,6 +75,7 @@ function AdminRoute() {
 						<TabsList>
 							<TabsTrigger value="overview">Overview</TabsTrigger>
 							<TabsTrigger value="users">Users</TabsTrigger>
+							<TabsTrigger value="sponsors">Sponsors</TabsTrigger>
 						</TabsList>
 					</Tabs>
 				</div>
@@ -81,6 +83,7 @@ function AdminRoute() {
 				<div className="mt-6">
 					{tab === "overview" ? <OverviewTab overview={overview} /> : null}
 					{tab === "users" ? <UsersTab /> : null}
+					{tab === "sponsors" ? <SponsorsTab /> : null}
 				</div>
 			</PageContainer>
 		</PageShell>

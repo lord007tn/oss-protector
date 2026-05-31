@@ -16,6 +16,9 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@/components/ui/empty";
+import { SPONSOR_TIER_LABELS, SPONSOR_TIERS } from "@/constants/sponsor-tiers";
+import type { SponsorRecord } from "@/data-access/sponsors";
+import { listSponsorsFn } from "@/functions/sponsors";
 import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +31,7 @@ export const Route = createFileRoute("/sponsors")({
 			path: "/sponsors",
 			title: "Sponsors | OSS Protector",
 		}),
+	loader: () => listSponsorsFn(),
 });
 
 function MonoLabel({ children }: { children: string }) {
@@ -103,7 +107,66 @@ function TierCard({
 	);
 }
 
+function SponsorCard({ sponsor }: { sponsor: SponsorRecord }) {
+	return (
+		<a
+			className="flex items-center gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-primary/5"
+			href={sponsor.url}
+			rel="noreferrer noopener"
+			target="_blank"
+		>
+			{sponsor.logoUrl ? (
+				<img
+					alt={`${sponsor.name} logo`}
+					className="size-10 shrink-0 rounded-lg object-contain"
+					height={40}
+					src={sponsor.logoUrl}
+					width={40}
+				/>
+			) : (
+				<div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted font-medium text-muted-foreground text-sm">
+					{sponsor.name.slice(0, 2).toUpperCase()}
+				</div>
+			)}
+			<div className="min-w-0">
+				<div className="truncate font-medium text-[15px]">{sponsor.name}</div>
+				{sponsor.description ? (
+					<div className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">
+						{sponsor.description}
+					</div>
+				) : null}
+			</div>
+		</a>
+	);
+}
+
+function SponsorWall({ sponsors }: { sponsors: SponsorRecord[] }) {
+	return (
+		<div className="flex flex-col gap-6">
+			{SPONSOR_TIERS.map((tier) => {
+				const tierSponsors = sponsors.filter(
+					(sponsor) => sponsor.tier === tier
+				);
+				if (tierSponsors.length === 0) {
+					return null;
+				}
+				return (
+					<section key={tier}>
+						<MonoLabel>{SPONSOR_TIER_LABELS[tier]}</MonoLabel>
+						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+							{tierSponsors.map((sponsor) => (
+								<SponsorCard key={sponsor.id} sponsor={sponsor} />
+							))}
+						</div>
+					</section>
+				);
+			})}
+		</div>
+	);
+}
+
 function SponsorsRoute() {
+	const sponsors = Route.useLoaderData();
 	return (
 		<PageShell>
 			<PageContainer className="py-9" width="narrow">
@@ -131,7 +194,9 @@ function SponsorsRoute() {
 							<span className="ml-1 text-lg text-muted-foreground">/ mo</span>
 						</div>
 						<div className="mt-1.5 font-mono text-[13px] text-muted-foreground">
-							No sponsors yet — the project is just getting started.
+							{sponsors.length > 0
+								? `${sponsors.length} sponsor${sponsors.length === 1 ? "" : "s"} backing the project — thank you.`
+								: "No sponsors yet — the project is just getting started."}
 						</div>
 					</div>
 					<div className="rounded-2xl border bg-card p-6">
@@ -151,27 +216,31 @@ function SponsorsRoute() {
 				</div>
 
 				<div className="mt-5">
-					<Empty className="rounded-2xl border bg-card p-10">
-						<EmptyHeader>
-							<EmptyMedia variant="icon">
-								<Heart />
-							</EmptyMedia>
-							<EmptyTitle>No sponsors yet</EmptyTitle>
-							<EmptyDescription>
-								Every sponsor will be published on this page, publicly. Be the
-								first to back open-source abuse intelligence.
-							</EmptyDescription>
-						</EmptyHeader>
-						<a
-							className={cn(buttonVariants())}
-							href={githubRepoUrl}
-							rel="noreferrer noopener"
-							target="_blank"
-						>
-							<Heart data-icon="inline-start" />
-							Become the first sponsor
-						</a>
-					</Empty>
+					{sponsors.length > 0 ? (
+						<SponsorWall sponsors={sponsors} />
+					) : (
+						<Empty className="rounded-2xl border bg-card p-10">
+							<EmptyHeader>
+								<EmptyMedia variant="icon">
+									<Heart />
+								</EmptyMedia>
+								<EmptyTitle>No sponsors yet</EmptyTitle>
+								<EmptyDescription>
+									Every sponsor will be published on this page, publicly. Be the
+									first to back open-source abuse intelligence.
+								</EmptyDescription>
+							</EmptyHeader>
+							<a
+								className={cn(buttonVariants())}
+								href={githubRepoUrl}
+								rel="noreferrer noopener"
+								target="_blank"
+							>
+								<Heart data-icon="inline-start" />
+								Become the first sponsor
+							</a>
+						</Empty>
+					)}
 				</div>
 
 				<div className="mt-5 grid gap-4 md:grid-cols-3">
