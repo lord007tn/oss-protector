@@ -1,5 +1,5 @@
+import { Progress } from "@/components/ui/progress";
 import { signalFillClass } from "@/lib/oss";
-import { cn } from "@/lib/utils";
 
 export type SignalKey =
 	| "accountAge"
@@ -43,15 +43,11 @@ export function SignalBars({
 						key={key}
 					>
 						<div className="text-muted-foreground">{SIGNAL_LABELS[key]}</div>
-						<div className="relative h-2 overflow-hidden rounded-full bg-muted">
-							<div
-								className={cn(
-									"h-full rounded-full transition-[width] duration-700 ease-out",
-									signalFillClass(value)
-								)}
-								style={{ width: `${pct}%` }}
-							/>
-						</div>
+						<Progress
+							indicatorClassName={signalFillClass(value)}
+							trackClassName="h-2"
+							value={pct}
+						/>
 						<div className="text-right font-mono text-foreground tabular-nums">
 							{pct}%
 						</div>

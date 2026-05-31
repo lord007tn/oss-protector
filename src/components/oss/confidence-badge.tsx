@@ -1,5 +1,13 @@
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { confidenceTone } from "@/lib/oss";
 import { cn } from "@/lib/utils";
+
+const TIER_VARIANT = {
+	high: "destructive",
+	med: "warning",
+	low: "success",
+} as const;
 
 export function ConfidenceBadge({
 	value,
@@ -10,27 +18,25 @@ export function ConfidenceBadge({
 }) {
 	const pct = Math.round(value * 100);
 	const tone = confidenceTone(value);
+	const variant = TIER_VARIANT[tone.label as keyof typeof TIER_VARIANT];
 
 	return (
-		<span
-			className={cn(
-				"inline-flex items-center gap-2 rounded-md px-2 py-1 font-mono text-xs tabular-nums",
-				tone.soft,
-				tone.text,
-				className
-			)}
+		<Badge
+			className={cn("gap-2 font-mono tabular-nums", className)}
+			render={<div />}
 			title={`${pct}% confidence — ${tone.label}`}
+			variant={variant}
 		>
-			<span className="relative h-1.5 w-14 overflow-hidden rounded-full bg-foreground/10">
-				<span
-					className={cn("absolute inset-y-0 left-0 rounded-full", tone.fill)}
-					style={{ width: `${pct}%` }}
-				/>
-			</span>
+			<Progress
+				className="w-14"
+				indicatorClassName={tone.fill}
+				trackClassName="h-1.5 w-14"
+				value={pct}
+			/>
 			<span>
 				{pct}
 				<span className="opacity-60">%</span>
 			</span>
-		</span>
+		</Badge>
 	);
 }

@@ -5,7 +5,7 @@ import type { ReportStatus } from "@/constants/report-statuses";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { riskStatusForScore } from "@/constants/risk-statuses";
 import { database, hasDatabaseBinding } from "@/db";
-import { isMissingBindingError } from "@/db/errors";
+import { isDatabaseReadError } from "@/db/errors";
 import {
 	BotReport,
 	BotSignal,
@@ -70,11 +70,6 @@ export interface AccountProfileResult {
 const PR_LIMIT = 40;
 const REPORT_LIMIT = 40;
 const SIGNAL_LIMIT = 40;
-
-const isGithubUserLookupError = (caught: unknown) =>
-	caught instanceof Error &&
-	caught.message.startsWith("Failed query:") &&
-	caught.message.includes('from "GithubUser"');
 
 export const emptyAccountProfile = (login: string): AccountProfileResult => ({
 	avatarUrl: null,
@@ -257,7 +252,11 @@ export const getAccountProfile = async (
 			validatedReportCount,
 		};
 	} catch (caught) {
-		if (isMissingBindingError(caught) || isGithubUserLookupError(caught)) {
+		if (isDatabaseReadError(caught)) {
+			// Public read-only page: degrade to an empty profile on any DB read
+			// failure (missing binding, schema drift, transient D1 error) instead of
+			// 500-ing during SSR. Non-DB errors still throw so they stay observable.
+			console.error("getAccountProfile read failed", caught);
 			return emptyAccountProfile(login);
 		}
 		throw caught;

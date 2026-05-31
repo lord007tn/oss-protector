@@ -16,8 +16,10 @@ import {
 import { StatusBadge } from "@/components/landing/shared";
 import { InitialsAvatar } from "@/components/oss/initials-avatar";
 import { PageContainer, PageShell } from "@/components/site/page-shell";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { REASON_LABELS, type ReasonCode } from "@/constants/reason-codes";
 import { getRepoProfileFn } from "@/functions/repo-profile";
 import { relativeTime } from "@/lib/directory-view";
@@ -57,15 +59,19 @@ function RepoStat({
 	sub: string;
 }) {
 	return (
-		<div className="rounded-2xl border bg-card p-5">
-			<div className="font-mono text-muted-foreground text-xs uppercase tracking-[0.06em]">
-				{label}
-			</div>
-			<div className="mt-2 font-medium text-3xl tabular-nums tracking-tight">
-				{value}
-			</div>
-			<div className="mt-1 font-mono text-muted-foreground text-xs">{sub}</div>
-		</div>
+		<Card size="sm">
+			<CardContent>
+				<div className="font-mono text-muted-foreground text-xs uppercase tracking-[0.06em]">
+					{label}
+				</div>
+				<div className="mt-2 font-medium text-3xl tabular-nums tracking-tight">
+					{value}
+				</div>
+				<div className="mt-1 font-mono text-muted-foreground text-xs">
+					{sub}
+				</div>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -107,14 +113,14 @@ function RepoRoute() {
 					<RecentFlags profile={profile} />
 					<div className="flex flex-col gap-5">
 						<TopAccounts profile={profile} />
-						<div className="flex items-start gap-2.5 rounded-xl border border-info/25 bg-info/10 p-3.5 text-[13.5px] text-muted-foreground leading-relaxed">
-							<Shield className="mt-0.5 size-3.5 shrink-0 text-info" />
-							<div>
+						<Alert variant="info">
+							<Shield />
+							<AlertDescription>
 								<b className="text-foreground">Public data.</b> Repo-level flag
 								stats are public for every public repo we've scored. Maintainer
 								controls require installing the GitHub App.
-							</div>
-						</div>
+							</AlertDescription>
+						</Alert>
 					</div>
 				</div>
 			</PageContainer>
@@ -124,7 +130,7 @@ function RepoRoute() {
 
 function RepoHeader({ profile }: { profile: RepoProfileResult }) {
 	return (
-		<div className="grid items-center gap-5 rounded-2xl border bg-card p-7 md:grid-cols-[72px_1fr_auto]">
+		<Card className="grid items-center gap-5 p-7 md:grid-cols-[72px_1fr_auto]">
 			<div className="flex size-18 items-center justify-center rounded-xl border bg-muted text-primary">
 				<Shield className="size-9" />
 			</div>
@@ -180,7 +186,7 @@ function RepoHeader({ profile }: { profile: RepoProfileResult }) {
 					</a>
 				)}
 			</div>
-		</div>
+		</Card>
 	);
 }
 
@@ -253,39 +259,41 @@ function RecentFlags({ profile }: { profile: RepoProfileResult }) {
 
 function TopAccounts({ profile }: { profile: RepoProfileResult }) {
 	return (
-		<div className="rounded-2xl border bg-card p-5">
-			<div className="mb-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.07em]">
-				Most-reported accounts in this repo
-			</div>
-			{profile.topAccounts.length === 0 ? (
-				<p className="text-[13.5px] text-muted-foreground">
-					No reported accounts yet.
-				</p>
-			) : (
-				profile.topAccounts.map((account) => (
-					<a
-						className="grid grid-cols-[28px_1fr_auto] items-center gap-2.5 border-border border-t py-2.5 first:border-0"
-						href={`/accounts/${account.login}`}
-						key={account.login}
-					>
-						<InitialsAvatar
-							className="size-7 text-[10px]"
-							color={avatarColor(account.login)}
-							initials={initials(account.login)}
-						/>
-						<div className="min-w-0">
-							<div className="truncate font-medium text-[13px]">
-								@{account.login}
+		<Card>
+			<CardContent>
+				<div className="mb-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.07em]">
+					Most-reported accounts in this repo
+				</div>
+				{profile.topAccounts.length === 0 ? (
+					<p className="text-[13.5px] text-muted-foreground">
+						No reported accounts yet.
+					</p>
+				) : (
+					profile.topAccounts.map((account) => (
+						<a
+							className="grid grid-cols-[28px_1fr_auto] items-center gap-2.5 border-border border-t py-2.5 first:border-0"
+							href={`/accounts/${account.login}`}
+							key={account.login}
+						>
+							<InitialsAvatar
+								className="size-7 text-[10px]"
+								color={avatarColor(account.login)}
+								initials={initials(account.login)}
+							/>
+							<div className="min-w-0">
+								<div className="truncate font-medium text-[13px]">
+									@{account.login}
+								</div>
+								<div className="text-muted-foreground text-xs">
+									{account.reportCount} report
+									{account.reportCount === 1 ? "" : "s"} · score {account.score}
+								</div>
 							</div>
-							<div className="text-muted-foreground text-xs">
-								{account.reportCount} report
-								{account.reportCount === 1 ? "" : "s"} · score {account.score}
-							</div>
-						</div>
-						<StatusBadge status={account.status} />
-					</a>
-				))
-			)}
-		</div>
+							<StatusBadge status={account.status} />
+						</a>
+					))
+				)}
+			</CardContent>
+		</Card>
 	);
 }

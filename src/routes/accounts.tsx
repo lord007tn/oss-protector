@@ -12,6 +12,7 @@ import {
 } from "@/components/site/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDashboardFn } from "@/functions/dashboard";
@@ -23,7 +24,6 @@ import {
 	toDisplayAccount,
 } from "@/lib/directory-view";
 import { buildSharedHead } from "@/lib/head";
-import { cn } from "@/lib/utils";
 
 type DirectoryFilter = "all" | "high" | "review" | "watch";
 type SortKey = "score" | "recent" | "reports";
@@ -139,16 +139,13 @@ function AccountsRoute() {
 							{tabs.map((tab) => (
 								<TabsTrigger key={tab.value} value={tab.value}>
 									{tab.label}
-									<span
-										className={cn(
-											"ml-1.5 rounded-full border px-1.5 font-mono text-[10.5px] tabular-nums",
-											filter === tab.value
-												? "border-primary/30 bg-primary/10 text-primary"
-												: "border-border bg-card text-muted-foreground"
-										)}
+									<Badge
+										className="ml-1.5 tabular-nums"
+										size="tag"
+										variant={filter === tab.value ? "primary" : "outline"}
 									>
 										{tab.count}
-									</span>
+									</Badge>
 								</TabsTrigger>
 							))}
 						</TabsList>
@@ -157,9 +154,10 @@ function AccountsRoute() {
 						<div className="relative">
 							<Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								className="h-9 w-52 pl-8"
+								className="w-52 pl-8"
 								onChange={(event) => setQuery(event.target.value)}
 								placeholder="Search handle…"
+								size="md"
 								value={query}
 							/>
 						</div>
@@ -172,6 +170,7 @@ function AccountsRoute() {
 						</Button>
 						<div className="inline-flex gap-0.5 rounded-lg border bg-muted p-0.5">
 							<Button
+								aria-label="List view"
 								onClick={() => setView("list")}
 								size="icon-sm"
 								type="button"
@@ -180,6 +179,7 @@ function AccountsRoute() {
 								<Hash />
 							</Button>
 							<Button
+								aria-label="Grid view"
 								onClick={() => setView("grid")}
 								size="icon-sm"
 								type="button"
@@ -207,14 +207,14 @@ function AccountsRoute() {
 
 function EmptyState() {
 	return (
-		<div className="mt-4 rounded-2xl border bg-card p-12 text-center">
-			<div className="font-medium text-lg">No accounts indexed yet</div>
-			<p className="mt-1.5 text-muted-foreground text-sm">
+		<Empty className="mt-4 border">
+			<EmptyTitle>No accounts indexed yet</EmptyTitle>
+			<EmptyDescription>
 				The directory fills as the GitHub App observes pull-request activity and
 				imports public sources. Seed the local database with{" "}
 				<code className="font-mono text-xs">pnpm db:seed</code> to populate it.
-			</p>
-		</div>
+			</EmptyDescription>
+		</Empty>
 	);
 }
 
@@ -244,9 +244,10 @@ function DirectoryResults({
 }) {
 	if (list.length === 0) {
 		return (
-			<div className="mt-4 rounded-2xl border bg-card p-12 text-center text-muted-foreground text-sm">
-				No accounts match. Try a different filter.
-			</div>
+			<Empty className="mt-4 border">
+				<EmptyTitle>No accounts match</EmptyTitle>
+				<EmptyDescription>Try a different filter.</EmptyDescription>
+			</Empty>
 		);
 	}
 	if (view === "list") {

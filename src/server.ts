@@ -11,7 +11,10 @@ import {
 	convertGithubManifestCode,
 	githubAppManifest,
 } from "./actions/github-manifest";
-import { applyMaintainerDecision } from "./actions/maintainer";
+import {
+	applyMaintainerDecision,
+	canModerateAccount,
+} from "./actions/maintainer";
 import { getMaintainerDashboardForRequest } from "./actions/maintainer-dashboard";
 import {
 	listNotificationsForRequest,
@@ -128,6 +131,8 @@ const sitemap = () =>
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/docs</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/appeal</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/methodology</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/sponsors</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/install</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/privacy</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/terms</loc></url>",
 		"</urlset>",
@@ -143,6 +148,26 @@ async function withSecurityHeaders(
 	}
 	return response;
 }
+
+const invalidJsonResponse = () =>
+	withSecurityHeaders(
+		Response.json({ error: "Invalid JSON body." }, { status: 400 })
+	);
+
+// Parse a JSON request body, returning a typed 400 instead of letting
+// request.json() throw an unhandled SyntaxError (which the Worker turns into a
+// 500). Mirrors the inline guard already used by the preferences/repo handlers.
+const readJsonBody = async <T>(
+	request: Request
+): Promise<
+	{ ok: true; body: T } | { ok: false; response: Promise<Response> }
+> => {
+	try {
+		return { body: (await request.json()) as T, ok: true };
+	} catch {
+		return { ok: false, response: invalidJsonResponse() };
+	}
+};
 
 // Collapse an IPv6 address to its /64 subnet (first four hextets). Dual-stack
 // clients commonly egress from a /64 pool, so per-/128 buckets are trivially
@@ -335,10 +360,13 @@ const maintainerDecisionResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined
 ) => {
-	const body = (await request.json()) as {
-		decision?: string;
-		login?: string;
-	};
+	const parsed = await readJsonBody<{ decision?: string; login?: string }>(
+		request
+	);
+	if (!parsed.ok) {
+		return parsed.response;
+	}
+	const body = parsed.body;
 	if (!(body.login && body.decision)) {
 		return withSecurityHeaders(
 			Response.json({ error: "Missing login or decision." }, { status: 400 })
@@ -356,6 +384,19 @@ const maintainerDecisionResponse = async (
 		);
 	}
 	return withSecurityHeaders(Response.json(result));
+};
+
+const canModerateResponse = async (
+	request: Request,
+	env: RuntimeBindings | undefined,
+	searchParams: URLSearchParams
+) => {
+	const canModerate = await canModerateAccount({
+		env,
+		login: searchParams.get("login") ?? "",
+		request,
+	});
+	return withSecurityHeaders(Response.json({ canModerate, ok: true }));
 };
 
 const maintainerDashboardResponse = async (
@@ -388,7 +429,11 @@ const notificationReadResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined
 ) => {
-	const body = (await request.json()) as { id?: string };
+	const parsed = await readJsonBody<{ id?: string }>(request);
+	if (!parsed.ok) {
+		return parsed.response;
+	}
+	const body = parsed.body;
 	if (!body.id) {
 		return withSecurityHeaders(
 			Response.json({ error: "Missing notification id." }, { status: 400 })
@@ -424,13 +469,17 @@ const appealResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined
 ) => {
-	const body = (await request.json()) as {
+	const parsed = await readJsonBody<{
 		email?: string;
 		evidence?: string[];
 		login?: string;
 		relationship?: string;
 		story?: string;
-	};
+	}>(request);
+	if (!parsed.ok) {
+		return parsed.response;
+	}
+	const body = parsed.body;
 	const result = await submitAppeal({
 		env,
 		input: {
@@ -454,10 +503,13 @@ const appealResolveResponse = async (
 	request: Request,
 	env: RuntimeBindings | undefined
 ) => {
-	const body = (await request.json()) as {
-		id?: string;
-		resolution?: string;
-	};
+	const parsed = await readJsonBody<{ id?: string; resolution?: string }>(
+		request
+	);
+	if (!parsed.ok) {
+		return parsed.response;
+	}
+	const body = parsed.body;
 	if (!(body.id && body.resolution)) {
 		return withSecurityHeaders(
 			Response.json({ error: "Missing id or resolution." }, { status: 400 })
@@ -478,7 +530,11 @@ const appealResolveResponse = async (
 };
 
 const manifestConvertResponse = async (request: Request) => {
-	const body = (await request.json()) as { code?: string };
+	const parsed = await readJsonBody<{ code?: string }>(request);
+	if (!parsed.ok) {
+		return parsed.response;
+	}
+	const body = parsed.body;
 	if (!body.code) {
 		return withSecurityHeaders(
 			Response.json({ error: "Missing manifest code." }, { status: 400 })
@@ -872,6 +928,12 @@ const ROUTES: RouteEntry[] = [
 		path: "/api/maintainer/decision",
 		method: "POST",
 		handler: ({ env, request }) => maintainerDecisionResponse(request, env),
+	},
+	{
+		path: "/api/maintainer/can-moderate",
+		method: "GET",
+		handler: ({ env, request, url }) =>
+			canModerateResponse(request, env, url.searchParams),
 	},
 	{
 		path: "/api/maintainer/repo-decision",

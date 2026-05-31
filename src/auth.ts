@@ -1,8 +1,9 @@
 import type { IncomingRequestCfProperties } from "@cloudflare/workers-types";
 import { betterAuth } from "better-auth";
-import { emailOTP } from "better-auth/plugins";
+import { admin, emailOTP } from "better-auth/plugins";
 import { withCloudflare } from "better-auth-cloudflare";
 import { getAppUrl, type RuntimeBindings, runtimeBindings } from "@/env";
+import { getAdminEmails } from "@/lib/moderation-authz";
 
 type CloudflareRequest = Request & {
 	cf?: IncomingRequestCfProperties;
@@ -104,6 +105,8 @@ export const createAuth = ({
 	const appUrl = bindings.VITE_APP_URL ?? getAppUrl();
 	const cfRequest = request as CloudflareRequest;
 
+	const adminEmails = getAdminEmails(bindings);
+
 	return betterAuth({
 		...withCloudflare(
 			{
@@ -113,6 +116,25 @@ export const createAuth = ({
 				geolocationTracking: false,
 			},
 			{
+				// Bootstrap admin: when a user whose email is in ADMIN_EMAILS is
+				// created (first sign-in, OTP or GitHub), grant them the `admin`
+				// role. Everyone else gets the default "user" role. The role column
+				// is authoritative afterwards, manageable via the admin plugin API.
+				databaseHooks: {
+					user: {
+						create: {
+							before: (user) => {
+								const email = user.email?.trim().toLowerCase();
+								if (email && adminEmails.includes(email)) {
+									return Promise.resolve({
+										data: { ...user, role: "admin" },
+									});
+								}
+								return Promise.resolve();
+							},
+						},
+					},
+				},
 				plugins: [
 					emailOTP({
 						expiresIn: 300,
@@ -121,6 +143,7 @@ export const createAuth = ({
 							await sendOtpEmail({ email, env: bindings, otp, type });
 						},
 					}),
+					admin({ adminRoles: ["admin"], defaultRole: "user" }),
 				],
 				secret: bindings.BETTER_AUTH_SECRET,
 				socialProviders: configuredGithubProvider(bindings),

@@ -2,8 +2,11 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { database } from "@/db";
 import {
+	BotReport,
+	BotSignal,
 	GithubUser,
 	InstallationMaintainer,
+	PullRequest,
 	RepoAccountDecision,
 	Repository,
 } from "@/db/schema";
@@ -59,6 +62,60 @@ export async function maintainerOwnsRepo({
 }): Promise<boolean> {
 	const repos = await listMaintainerRepoIds(userId);
 	return repos.includes(repositoryId);
+}
+
+// Repo-scoped moderation gate: true when the target account has any activity (a
+// report, PR, or signal) in a repository the user maintains. This is the
+// authorization boundary for the site-wide maintainer decisions and appeal
+// resolutions, mirroring the per-repo maintainerOwnsRepo check.
+export async function maintainerSharesRepoWithAccount({
+	targetUserId,
+	userId,
+}: {
+	targetUserId: string;
+	userId: string;
+}): Promise<boolean> {
+	const repoIds = await listMaintainerRepoIds(userId);
+	if (repoIds.length === 0) {
+		return false;
+	}
+	const [report] = await database
+		.select({ id: BotReport.id })
+		.from(BotReport)
+		.where(
+			and(
+				eq(BotReport.targetUserId, targetUserId),
+				inArray(BotReport.repositoryId, repoIds)
+			)
+		)
+		.limit(1);
+	if (report) {
+		return true;
+	}
+	const [pr] = await database
+		.select({ id: PullRequest.id })
+		.from(PullRequest)
+		.where(
+			and(
+				eq(PullRequest.authorUserId, targetUserId),
+				inArray(PullRequest.repositoryId, repoIds)
+			)
+		)
+		.limit(1);
+	if (pr) {
+		return true;
+	}
+	const [signal] = await database
+		.select({ id: BotSignal.id })
+		.from(BotSignal)
+		.where(
+			and(
+				eq(BotSignal.targetUserId, targetUserId),
+				inArray(BotSignal.repositoryId, repoIds)
+			)
+		)
+		.limit(1);
+	return Boolean(signal);
 }
 
 export interface UpsertRepoDecisionInput {

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Check, Github, LogOut, Shield } from "lucide-react";
 import type { ReactNode } from "react";
 import { githubAppInstallUrl } from "@/components/landing/constants";
@@ -8,28 +8,33 @@ import {
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
-import { SignInGate } from "@/components/site/sign-in-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { authClient } from "@/lib/auth-client";
 import { useSessionState } from "@/lib/use-session-state";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
+	// Server-side guard (see /dashboard) — redirect before render, no flash.
+	beforeLoad: ({ context, location }) => {
+		if (!context.session) {
+			throw redirect({ search: { redirect: location.href }, to: "/login" });
+		}
+	},
 	component: SettingsRoute,
 	head: () => ({ meta: [{ title: "Settings | OSS Protector" }] }),
 });
 
 function SettingsRoute() {
-	const { signedIn, session } = useSessionState();
-
-	if (!signedIn) {
-		return (
-			<PageShell>
-				<SignInGate />
-			</PageShell>
-		);
-	}
+	const { session } = useSessionState();
 
 	const handle =
 		session?.user?.name?.trim() ||
@@ -127,11 +132,13 @@ function Section({
 	children: ReactNode;
 }) {
 	return (
-		<div className="rounded-2xl border bg-card p-7">
-			<h2 className="font-medium text-lg tracking-tight">{title}</h2>
-			<div className="mb-4 text-[13.5px] text-muted-foreground">{desc}</div>
-			{children}
-		</div>
+		<Card>
+			<CardHeader>
+				<CardTitle>{title}</CardTitle>
+				<CardDescription>{desc}</CardDescription>
+			</CardHeader>
+			<CardContent>{children}</CardContent>
+		</Card>
 	);
 }
 
@@ -145,14 +152,17 @@ function FieldRow({
 	children: ReactNode;
 }) {
 	return (
-		<div className="grid items-center gap-4 border-border border-t py-3 first:border-0 sm:grid-cols-[200px_1fr]">
-			<div>
-				<span className="font-medium text-[13.5px]">{label}</span>
-				{hint ? (
-					<div className="mt-0.5 text-muted-foreground text-xs">{hint}</div>
-				) : null}
+		<>
+			<Separator />
+			<div className="grid items-center gap-4 py-3 sm:grid-cols-[200px_1fr]">
+				<div>
+					<span className="font-medium text-[13.5px]">{label}</span>
+					{hint ? (
+						<div className="mt-0.5 text-muted-foreground text-xs">{hint}</div>
+					) : null}
+				</div>
+				{children}
 			</div>
-			{children}
-		</div>
+		</>
 	);
 }

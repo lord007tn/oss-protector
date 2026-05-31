@@ -102,7 +102,7 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 		Boolean(search.q) || search.min_reports > 0 || search.min_score > 0;
 
 	return (
-		<Card className="rounded-md border-muted/60">
+		<Card variant="subtle">
 			<CardHeader className="space-y-1 pb-3">
 				<CardTitle className="font-medium text-base">
 					Filter review signals
@@ -174,12 +174,14 @@ export function ProtectorFilters({ search }: { search: ProtectorSearchState }) {
 
 function ApiEndpoint({ endpoint }: { endpoint: string }) {
 	return (
-		<div className="rounded-md border bg-muted/30 p-2.5">
-			<p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-				API endpoint
-			</p>
-			<code className="mt-1 block break-all font-mono text-xs">{endpoint}</code>
-		</div>
+		<Card size="sm">
+			<CardContent>
+				<CardDescription className="mb-1 text-xs uppercase tracking-wide">
+					API endpoint
+				</CardDescription>
+				<code className="block break-all font-mono text-xs">{endpoint}</code>
+			</CardContent>
+		</Card>
 	);
 }
 

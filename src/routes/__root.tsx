@@ -1,16 +1,25 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+	createRootRouteWithContext,
+	HeadContent,
+	Scripts,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import type { ReactNode } from "react";
+import type { RouterContext } from "@/actions/session";
 import { JsonLd, siteJsonLd } from "@/components/seo/json-ld";
 import { ErrorView, NotFoundView } from "@/components/site/error-states";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getSessionFn } from "@/functions/session";
 import { RootProvider } from "@/integrations/tanstack-query/root-provider";
 
 import appCss from "../styles.css?url";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
+	// Resolve the session once, server-side, before anything renders. Child
+	// routes read `context.session` to guard (redirect) without a client flash.
+	beforeLoad: async () => ({ session: await getSessionFn() }),
 	errorComponent: ({ error }) => (
 		<ErrorView
 			digest={

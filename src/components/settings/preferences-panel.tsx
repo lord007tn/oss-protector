@@ -2,8 +2,10 @@ import { Check, Key, Loader2, RefreshCw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { CheckboxCard, CheckboxCardIndicator } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -224,34 +226,21 @@ export function PreferencesPanel() {
 					{NOTIFICATION_KINDS.map((kind) => {
 						const enabled = kinds.has(kind);
 						return (
-							<button
-								className={cn(
-									"flex items-start gap-3 rounded-xl border bg-background p-3 text-left transition-colors hover:border-input",
-									enabled ? "border-primary/40 bg-primary/5" : "border-border"
-								)}
+							<CheckboxCard
+								checked={enabled}
 								key={kind}
-								onClick={() => toggleKind(kind)}
-								type="button"
+								onCheckedChange={() => toggleKind(kind)}
 							>
-								<span
-									className={cn(
-										"mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border-2",
-										enabled
-											? "border-primary bg-primary text-primary-foreground"
-											: "border-border bg-background"
-									)}
-								>
-									{enabled ? <Check className="size-3" /> : null}
-								</span>
+								<CheckboxCardIndicator />
 								<span>
-									<span className="block font-medium text-[13.5px] capitalize">
+									<span className="block font-medium text-sm capitalize">
 										{kind}
 									</span>
-									<span className="mt-0.5 block text-[12.5px] text-muted-foreground">
+									<span className="mt-0.5 block text-muted-foreground text-xs">
 										{NOTIFICATION_LABELS[kind]}
 									</span>
 								</span>
-							</button>
+							</CheckboxCard>
 						);
 					})}
 				</div>
@@ -371,12 +360,13 @@ export function PreferencesPanel() {
 							</label>
 							<Input
 								autoComplete="off"
-								className="font-mono text-[12.5px]"
+								className="text-[12.5px]"
 								id="openrouter-key"
 								onChange={(event) => setKeyInput(event.target.value)}
 								placeholder="sk-or-v1-..."
 								type="password"
 								value={keyInput}
+								variant="mono"
 							/>
 							<div className="flex flex-wrap items-center gap-2">
 								<Button
@@ -420,15 +410,15 @@ export function PreferencesPanel() {
 						</div>
 					</div>
 				</div>
-				<div className="mt-4 flex items-start gap-2.5 rounded-xl border border-info/25 bg-info/10 p-3.5 text-[12.5px] text-muted-foreground leading-relaxed">
-					<X className="mt-0.5 size-3.5 shrink-0 text-info" />
-					<div>
+				<Alert className="mt-4" variant="info">
+					<X />
+					<AlertDescription>
 						<b className="text-foreground">Heads up:</b> when you provide a key,
 						OSS Protector uses it for AI scoring across every repo where you're
 						a maintainer on this installation. If multiple maintainers set a
 						key, the earliest-linked maintainer's key wins.
-					</div>
-				</div>
+					</AlertDescription>
+				</Alert>
 			</section>
 		</div>
 	);

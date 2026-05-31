@@ -17,7 +17,7 @@ import {
 	getDirectoryDashboardRecords,
 	recentWebhookEventsQuery,
 } from "@/data-access/directory";
-import { isMissingBindingError } from "@/db/errors";
+import { isDatabaseReadError } from "@/db/errors";
 import {
 	type AccountFilters,
 	filterAccounts,
@@ -291,7 +291,10 @@ export const listDirectoryDashboard = async () => {
 		]);
 		return buildDirectoryDashboard(records, counts);
 	} catch (caught) {
-		if (isMissingBindingError(caught)) {
+		if (isDatabaseReadError(caught)) {
+			// Read-only public aggregate behind /, /feed, /accounts, /protectors and
+			// the JSON API — never let one bad or over-limit query 500 all of them.
+			console.error("listDirectoryDashboard read failed", caught);
 			return emptyDashboard();
 		}
 		throw caught;

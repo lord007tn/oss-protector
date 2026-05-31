@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
 	Activity,
 	Check,
@@ -26,10 +26,35 @@ import {
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
-import { SignInGate } from "@/components/site/sign-in-gate";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { REPORT_STATUS_LABELS } from "@/constants/report-statuses";
 import type { AppealReviewItem } from "@/data-access/appeals";
 import type {
@@ -79,6 +104,14 @@ const EMPTY_DASHBOARD: MaintainerDashboard = {
 };
 
 export const Route = createFileRoute("/dashboard")({
+	// Server-side guard: the session is already resolved in the root beforeLoad,
+	// so an unauthenticated visitor is redirected to /login before the console
+	// renders — they never see a flash of the sign-in form.
+	beforeLoad: ({ context, location }) => {
+		if (!context.session) {
+			throw redirect({ search: { redirect: location.href }, to: "/login" });
+		}
+	},
 	component: DashboardRoute,
 	head: () => ({
 		meta: [{ title: "Dashboard | OSS Protector" }],
@@ -99,14 +132,6 @@ function statusVariant(status: string): StatusVariant {
 }
 
 function DashboardRoute() {
-	const { signedIn } = useSessionState();
-	if (!signedIn) {
-		return (
-			<PageShell>
-				<SignInGate />
-			</PageShell>
-		);
-	}
 	return (
 		<PageShell authed consoleLabel="Maintainer console">
 			<DashboardContent />
@@ -178,9 +203,11 @@ function DashboardContent() {
 	if (loading && !dashboard) {
 		return (
 			<PageContainer className="py-9">
-				<div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground text-sm">
-					Loading your console…
-				</div>
+				<Card>
+					<CardContent className="p-12 text-center text-muted-foreground text-sm">
+						Loading your console…
+					</CardContent>
+				</Card>
 			</PageContainer>
 		);
 	}
@@ -188,9 +215,9 @@ function DashboardContent() {
 	if (error && !dashboard) {
 		return (
 			<PageContainer className="py-9">
-				<div className="rounded-2xl border bg-card p-12 text-center text-destructive text-sm">
-					{error}
-				</div>
+				<Alert variant="destructive">
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
 			</PageContainer>
 		);
 	}
@@ -275,25 +302,21 @@ function DashboardContent() {
 			/>
 
 			<div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr]">
-				<aside className="sticky top-20 hidden h-fit rounded-2xl border bg-card p-3 lg:block">
+				<Card className="sticky top-20 hidden h-fit p-3 lg:block">
 					{nav.map((item) => (
-						<button
-							className={cn(
-								"flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] transition-colors",
-								active === item.key
-									? "bg-muted text-foreground"
-									: "text-muted-foreground hover:bg-muted hover:text-foreground"
-							)}
+						<Button
+							className="w-full justify-start gap-2.5"
 							key={item.key}
 							onClick={() => setActive(item.key)}
 							type="button"
+							variant={active === item.key ? "secondary" : "ghost"}
 						>
 							<span className="text-muted-foreground">{item.icon}</span>
 							<span className="flex-1 text-left">{item.label}</span>
 							<span className="font-mono text-muted-foreground text-xs">
 								{item.count}
 							</span>
-						</button>
+						</Button>
 					))}
 					<div className="mt-3 mb-1.5 px-2.5 font-mono text-[11px] text-muted-foreground uppercase tracking-[0.07em]">
 						Your repos
@@ -312,7 +335,7 @@ function DashboardContent() {
 							</span>
 						</div>
 					))}
-				</aside>
+				</Card>
 
 				<div>
 					<div className="mb-5 flex flex-wrap gap-1 lg:hidden">
@@ -380,7 +403,7 @@ function StatCard({
 	value: string;
 }) {
 	return (
-		<div className="rounded-2xl border bg-card p-5">
+		<Card className="p-5">
 			<div className="font-mono text-muted-foreground text-xs uppercase tracking-[0.06em]">
 				{label}
 			</div>
@@ -392,43 +415,50 @@ function StatCard({
 					{hint}
 				</div>
 			) : null}
-		</div>
+		</Card>
 	);
 }
 
 function EmptyConsole() {
 	return (
-		<div className="mt-6 rounded-2xl border bg-card p-10 text-center">
-			<Shield className="mx-auto size-8 text-muted-foreground" />
-			<div className="mt-4 font-medium text-lg">No repositories yet</div>
-			<p className="mx-auto mt-2 max-w-md text-[14px] text-muted-foreground leading-relaxed">
-				Install OSS Protector on a repository or organization you maintain. Once
-				the install is linked to your account, your review queue, coverage, and
-				allowlist show up here.
-			</p>
-			<a className={cn(buttonVariants(), "mt-5")} href="/install">
+		<Empty className="mt-6">
+			<EmptyHeader>
+				<EmptyMedia variant="icon">
+					<Shield />
+				</EmptyMedia>
+				<EmptyTitle>No repositories yet</EmptyTitle>
+				<EmptyDescription>
+					Install OSS Protector on a repository or organization you maintain.
+					Once the install is linked to your account, your review queue,
+					coverage, and allowlist show up here.
+				</EmptyDescription>
+			</EmptyHeader>
+			<a className={buttonVariants()} href="/install">
 				<Github data-icon="inline-start" />
 				Install OSS Protector
 			</a>
-		</div>
+		</Empty>
 	);
 }
 
 function InstallCta() {
 	return (
-		<div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-primary/30 bg-primary/10 p-5">
+		<Alert
+			className="mt-6 flex flex-wrap items-center gap-4 p-5"
+			variant="primary"
+		>
 			<div className="flex-1">
-				<div className="font-medium">Want this everywhere you maintain?</div>
-				<div className="mt-1 text-[13.5px] text-muted-foreground">
+				<AlertTitle>Want this everywhere you maintain?</AlertTitle>
+				<AlertDescription className="mt-1">
 					OSS Protector is free to install on any repo or org. The trust graph
 					grows with every maintainer who joins.
-				</div>
+				</AlertDescription>
 			</div>
 			<a className={buttonVariants()} href="/install">
 				<Github data-icon="inline-start" />
 				Add another repo
 			</a>
-		</div>
+		</Alert>
 	);
 }
 
@@ -460,21 +490,21 @@ function InboxView({
 				<StatCard label="Repositories" value={String(data.stats.repoCount)} />
 			</div>
 
-			<div className="mt-5 rounded-2xl border bg-card p-5">
+			<Card className="mt-5 p-5">
 				<div className="mb-4 font-medium text-[15px]">Repo coverage</div>
 				{data.repos.map((repo) => (
 					<CoverageBar key={repo.id} repo={repo} />
 				))}
-			</div>
+			</Card>
 
-			<div className="mt-5 overflow-hidden rounded-2xl border bg-card">
-				<div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+			<Card className="mt-5 gap-0 py-0">
+				<CardHeader className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
 					<div>
-						<div className="font-medium text-[16px]">Review queue</div>
-						<div className="mt-0.5 text-[13px] text-muted-foreground">
+						<CardTitle className="text-[16px]">Review queue</CardTitle>
+						<CardDescription className="mt-0.5 text-[13px]">
 							{data.queue.length} report{data.queue.length === 1 ? "" : "s"}{" "}
 							waiting. Decide once — applies across all your repos.
-						</div>
+						</CardDescription>
 					</div>
 					<Button
 						onClick={() =>
@@ -486,12 +516,14 @@ function InboxView({
 					>
 						Sort: {sortMode === "conf" ? "confidence ↓" : "newest ↓"}
 					</Button>
-				</div>
+				</CardHeader>
 
 				{sorted.length === 0 ? (
-					<div className="p-12 text-center text-muted-foreground text-sm">
-						All caught up. Nothing to review.
-					</div>
+					<Empty className="p-12">
+						<EmptyDescription>
+							All caught up. Nothing to review.
+						</EmptyDescription>
+					</Empty>
 				) : (
 					sorted.map((item) => (
 						<QueueItem
@@ -502,7 +534,7 @@ function InboxView({
 						/>
 					))
 				)}
-			</div>
+			</Card>
 		</>
 	);
 }
@@ -513,12 +545,12 @@ function CoverageBar({ repo }: { repo: DashboardRepo }) {
 		<div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-border border-b py-3 text-[13px] last:border-0">
 			<div>
 				<div className="font-mono text-[13px]">{repo.fullName}</div>
-				<div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-					<div
-						className="h-full bg-primary"
-						style={{ width: `${(repo.flaggedCount / max) * 100}%` }}
-					/>
-				</div>
+				<Progress
+					className="mt-1.5"
+					tone="primary"
+					trackClassName="h-1.5"
+					value={(repo.flaggedCount / max) * 100}
+				/>
 			</div>
 			<div className="font-mono text-destructive">
 				{repo.flaggedCount} flagged
@@ -619,15 +651,15 @@ function QueueItem({
 
 function CoverageView({ repos }: { repos: DashboardRepo[] }) {
 	return (
-		<div className="overflow-hidden rounded-2xl border bg-card">
-			<div className="border-b px-5 py-4">
-				<div className="font-medium text-[16px]">Coverage</div>
-				<div className="mt-0.5 text-[13px] text-muted-foreground">
+		<Card className="gap-0 py-0">
+			<CardHeader className="border-b px-5 py-4">
+				<CardTitle className="text-[16px]">Coverage</CardTitle>
+				<CardDescription className="mt-0.5 text-[13px]">
 					Repositories under installations you maintain. Counts reflect reports
 					captured on each repo.
-				</div>
-			</div>
-			<div className="px-5 pb-2">
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="px-5 pb-2">
 				{repos.map((repo) => (
 					<div
 						className="grid grid-cols-1 items-center gap-2 border-border border-b py-4 last:border-0 md:grid-cols-[1.6fr_1fr_1fr]"
@@ -650,8 +682,8 @@ function CoverageView({ repos }: { repos: DashboardRepo[] }) {
 						</div>
 					</div>
 				))}
-			</div>
-			<div className="border-t bg-muted px-5 py-3">
+			</CardContent>
+			<CardFooter className="border-t bg-muted px-5 py-3">
 				<a
 					className={buttonVariants({ size: "sm", variant: "outline" })}
 					href="/install"
@@ -659,8 +691,8 @@ function CoverageView({ repos }: { repos: DashboardRepo[] }) {
 					<Github data-icon="inline-start" />
 					Add a repository
 				</a>
-			</div>
-		</div>
+			</CardFooter>
+		</Card>
 	);
 }
 
@@ -805,40 +837,37 @@ function ActivityView({ items }: { items: DashboardActivityItem[] }) {
 	});
 
 	return (
-		<div className="rounded-2xl border bg-card p-6">
+		<Card className="p-6">
 			<div className="mb-4 flex flex-wrap items-start justify-between gap-3">
 				<div>
-					<div className="font-medium text-[16px]">Audit log</div>
-					<div className="mt-0.5 text-[13px] text-muted-foreground">
+					<CardTitle className="text-[16px]">Audit log</CardTitle>
+					<CardDescription className="mt-0.5 text-[13px]">
 						Reports captured and maintainer decisions applied across your repos.
 						Read-only.
-					</div>
+					</CardDescription>
 				</div>
-				<div className="inline-flex gap-0.5 rounded-lg border bg-muted p-0.5">
-					{AUDIT_FILTERS.map((option) => (
-						<button
-							className={cn(
-								"rounded-md px-2.5 py-1 text-xs transition-colors",
-								filter === option.key
-									? "bg-background text-foreground shadow-sm"
-									: "text-muted-foreground hover:text-foreground"
-							)}
-							key={option.key}
-							onClick={() => setFilter(option.key)}
-							type="button"
-						>
-							{option.label}
-						</button>
-					))}
-				</div>
+				<Tabs
+					onValueChange={(value) => setFilter(value as AuditFilter)}
+					value={filter}
+				>
+					<TabsList>
+						{AUDIT_FILTERS.map((option) => (
+							<TabsTrigger key={option.key} value={option.key}>
+								{option.label}
+							</TabsTrigger>
+						))}
+					</TabsList>
+				</Tabs>
 			</div>
 
 			{filtered.length === 0 ? (
-				<div className="rounded-xl border bg-muted/30 p-8 text-center text-muted-foreground text-sm">
-					{filter === "all"
-						? "No activity yet. Reports and decisions on your repos will appear here."
-						: `No ${filter} yet on your repos.`}
-				</div>
+				<Empty className="bg-muted/30 p-8">
+					<EmptyDescription>
+						{filter === "all"
+							? "No activity yet. Reports and decisions on your repos will appear here."
+							: `No ${filter} yet on your repos.`}
+					</EmptyDescription>
+				</Empty>
 			) : (
 				<div className="relative pl-6">
 					<div className="absolute top-1 bottom-1 left-[6px] w-px bg-border" />
@@ -847,7 +876,7 @@ function ActivityView({ items }: { items: DashboardActivityItem[] }) {
 					))}
 				</div>
 			)}
-		</div>
+		</Card>
 	);
 }
 
@@ -950,20 +979,22 @@ function AppealsView({
 	pendingId: null | string;
 }) {
 	return (
-		<div className="overflow-hidden rounded-2xl border bg-card">
-			<div className="border-b px-5 py-4">
-				<div className="font-medium text-[16px]">Appeals</div>
-				<div className="mt-0.5 text-[13px] text-muted-foreground">
+		<Card className="gap-0 py-0">
+			<CardHeader className="border-b px-5 py-4">
+				<CardTitle className="text-[16px]">Appeals</CardTitle>
+				<CardDescription className="mt-0.5 text-[13px]">
 					People who say they were wrongly flagged. Upholding an appeal
 					allowlists the account across your repos; rejecting leaves the flag in
 					place.
-				</div>
-			</div>
+				</CardDescription>
+			</CardHeader>
 			{items.length === 0 ? (
-				<div className="p-12 text-center text-muted-foreground text-sm">
-					No appeals waiting. Submissions from the public appeal form show up
-					here for review.
-				</div>
+				<Empty className="p-12">
+					<EmptyDescription>
+						No appeals waiting. Submissions from the public appeal form show up
+						here for review.
+					</EmptyDescription>
+				</Empty>
 			) : (
 				items.map((item) => (
 					<AppealCard
@@ -974,7 +1005,7 @@ function AppealsView({
 					/>
 				))
 			)}
-		</div>
+		</Card>
 	);
 }
 
@@ -1054,36 +1085,37 @@ function OverridesView({
 
 	if (repos.length === 0) {
 		return (
-			<div className="rounded-2xl border bg-card p-10 text-center">
-				<Shield className="mx-auto size-7 text-muted-foreground" />
-				<div className="mt-3 font-medium text-[15px]">No repositories yet</div>
-				<p className="mx-auto mt-1.5 max-w-md text-[13.5px] text-muted-foreground">
-					Install OSS Protector on a repo before adding per-repo allow / block
-					overrides.
-				</p>
-			</div>
+			<Empty>
+				<EmptyHeader>
+					<EmptyMedia variant="icon">
+						<Shield />
+					</EmptyMedia>
+					<EmptyTitle>No repositories yet</EmptyTitle>
+					<EmptyDescription>
+						Install OSS Protector on a repo before adding per-repo allow / block
+						overrides.
+					</EmptyDescription>
+				</EmptyHeader>
+			</Empty>
 		);
 	}
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="rounded-2xl border bg-card p-6">
+			<Card className="p-6">
 				<div className="mb-4">
-					<div className="font-medium text-[16px]">Add repo override</div>
-					<div className="mt-0.5 text-[13px] text-muted-foreground">
+					<CardTitle className="text-[16px]">Add repo override</CardTitle>
+					<CardDescription className="mt-0.5 text-[13px]">
 						Override the shared score for one account on one of your repos.
 						Block force-flags every PR; Allow short-circuits AI review for that
 						author on that repo.
-					</div>
+					</CardDescription>
 				</div>
 				<div className="grid gap-3 md:grid-cols-[2fr_1fr_auto]">
 					<div className="grid gap-1.5">
-						<label
-							className="font-medium text-[12.5px]"
-							htmlFor="override-login"
-						>
+						<Label className="text-[12.5px]" htmlFor="override-login">
 							Account handle
-						</label>
+						</Label>
 						<Input
 							autoComplete="off"
 							id="override-login"
@@ -1093,53 +1125,45 @@ function OverridesView({
 						/>
 					</div>
 					<div className="grid gap-1.5">
-						<label
-							className="font-medium text-[12.5px]"
-							htmlFor="override-repo"
-						>
+						<Label className="text-[12.5px]" htmlFor="override-repo">
 							Repository
-						</label>
-						<select
-							className={cn(
-								"h-9 rounded-md border bg-background px-3 text-sm",
-								"focus:border-input focus:outline-none"
-							)}
-							id="override-repo"
-							onChange={(event) => setRepositoryId(event.target.value)}
+						</Label>
+						<Select
+							onValueChange={(value) => setRepositoryId(value ?? "")}
 							value={repositoryId}
 						>
-							{repos.map((repo) => (
-								<option key={repo.id} value={repo.id}>
-									{repo.fullName}
-								</option>
-							))}
-						</select>
+							<SelectTrigger className="h-9 w-full" id="override-repo">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{repos.map((repo) => (
+									<SelectItem key={repo.id} value={repo.id}>
+										{repo.fullName}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
-					<fieldset className="grid gap-1.5">
-						<legend className="font-medium text-[12.5px]">Decision</legend>
-						<div className="inline-flex gap-0.5 rounded-md border bg-muted p-0.5">
-							{(["block", "allow"] as RepoDecisionKind[]).map((kind) => (
-								<button
-									className={cn(
-										"rounded px-2.5 py-1 text-xs transition-colors",
-										decision === kind
-											? "bg-background text-foreground shadow-sm"
-											: "text-muted-foreground hover:text-foreground"
-									)}
-									key={kind}
-									onClick={() => setDecision(kind)}
-									type="button"
-								>
-									{kind === "block" ? "Block" : "Allow"}
-								</button>
-							))}
-						</div>
-					</fieldset>
+					<div className="grid gap-1.5">
+						<Label className="text-[12.5px]">Decision</Label>
+						<Tabs
+							onValueChange={(value) => setDecision(value as RepoDecisionKind)}
+							value={decision}
+						>
+							<TabsList>
+								{(["block", "allow"] as RepoDecisionKind[]).map((kind) => (
+									<TabsTrigger key={kind} value={kind}>
+										{kind === "block" ? "Block" : "Allow"}
+									</TabsTrigger>
+								))}
+							</TabsList>
+						</Tabs>
+					</div>
 				</div>
 				<div className="mt-3 grid gap-1.5">
-					<label className="font-medium text-[12.5px]" htmlFor="override-note">
+					<Label className="text-[12.5px]" htmlFor="override-note">
 						Note (optional)
-					</label>
+					</Label>
 					<Input
 						id="override-note"
 						maxLength={280}
@@ -1150,29 +1174,25 @@ function OverridesView({
 				</div>
 				<div className="mt-4">
 					<Button disabled={pending} onClick={submit} type="button">
-						{pending ? (
-							<Loader2 className="size-3.5 animate-spin" />
-						) : (
-							<Check className="size-3.5" />
-						)}
+						{pending ? <Loader2 className="animate-spin" /> : <Check />}
 						Save override
 					</Button>
 				</div>
-			</div>
+			</Card>
 
-			<div className="overflow-hidden rounded-2xl border bg-card">
-				<div className="flex items-center justify-between border-b px-5 py-4">
+			<Card className="gap-0 py-0">
+				<CardHeader className="flex items-center justify-between border-b px-5 py-4">
 					<div>
-						<div className="font-medium text-[16px]">Active overrides</div>
-						<div className="mt-0.5 text-[13px] text-muted-foreground">
+						<CardTitle className="text-[16px]">Active overrides</CardTitle>
+						<CardDescription className="mt-0.5 text-[13px]">
 							Repo-scoped. Don't affect the shared OSS Protector score.
-						</div>
+						</CardDescription>
 					</div>
-				</div>
+				</CardHeader>
 				{overrides.length === 0 ? (
-					<div className="p-10 text-center text-muted-foreground text-sm">
-						No overrides on your repos yet.
-					</div>
+					<Empty className="p-10">
+						<EmptyDescription>No overrides on your repos yet.</EmptyDescription>
+					</Empty>
 				) : (
 					overrides.map((row) => (
 						<div
@@ -1216,16 +1236,16 @@ function OverridesView({
 								variant="ghost"
 							>
 								{pendingRow === row.id ? (
-									<Loader2 className="size-3 animate-spin" />
+									<Loader2 className="animate-spin" />
 								) : (
-									<Trash2 className="size-3" />
+									<Trash2 />
 								)}
 								Remove
 							</Button>
 						</div>
 					))
 				)}
-			</div>
+			</Card>
 		</div>
 	);
 }
@@ -1240,20 +1260,22 @@ function AllowlistView({
 	pendingLogin: null | string;
 }) {
 	return (
-		<div className="overflow-hidden rounded-2xl border bg-card">
-			<div className="flex items-center justify-between border-b px-5 py-4">
+		<Card className="gap-0 py-0">
+			<CardHeader className="flex items-center justify-between border-b px-5 py-4">
 				<div>
-					<div className="font-medium text-[16px]">Allowlist</div>
-					<div className="mt-0.5 text-[13px] text-muted-foreground">
+					<CardTitle className="text-[16px]">Allowlist</CardTitle>
+					<CardDescription className="mt-0.5 text-[13px]">
 						Trusted authors. Their PRs bypass flagging in your repos.
-					</div>
+					</CardDescription>
 				</div>
-			</div>
+			</CardHeader>
 			{entries.length === 0 ? (
-				<div className="p-10 text-center text-muted-foreground text-sm">
-					No allowlisted authors yet. Use the Allow action on a queue item to
-					trust an author.
-				</div>
+				<Empty className="p-10">
+					<EmptyDescription>
+						No allowlisted authors yet. Use the Allow action on a queue item to
+						trust an author.
+					</EmptyDescription>
+				</Empty>
 			) : (
 				entries.map((entry) => (
 					<div
@@ -1290,6 +1312,6 @@ function AllowlistView({
 					</div>
 				))
 			)}
-		</div>
+		</Card>
 	);
 }

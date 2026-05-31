@@ -7,10 +7,12 @@ import {
 	setAppealStatus,
 } from "@/data-access/appeals";
 import { allowlistUser } from "@/data-access/directory";
+import { maintainerSharesRepoWithAccount } from "@/data-access/repo-decisions";
 import { database, hasDatabaseBinding } from "@/db";
 import { Appeal } from "@/db/schema";
 import type { RuntimeBindings } from "@/env";
 import { appealOutcome, isAppealResolution } from "@/lib/appeals";
+import { isPlatformAdmin } from "@/lib/moderation-authz";
 
 const LEADING_AT = /^@/;
 const MIN_STORY_LENGTH = 60;
@@ -138,22 +140,41 @@ export async function resolveAppeal({
 		return { error: "Appeal not found.", ok: false, status: 404 };
 	}
 
+	const targetUserId = await findGithubUserIdByLogin(appeal.login);
+
+	// Repo-scoped authorization: a maintainer may only resolve appeals for
+	// accounts active in a repository they maintain (an untracked handle has no
+	// repo linkage, so only a platform admin can resolve it). Admins bypass.
+	if (!isPlatformAdmin(env, session.user)) {
+		const authorized = targetUserId
+			? await maintainerSharesRepoWithAccount({
+					targetUserId,
+					userId: session.user.id,
+				})
+			: false;
+		if (!authorized) {
+			return {
+				error:
+					"You can only resolve appeals for accounts active in a repository you maintain.",
+				ok: false,
+				status: 403,
+			};
+		}
+	}
+
 	const outcome = appealOutcome(resolution);
 
-	if (outcome.allowlist) {
-		const targetUserId = await findGithubUserIdByLogin(appeal.login);
-		// No tracked account for this handle → nothing to clear, just record the
-		// decision so the appeal leaves the queue.
-		if (targetUserId) {
-			await allowlistUser({
-				correctedByLogin:
-					session.user.name?.trim() || session.user.email || "appeal-review",
-				pullRequestId: null,
-				repositoryId: null,
-				sourceUrl: `web:appeal:${session.user.id}:${appeal.id}`,
-				targetUserId,
-			});
-		}
+	// No tracked account for this handle → nothing to clear, just record the
+	// decision so the appeal leaves the queue.
+	if (outcome.allowlist && targetUserId) {
+		await allowlistUser({
+			correctedByLogin:
+				session.user.name?.trim() || session.user.email || "appeal-review",
+			pullRequestId: null,
+			repositoryId: null,
+			sourceUrl: `web:appeal:${session.user.id}:${appeal.id}`,
+			targetUserId,
+		});
 	}
 
 	await setAppealStatus(id, outcome.status);

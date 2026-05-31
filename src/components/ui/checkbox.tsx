@@ -1,0 +1,72 @@
+import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
+import { CheckIcon } from "lucide-react";
+import type * as React from "react";
+
+import { cn } from "@/lib/utils";
+
+function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
+	return (
+		<CheckboxPrimitive.Root
+			className={cn(
+				"peer relative flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input outline-none transition-colors after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:bg-input/30 dark:data-checked:bg-primary dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+				className
+			)}
+			data-slot="checkbox"
+			{...props}
+		>
+			<CheckboxPrimitive.Indicator
+				className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+				data-slot="checkbox-indicator"
+			>
+				<CheckIcon />
+			</CheckboxPrimitive.Indicator>
+		</CheckboxPrimitive.Root>
+	);
+}
+
+/**
+ * A selectable card built on the checkbox primitive: the whole card is the
+ * toggle (keyboard + aria handled by Base UI), and the selected tint is driven
+ * by `data-checked` so call sites never hand-roll the active-state classes.
+ */
+function CheckboxCard({
+	className,
+	children,
+	...props
+}: CheckboxPrimitive.Root.Props) {
+	return (
+		<CheckboxPrimitive.Root
+			className={cn(
+				"group/checkbox-card flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 text-left outline-none transition-colors hover:border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary/40 data-checked:bg-primary/10",
+				className
+			)}
+			data-slot="checkbox-card"
+			{...props}
+		>
+			{children}
+		</CheckboxPrimitive.Root>
+	);
+}
+
+/** The square check indicator for a `CheckboxCard`. */
+function CheckboxCardIndicator({
+	className,
+	...props
+}: React.ComponentProps<"span">) {
+	return (
+		<span
+			className={cn(
+				"mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-md border border-input text-primary-foreground transition-colors group-data-[checked]/checkbox-card:border-primary group-data-[checked]/checkbox-card:bg-primary",
+				className
+			)}
+			data-slot="checkbox-card-indicator"
+			{...props}
+		>
+			<CheckboxPrimitive.Indicator className="[&>svg]:size-3">
+				<CheckIcon />
+			</CheckboxPrimitive.Indicator>
+		</span>
+	);
+}
+
+export { Checkbox, CheckboxCard, CheckboxCardIndicator };

@@ -10,6 +10,7 @@ import {
 import { REASON_CODES } from "@/constants/reason-codes";
 import { REPORT_STATUSES } from "@/constants/report-statuses";
 import { RISK_STATUSES } from "@/constants/risk-statuses";
+import { SPONSOR_STATUSES, SPONSOR_TIERS } from "@/constants/sponsor-tiers";
 
 const unixNow = sql`(unixepoch())`;
 
@@ -536,6 +537,38 @@ export const BackfillJob = sqliteTable(
 	(table) => [index("backfill_jobs_status_idx").on(table.status)]
 );
 
+// Sponsors shown on the public /sponsors page, managed from the admin console.
+// Honest by design: only `active` rows are published. `tier` drives grouping and
+// ordering on the page; `sortOrder` is a manual tiebreak within a tier (lower
+// sorts first). No amounts are stored — the page never fabricates figures.
+export const Sponsor = sqliteTable(
+	"Sponsor",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => createId()),
+		name: text("name").notNull(),
+		url: text("url").notNull(),
+		logoUrl: text("logoUrl"),
+		description: text("description"),
+		tier: text("tier", { enum: SPONSOR_TIERS }).notNull().default("supporter"),
+		status: text("status", { enum: SPONSOR_STATUSES })
+			.notNull()
+			.default("active"),
+		sortOrder: integer("sortOrder", { mode: "number" }).notNull().default(0),
+		createdAt: integer("createdAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+		updatedAt: integer("updatedAt", { mode: "number" })
+			.notNull()
+			.default(unixNow),
+	},
+	(table) => [
+		index("sponsors_status_idx").on(table.status),
+		index("sponsors_tier_idx").on(table.tier),
+	]
+);
+
 export const appSchema = {
 	AppEvent,
 	Appeal,
@@ -552,6 +585,7 @@ export const appSchema = {
 	Repository,
 	RiskProfile,
 	SourceImport,
+	Sponsor,
 	UserPreferences,
 };
 
@@ -571,4 +605,5 @@ export type RiskProfileSelect = typeof RiskProfile.$inferSelect;
 export type RepoAccountDecisionSelect = typeof RepoAccountDecision.$inferSelect;
 export type RepoPolicySelect = typeof RepoPolicy.$inferSelect;
 export type SourceImportSelect = typeof SourceImport.$inferSelect;
+export type SponsorSelect = typeof Sponsor.$inferSelect;
 export type UserPreferencesSelect = typeof UserPreferences.$inferSelect;

@@ -1,6 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
 import {
-	Activity,
 	Bell,
 	Bot,
 	Check,
@@ -12,6 +11,7 @@ import {
 	LogOut,
 	Settings,
 	Shield,
+	ShieldCheck,
 	Star,
 } from "lucide-react";
 import {
@@ -22,10 +22,11 @@ import {
 import { InitialsAvatar } from "@/components/oss/initials-avatar";
 import { Logo } from "@/components/oss/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -47,19 +48,13 @@ import {
 import { useSessionState } from "@/lib/use-session-state";
 import { cn } from "@/lib/utils";
 
-const PRIMARY_LINKS = [
+// Every primary destination shown inline in the header — no "More" dropdown.
+const NAV_LINKS = [
 	{ href: "/feed", label: "Feed" },
 	{ href: "/accounts", label: "Accounts" },
-];
-
-const MORE_LINKS = [
-	{
-		href: "/methodology",
-		sub: "How confidence is computed",
-		title: "Methodology",
-	},
-	{ href: "/sponsors", sub: "How we stay free", title: "Sponsors" },
-	{ href: "/appeal", sub: "For flagged accounts", title: "Appeal a flag" },
+	{ href: "/methodology", label: "Methodology" },
+	{ href: "/sponsors", label: "Sponsors" },
+	{ href: "/appeal", label: "Appeal" },
 ];
 
 function notificationIcon(kind: string) {
@@ -80,6 +75,7 @@ export function SiteHeader() {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const { notifications, unread, markRead, markAllRead } =
 		useNotifications(signedIn);
+	const isAdmin = Boolean(session?.isAdmin);
 	const displayName =
 		session?.user?.name?.trim() ||
 		session?.user?.email?.split("@")[0] ||
@@ -107,10 +103,11 @@ export function SiteHeader() {
 				<div className="flex items-center gap-7">
 					<Logo />
 					<nav className="hidden items-center gap-0.5 md:flex">
-						{PRIMARY_LINKS.map((link) => (
+						{NAV_LINKS.map((link) => (
 							<a
 								className={cn(
-									"rounded-lg px-3 py-1.5 text-[13.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+									buttonVariants({ size: "sm", variant: "ghost" }),
+									"text-muted-foreground",
 									isActive(link.href) && "bg-muted text-foreground"
 								)}
 								href={link.href}
@@ -119,35 +116,6 @@ export function SiteHeader() {
 								{link.label}
 							</a>
 						))}
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								className={cn(
-									"flex items-center gap-1 rounded-lg px-3 py-1.5 text-[13.5px] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground",
-									MORE_LINKS.some((l) => isActive(l.href)) &&
-										"bg-muted text-foreground"
-								)}
-							>
-								More
-								<ChevronDown className="size-3 opacity-60" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="start" className="w-60">
-								{MORE_LINKS.map((link) => (
-									<DropdownMenuItem
-										key={link.href}
-										render={
-											<a href={link.href}>
-												<div className="flex flex-col gap-0.5 py-0.5">
-													<span className="font-medium">{link.title}</span>
-													<span className="text-muted-foreground text-xs">
-														{link.sub}
-													</span>
-												</div>
-											</a>
-										}
-									/>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
 					</nav>
 				</div>
 
@@ -178,10 +146,16 @@ export function SiteHeader() {
 						<>
 							<Popover>
 								<PopoverTrigger
-									aria-label="Notifications"
-									className="relative inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground"
+									render={
+										<Button
+											aria-label="Notifications"
+											className="relative"
+											size="icon"
+											variant="ghost"
+										/>
+									}
 								>
-									<Bell className="size-4" />
+									<Bell />
 									{unread > 0 ? (
 										<span className="absolute top-1.5 right-2 size-1.5 rounded-full bg-primary ring-2 ring-background" />
 									) : null}
@@ -193,14 +167,15 @@ export function SiteHeader() {
 								>
 									<div className="flex items-center justify-between border-b px-3.5 py-3 font-mono text-muted-foreground text-xs">
 										<span>Notifications · {unread} unread</span>
-										<button
-											className="text-primary disabled:opacity-50"
+										<Button
 											disabled={unread === 0}
 											onClick={() => markAllRead()}
+											size="xs"
 											type="button"
+											variant="link"
 										>
 											Mark all read
-										</button>
+										</Button>
 									</div>
 									<div className="max-h-[350px] overflow-y-auto">
 										{notifications.length === 0 ? (
@@ -266,23 +241,27 @@ export function SiteHeader() {
 									<ChevronDown className="size-3 opacity-60" />
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end" className="w-60">
-									<DropdownMenuLabel className="py-1.5">
-										<div className="truncate font-medium text-foreground text-sm">
-											{session?.user?.email ?? displayName}
-										</div>
-										<div className="mt-0.5 text-muted-foreground text-xs">
-											Signed in
-										</div>
-									</DropdownMenuLabel>
+									<DropdownMenuGroup>
+										<DropdownMenuLabel className="py-1.5">
+											<div className="truncate font-medium text-foreground text-sm">
+												{session?.user?.email ?? displayName}
+											</div>
+											<div className="mt-0.5 text-muted-foreground text-xs">
+												Signed in
+											</div>
+										</DropdownMenuLabel>
+									</DropdownMenuGroup>
 									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										render={
-											<a href="/dashboard">
-												<Inbox className="size-3.5" />
-												Dashboard
-											</a>
-										}
-									/>
+									{isAdmin ? (
+										<DropdownMenuItem
+											render={
+												<a href="/admin">
+													<ShieldCheck className="size-3.5" />
+													Admin
+												</a>
+											}
+										/>
+									) : null}
 									<DropdownMenuItem
 										render={
 											<a href="/settings">
@@ -296,15 +275,6 @@ export function SiteHeader() {
 											<a href="/install">
 												<Shield className="size-3.5" />
 												Install on another repo
-											</a>
-										}
-									/>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										render={
-											<a href="/methodology">
-												<Activity className="size-3.5" />
-												Methodology
 											</a>
 										}
 									/>
@@ -351,17 +321,13 @@ export function SiteHeader() {
 }
 
 function MobileNav({ isActive }: { isActive: (href: string) => boolean }) {
-	const links = [
-		...PRIMARY_LINKS,
-		{ href: "/methodology", label: "Methodology" },
-		{ href: "/sponsors", label: "Sponsors" },
-	];
 	return (
 		<nav className="-mx-1 flex items-center gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
-			{links.map((link) => (
+			{NAV_LINKS.map((link) => (
 				<a
 					className={cn(
-						"shrink-0 rounded-lg px-2.5 py-1 text-[13px] text-muted-foreground",
+						buttonVariants({ size: "sm", variant: "ghost" }),
+						"shrink-0 text-muted-foreground",
 						isActive(link.href) && "bg-muted text-foreground"
 					)}
 					href={link.href}

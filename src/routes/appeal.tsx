@@ -5,12 +5,13 @@ import { toast } from "sonner";
 
 import { Stepper } from "@/components/oss/stepper";
 import { PageShell } from "@/components/site/page-shell";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CheckboxCard, CheckboxCardIndicator } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { buildSharedHead } from "@/lib/head";
-import { cn } from "@/lib/utils";
 
 // Basic, dependency-free email shape check: one @, a dot in the domain, no
 // whitespace. The flagged account's verdict is emailed here, so an undeliverable
@@ -146,14 +147,14 @@ function AppealRoute() {
 							Three maintainers from the trust graph will review within 48
 							hours. We'll email you the moment a verdict is published.
 						</p>
-						<div className="mx-auto flex max-w-md items-start gap-2.5 rounded-xl border border-info/25 bg-info/10 p-3.5 text-left text-[13.5px] text-muted-foreground leading-relaxed">
-							<Shield className="mt-0.5 size-3.5 shrink-0 text-info" />
-							<div>
+						<Alert className="mx-auto max-w-md text-left" variant="info">
+							<Shield />
+							<AlertDescription>
 								<b className="text-foreground">While you wait:</b> your account
 								remains flagged. Maintainers reviewing your PRs will see the
 								appeal is in progress.
-							</div>
-						</div>
+							</AlertDescription>
+						</Alert>
 						<a className="mt-6 inline-block" href="/">
 							<Button type="button">Back to home</Button>
 						</a>
@@ -203,28 +204,34 @@ function AppealRoute() {
 								label="Are you the account holder?"
 							>
 								<div className="flex gap-2">
-									<button onClick={() => setHolder("self")} type="button">
-										<Badge variant={holder === "self" ? "default" : "outline"}>
-											I am the account holder
-										</Badge>
-									</button>
-									<button onClick={() => setHolder("rep")} type="button">
-										<Badge variant={holder === "rep" ? "default" : "outline"}>
-											I represent them
-										</Badge>
-									</button>
+									<Badge
+										render={
+											<button onClick={() => setHolder("self")} type="button" />
+										}
+										variant={holder === "self" ? "default" : "outline"}
+									>
+										I am the account holder
+									</Badge>
+									<Badge
+										render={
+											<button onClick={() => setHolder("rep")} type="button" />
+										}
+										variant={holder === "rep" ? "default" : "outline"}
+									>
+										I represent them
+									</Badge>
 								</div>
 							</FieldRow>
 						</div>
-						<div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/25 bg-warning/10 p-3.5 text-[13.5px] text-muted-foreground leading-relaxed">
-							<Shield className="mt-0.5 size-3.5 shrink-0 text-warning" />
-							<div>
+						<Alert className="mt-4" variant="warning">
+							<Shield />
+							<AlertDescription>
 								<b className="text-foreground">Anti-abuse note.</b> Appeals
 								submitted from new emails or with no commit history get extra
 								scrutiny. We do this to prevent bot-driven appeal floods, not to
 								gatekeep real humans.
-							</div>
-						</div>
+							</AlertDescription>
+						</Alert>
 						<div className="mt-7 flex items-center justify-between">
 							<a href="/">
 								<Button type="button" variant="ghost">
@@ -294,38 +301,23 @@ function AppealRoute() {
 							{EVIDENCE.map((item) => {
 								const on = evidence[item.key];
 								return (
-									<button
-										className={cn(
-											"flex items-start gap-3.5 rounded-xl border p-4 text-left transition-colors",
-											on
-												? "border-primary/40 bg-primary/10"
-												: "border-border bg-card hover:border-input"
-										)}
+									<CheckboxCard
+										checked={on}
 										key={item.key}
-										onClick={() =>
+										onCheckedChange={() =>
 											setEvidence((prev) => ({ ...prev, [item.key]: !on }))
 										}
-										type="button"
 									>
-										<span
-											className={cn(
-												"mt-0.5 flex size-4.5 items-center justify-center rounded-md border",
-												on
-													? "border-primary bg-primary text-primary-foreground"
-													: "border-input"
-											)}
-										>
-											{on ? <Check className="size-3" /> : null}
-										</span>
+										<CheckboxCardIndicator />
 										<span>
-											<span className="block font-medium text-[14px]">
+											<span className="block font-medium text-sm">
 												{item.title}
 											</span>
-											<span className="mt-1 block text-[12.5px] text-muted-foreground">
+											<span className="mt-1 block text-muted-foreground text-xs">
 												{item.body}
 											</span>
 										</span>
-									</button>
+									</CheckboxCard>
 								);
 							})}
 						</div>
@@ -371,15 +363,15 @@ function AppealRoute() {
 							<SummaryRow label="SLA" value="48 hours from submission" />
 							<SummaryRow label="Cost" value="$0" />
 						</div>
-						<div className="mt-4 flex items-start gap-2.5 rounded-xl border bg-muted p-3.5 text-[13.5px] text-muted-foreground leading-relaxed">
-							<Activity className="mt-0.5 size-3.5 shrink-0" />
-							<div>
+						<Alert className="mt-4" variant="default">
+							<Activity />
+							<AlertDescription>
 								<b className="text-foreground">What happens next.</b> Three
 								trust-graph maintainers vote. If 2+ overturn, your account is
 								moved out of the "automated" tier and the flag is rescinded
 								across all repos that imported the shared blocklist.
-							</div>
-						</div>
+							</AlertDescription>
+						</Alert>
 						<div className="mt-7 flex items-center justify-between">
 							<Button onClick={() => setStep(2)} type="button" variant="ghost">
 								← Back

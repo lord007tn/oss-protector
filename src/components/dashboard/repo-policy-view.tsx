@@ -1,9 +1,24 @@
 import { Check, Loader2, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CheckboxCard } from "@/components/ui/checkbox";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import type { DashboardRepo } from "@/data-access/maintainer-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -228,13 +243,15 @@ export function RepoPolicyView({ repos }: { repos: DashboardRepo[] }) {
 
 	if (repos.length === 0) {
 		return (
-			<div className="rounded-2xl border bg-card p-10 text-center">
-				<div className="font-medium text-[15px]">No repositories yet</div>
-				<p className="mx-auto mt-1.5 max-w-md text-[13.5px] text-muted-foreground">
-					Install OSS Protector on a repo before editing policy from the
-					dashboard.
-				</p>
-			</div>
+			<Empty>
+				<EmptyHeader>
+					<EmptyTitle>No repositories yet</EmptyTitle>
+					<EmptyDescription>
+						Install OSS Protector on a repo before editing policy from the
+						dashboard.
+					</EmptyDescription>
+				</EmptyHeader>
+			</Empty>
 		);
 	}
 
@@ -266,18 +283,30 @@ export function RepoPolicyView({ repos }: { repos: DashboardRepo[] }) {
 					<label className="font-medium text-[12.5px]" htmlFor="policy-repo">
 						Repository
 					</label>
-					<select
-						className="h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm focus:border-input focus:outline-none"
+					<Select
 						id="policy-repo"
-						onChange={(event) => setRepositoryId(event.target.value)}
+						onValueChange={(value) => setRepositoryId(value ?? "")}
 						value={repositoryId}
 					>
-						{repos.map((repo) => (
-							<option key={repo.id} value={repo.id}>
-								{repo.fullName} {repo.isPrivate ? "(private)" : ""}
-							</option>
-						))}
-					</select>
+						<SelectTrigger className="w-full max-w-md">
+							<SelectValue>
+								{(value) => {
+									const repo = repos.find((entry) => entry.id === value);
+									if (!repo) {
+										return null;
+									}
+									return `${repo.fullName} ${repo.isPrivate ? "(private)" : ""}`;
+								}}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{repos.map((repo) => (
+								<SelectItem key={repo.id} value={repo.id}>
+									{repo.fullName} {repo.isPrivate ? "(private)" : ""}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 
 				{loading ? (
@@ -408,16 +437,18 @@ export function RepoPolicyView({ repos }: { repos: DashboardRepo[] }) {
 				)}
 			</div>
 
-			<div className="rounded-xl border border-info/25 bg-info/10 p-4 text-[12.5px] text-muted-foreground leading-relaxed">
-				<b className="text-foreground">Heads up:</b> if your repo has a
-				committed{" "}
-				<code className="font-mono text-[11.5px]">
-					.github/oss-protector.json
-				</code>
-				, each field present in the file overrides the corresponding value here.
-				Remove a field from the file (or remove the file entirely) for dashboard
-				values to take effect on that field.
-			</div>
+			<Alert variant="info">
+				<AlertDescription>
+					<b className="text-foreground">Heads up:</b> if your repo has a
+					committed{" "}
+					<code className="font-mono text-[11.5px]">
+						.github/oss-protector.json
+					</code>
+					, each field present in the file overrides the corresponding value
+					here. Remove a field from the file (or remove the file entirely) for
+					dashboard values to take effect on that field.
+				</AlertDescription>
+			</Alert>
 		</div>
 	);
 }
@@ -434,13 +465,10 @@ function BooleanCard({
 	value: boolean;
 }) {
 	return (
-		<button
-			className={cn(
-				"grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-xl border bg-background p-4 text-left transition-colors hover:border-input",
-				value ? "border-primary/40 bg-primary/5" : "border-border"
-			)}
-			onClick={() => onChange(!value)}
-			type="button"
+		<CheckboxCard
+			checked={value}
+			className="grid grid-cols-[1fr_auto] items-center"
+			onCheckedChange={onChange}
 		>
 			<div>
 				<div className="font-medium text-[13.5px]">{label}</div>
@@ -458,7 +486,7 @@ function BooleanCard({
 			>
 				{value ? <Check className="size-3" /> : <X className="size-3" />}
 			</span>
-		</button>
+		</CheckboxCard>
 	);
 }
 
@@ -518,19 +546,18 @@ function TagsInput({
 					<span className="text-muted-foreground text-xs">{empty}</span>
 				) : (
 					values.map((value) => (
-						<span
-							className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 font-mono text-[11.5px]"
-							key={value}
-						>
+						<Badge key={value} size="tag" variant="outline">
 							{value}
-							<button
-								className="text-muted-foreground hover:text-foreground"
+							<Button
+								aria-label={`Remove ${value}`}
 								onClick={() => onRemove(value)}
+								size="icon-xs"
 								type="button"
+								variant="ghost"
 							>
-								<X className="size-3" />
-							</button>
-						</span>
+								<X />
+							</Button>
+						</Badge>
 					))
 				)}
 			</div>

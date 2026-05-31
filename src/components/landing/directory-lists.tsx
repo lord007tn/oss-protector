@@ -42,7 +42,7 @@ export function RiskProfilesCard({
 	title?: string;
 }) {
 	return (
-		<Card className="rounded-md border-muted/60">
+		<Card variant="subtle">
 			<CardHeader className="space-y-1 pb-3">
 				<CardTitle className="flex items-center gap-2 font-medium text-base">
 					<AlertTriangle className="size-4 text-destructive" />
@@ -82,7 +82,7 @@ export function ProtectorsCard({
 	title?: string;
 }) {
 	return (
-		<Card className="rounded-md border-muted/60">
+		<Card variant="subtle">
 			<CardHeader className="space-y-1 pb-3">
 				<CardTitle className="flex items-center gap-2 font-medium text-base">
 					<UsersRound className="size-4 text-muted-foreground" />
@@ -123,7 +123,7 @@ export function ProtectorsCard({
 									className="gap-1.5 font-mono text-[11px] tabular-nums"
 									variant="secondary"
 								>
-									<CheckCircle2 className="size-3 text-emerald-500" />
+									<CheckCircle2 className="size-3 text-success" />
 									{protector.score}
 								</Badge>
 							</li>
@@ -173,21 +173,11 @@ function DesktopRiskTable({ profiles }: { profiles: RiskProfile[] }) {
 			<Table aria-label="Risk review feed">
 				<TableHeader>
 					<TableRow>
-						<TableHead className="pl-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">
-							Account
-						</TableHead>
-						<TableHead className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-							Status
-						</TableHead>
-						<TableHead className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-							Score
-						</TableHead>
-						<TableHead className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-							Signal
-						</TableHead>
-						<TableHead className="pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide">
-							Reason
-						</TableHead>
+						<TableHead className="pl-4">Account</TableHead>
+						<TableHead>Status</TableHead>
+						<TableHead>Score</TableHead>
+						<TableHead>Signal</TableHead>
+						<TableHead className="pr-4">Reason</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>

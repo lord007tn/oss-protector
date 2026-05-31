@@ -19,8 +19,11 @@ import { MaintainerControls } from "@/components/oss/maintainer-controls";
 import { TrustGraph } from "@/components/oss/trust-graph";
 import { NotFoundView } from "@/components/site/error-states";
 import { PageContainer, PageShell } from "@/components/site/page-shell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { REASON_DESCRIPTIONS } from "@/constants/reason-codes";
 import { getAccountProfileFn } from "@/functions/account-profile";
@@ -132,7 +135,7 @@ function AccountRoute() {
 					Back to directory
 				</a>
 
-				<div className="grid items-center gap-5 rounded-2xl border bg-card p-7 md:grid-cols-[96px_1fr_auto]">
+				<Card className="grid items-center gap-5 p-7 md:grid-cols-[96px_1fr_auto]">
 					<AccountAvatar
 						avatarUrl={profile.avatarUrl}
 						className="size-24 text-3xl"
@@ -182,10 +185,10 @@ function AccountRoute() {
 							{disputing ? "Cancel dispute" : "Dispute flag"}
 						</Button>
 					</div>
-				</div>
+				</Card>
 
 				{disputing ? (
-					<div className="mt-4 rounded-2xl border border-primary/30 bg-card p-6">
+					<Card className="mt-4 border-primary/30 p-6">
 						<div className="mb-2 flex items-center justify-between">
 							<div className="font-medium text-[15px]">
 								{disputeSent ? "Dispute received" : "Dispute this flag"}
@@ -204,18 +207,14 @@ function AccountRoute() {
 							</Button>
 						</div>
 						{disputeSent ? (
-							<div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 p-3.5">
-								<Check className="size-4.5 text-success" />
-								<div>
-									<div className="font-medium">
-										Thanks — your dispute is in.
-									</div>
-									<div className="mt-0.5 text-muted-foreground text-sm">
-										We'll review with three trust-graph maintainers within 48
-										hours.
-									</div>
-								</div>
-							</div>
+							<Alert variant="success">
+								<Check />
+								<AlertTitle>Thanks — your dispute is in.</AlertTitle>
+								<AlertDescription>
+									We'll review with three trust-graph maintainers within 48
+									hours.
+								</AlertDescription>
+							</Alert>
 						) : (
 							<>
 								<p className="mb-3 text-[13.5px] text-muted-foreground leading-relaxed">
@@ -250,170 +249,201 @@ function AccountRoute() {
 								</div>
 							</>
 						)}
-					</div>
+					</Card>
 				) : null}
 
 				<MaintainerControls login={profile.login} />
 
 				<div className="mt-6 grid gap-5 lg:grid-cols-[1.2fr_1fr]">
 					<div className="flex flex-col gap-5">
-						<div className="rounded-2xl border bg-card p-6">
-							<CardLabel>Why flagged</CardLabel>
-							{profile.reasonCodes.length === 0 ? (
-								<p className="text-[13.5px] text-muted-foreground">
-									No reason codes recorded.
-								</p>
-							) : (
-								<ul className="space-y-3">
-									{profile.reasonCodes.map((code) => (
-										<li key={code}>
-											<div className="font-medium text-sm">
-												{reasonLabel(code)}
-											</div>
-											<div className="mt-0.5 text-[13px] text-muted-foreground leading-relaxed">
-												{REASON_DESCRIPTIONS[code]}
-											</div>
-										</li>
-									))}
-								</ul>
-							)}
-						</div>
+						<Card>
+							<CardContent>
+								<CardLabel>Why flagged</CardLabel>
+								{profile.reasonCodes.length === 0 ? (
+									<p className="text-[13.5px] text-muted-foreground">
+										No reason codes recorded.
+									</p>
+								) : (
+									<ul className="flex flex-col gap-3">
+										{profile.reasonCodes.map((code) => (
+											<li key={code}>
+												<div className="font-medium text-sm">
+													{reasonLabel(code)}
+												</div>
+												<div className="mt-0.5 text-[13px] text-muted-foreground leading-relaxed">
+													{REASON_DESCRIPTIONS[code]}
+												</div>
+											</li>
+										))}
+									</ul>
+								)}
+							</CardContent>
+						</Card>
 
-						<div className="rounded-2xl border bg-card p-6">
-							<CardLabel>Evidence signals · {profile.signals.length}</CardLabel>
-							{profile.signals.length === 0 ? (
-								<p className="text-[13.5px] text-muted-foreground">
-									No public signals recorded.
-								</p>
+						<Card>
+							<CardContent>
+								<CardLabel>
+									Evidence signals · {profile.signals.length}
+								</CardLabel>
+								{profile.signals.length === 0 ? (
+									<p className="text-[13.5px] text-muted-foreground">
+										No public signals recorded.
+									</p>
+								) : (
+									<div className="flex flex-col">
+										{profile.signals.slice(0, 12).map((signal, i) => (
+											<div
+												key={`${signal.observedAt}-${signal.signalType}-${signal.source}`}
+											>
+												{i > 0 && <Separator />}
+												<div className="grid grid-cols-[1fr_auto] items-center gap-3 py-2.5 text-sm">
+													<div className="min-w-0">
+														<div className="font-medium capitalize">
+															{humanizeSignal(signal.signalType)}
+														</div>
+														<div className="font-mono text-muted-foreground text-xs">
+															{signal.source.replaceAll("_", " ")}
+															{signal.repositoryFullName
+																? ` · ${signal.repositoryFullName}`
+																: ""}{" "}
+															· {relativeTime(signal.observedAt)}
+														</div>
+													</div>
+													<Badge
+														variant={
+															signal.weight >= 0 ? "destructive" : "success"
+														}
+													>
+														{signal.weight >= 0 ? "+" : ""}
+														{signal.weight}
+													</Badge>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</div>
+
+					<Card>
+						<CardContent>
+							<CardLabel>
+								Public pull requests · {profile.publicPrs.length}
+							</CardLabel>
+							{profile.publicPrs.length === 0 ? (
+								<div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
+									<GitPullRequest className="size-6" />
+									<p className="text-sm">
+										No public PRs observed on installed repositories yet.
+									</p>
+								</div>
 							) : (
 								<div className="flex flex-col">
-									{profile.signals.slice(0, 12).map((signal) => (
-										<div
-											className="grid grid-cols-[1fr_auto] items-center gap-3 border-border border-b py-2.5 text-sm last:border-0"
-											key={`${signal.observedAt}-${signal.signalType}-${signal.source}`}
-										>
-											<div className="min-w-0">
-												<div className="font-medium capitalize">
-													{humanizeSignal(signal.signalType)}
-												</div>
-												<div className="font-mono text-muted-foreground text-xs">
-													{signal.source.replaceAll("_", " ")}
-													{signal.repositoryFullName
-														? ` · ${signal.repositoryFullName}`
-														: ""}{" "}
-													· {relativeTime(signal.observedAt)}
-												</div>
-											</div>
-											<Badge
-												variant={signal.weight >= 0 ? "destructive" : "success"}
+									{profile.publicPrs.slice(0, 12).map((pr, i) => (
+										<div key={pr.htmlUrl}>
+											{i > 0 && <Separator />}
+											<a
+												className="flex items-start justify-between gap-3 py-2.5 text-sm transition-colors hover:text-foreground"
+												href={pr.htmlUrl}
+												rel="noreferrer noopener"
+												target="_blank"
 											>
-												{signal.weight >= 0 ? "+" : ""}
-												{signal.weight}
-											</Badge>
+												<div className="min-w-0">
+													<div className="truncate font-medium">{pr.title}</div>
+													<div className="font-mono text-muted-foreground text-xs">
+														{pr.repositoryFullName}#{pr.number} · {pr.state}
+													</div>
+												</div>
+												<ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+											</a>
 										</div>
 									))}
 								</div>
 							)}
-						</div>
-					</div>
-
-					<div className="rounded-2xl border bg-card p-6">
-						<CardLabel>
-							Public pull requests · {profile.publicPrs.length}
-						</CardLabel>
-						{profile.publicPrs.length === 0 ? (
-							<div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
-								<GitPullRequest className="size-6" />
-								<p className="text-sm">
-									No public PRs observed on installed repositories yet.
-								</p>
-							</div>
-						) : (
-							<div className="flex flex-col">
-								{profile.publicPrs.slice(0, 12).map((pr) => (
-									<a
-										className="flex items-start justify-between gap-3 border-border border-b py-2.5 text-sm transition-colors last:border-0 hover:text-foreground"
-										href={pr.htmlUrl}
-										key={pr.htmlUrl}
-										rel="noreferrer noopener"
-										target="_blank"
-									>
-										<div className="min-w-0">
-											<div className="truncate font-medium">{pr.title}</div>
-											<div className="font-mono text-muted-foreground text-xs">
-												{pr.repositoryFullName}#{pr.number} · {pr.state}
-											</div>
-										</div>
-										<ExternalLink className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-									</a>
-								))}
-							</div>
-						)}
-					</div>
+						</CardContent>
+					</Card>
 				</div>
 
-				<div className="mt-5 rounded-2xl border bg-card p-6">
-					<CardLabel>Trust graph</CardLabel>
-					<p className="-mt-2 mb-4 text-[13.5px] text-muted-foreground">
-						Maintainers who reported this account and the repositories it
-						touched. Every link is auditable.
-					</p>
-					<TrustGraph
-						affectedCount={affectedRepos.length}
-						handle={profile.login}
-						height={300}
-						initials={avatarInitials(profile.login)}
-						repoNames={affectedRepos}
-						reporterCount={reporters.length}
-						reporters={reporters}
-					/>
-				</div>
+				<Card className="mt-5">
+					<CardContent>
+						<CardLabel>Trust graph</CardLabel>
+						<p className="-mt-2 mb-4 text-[13.5px] text-muted-foreground">
+							Maintainers who reported this account and the repositories it
+							touched. Every link is auditable.
+						</p>
+						<TrustGraph
+							affectedCount={affectedRepos.length}
+							handle={profile.login}
+							height={300}
+							initials={avatarInitials(profile.login)}
+							repoNames={affectedRepos}
+							reporterCount={reporters.length}
+							reporters={reporters}
+						/>
+					</CardContent>
+				</Card>
 
 				<div className="mt-5 grid gap-5 md:grid-cols-2">
-					<div className="rounded-2xl border bg-card p-6">
-						<CardLabel>Reported by</CardLabel>
-						{reporters.length === 0 ? (
-							<p className="text-[13.5px] text-muted-foreground">
-								No public maintainer reports on file.
-							</p>
-						) : (
-							<div className="flex flex-wrap gap-2">
-								{reporters.map((login) => (
-									<a
-										className="inline-flex items-center gap-1 rounded-full border border-success/25 bg-success/10 px-3 py-1 font-mono text-[12.5px] text-success"
-										href={`https://github.com/${login}`}
-										key={login}
-										rel="noreferrer noopener"
-										target="_blank"
-									>
-										<Check className="size-3" />
-										{login}
-									</a>
-								))}
-							</div>
-						)}
-					</div>
+					<Card>
+						<CardContent>
+							<CardLabel>Reported by</CardLabel>
+							{reporters.length === 0 ? (
+								<p className="text-[13.5px] text-muted-foreground">
+									No public maintainer reports on file.
+								</p>
+							) : (
+								<div className="flex flex-wrap gap-2">
+									{reporters.map((login) => (
+										<Badge
+											key={login}
+											render={
+												// biome-ignore lint/a11y/useAnchorContent: anchor content is injected from the component children at runtime via the Base UI render prop
+												<a
+													aria-label={login}
+													href={`https://github.com/${login}`}
+													rel="noreferrer noopener"
+													target="_blank"
+												/>
+											}
+											size="tag"
+											variant="success"
+										>
+											<Check />
+											{login}
+										</Badge>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
 
-					<div className="rounded-2xl border bg-card p-6">
-						<CardLabel>Affected repositories</CardLabel>
-						{affectedRepos.length === 0 ? (
-							<p className="text-[13.5px] text-muted-foreground">
-								No public repositories recorded.
-							</p>
-						) : (
-							<div className="flex flex-wrap gap-2">
-								{affectedRepos.slice(0, 12).map((name) => (
-									<a
-										className="inline-flex items-center rounded-full border bg-card px-3 py-1 font-mono text-[12.5px] text-muted-foreground transition-colors hover:border-input hover:text-foreground"
-										href={`/repo/${name}`}
-										key={name}
-									>
-										{name}
-									</a>
-								))}
-							</div>
-						)}
-					</div>
+					<Card>
+						<CardContent>
+							<CardLabel>Affected repositories</CardLabel>
+							{affectedRepos.length === 0 ? (
+								<p className="text-[13.5px] text-muted-foreground">
+									No public repositories recorded.
+								</p>
+							) : (
+								<div className="flex flex-wrap gap-2">
+									{affectedRepos.slice(0, 12).map((name) => (
+										<Badge
+											key={name}
+											render={
+												// biome-ignore lint/a11y/useAnchorContent: anchor content is injected from the component children at runtime via the Base UI render prop
+												<a aria-label={name} href={`/repo/${name}`} />
+											}
+											size="tag"
+											variant="outline"
+										>
+											{name}
+										</Badge>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
 				</div>
 			</PageContainer>
 		</PageShell>

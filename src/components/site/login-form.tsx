@@ -9,6 +9,7 @@ import {
 } from "@/components/landing/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { authClient } from "@/lib/auth-client";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,17 +63,24 @@ export function LoginForm({
 
 	const signInGithub = async () => {
 		setPending(true);
-		const { error } = await authClient.signIn.social({
-			callbackURL,
-			provider: "github",
-		});
-		if (error) {
+		try {
+			const { error } = await authClient.signIn.social({
+				callbackURL,
+				provider: "github",
+			});
+			if (error) {
+				setPending(false);
+				toast.error(error.message ?? "GitHub sign-in failed.");
+			}
+			// On success Better Auth returns a github.com authorize URL and triggers
+			// a full-page navigation. Leave `pending` true so the button stays in its
+			// loading state until the browser actually unloads the page.
+		} catch {
+			// A network-layer rejection (offline, DNS/TLS failure) would otherwise
+			// leave the whole form stuck on the spinner with no way to recover.
 			setPending(false);
-			toast.error(error.message ?? "GitHub sign-in failed.");
+			toast.error("Couldn't reach GitHub sign-in. Check your connection.");
 		}
-		// On success Better Auth returns a github.com authorize URL and triggers a
-		// full-page navigation. Leave `pending` true so the button stays in its
-		// loading state until the browser actually unloads the page.
 	};
 
 	return (
@@ -107,9 +115,9 @@ export function LoginForm({
 					</Button>
 					{emailOtpEnabled ? (
 						<div className="my-5 flex items-center gap-3 text-muted-foreground text-xs">
-							<span className="h-px flex-1 bg-border" />
+							<Separator className="flex-1" />
 							or
-							<span className="h-px flex-1 bg-border" />
+							<Separator className="flex-1" />
 						</div>
 					) : null}
 				</>
@@ -124,10 +132,11 @@ export function LoginForm({
 						<Mail className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
 						<Input
 							autoComplete="email"
-							className="h-10 pl-8"
+							className="pl-8"
 							id="login-email"
 							onChange={(event) => setEmail(event.target.value)}
 							placeholder="you@example.com"
+							size="lg"
 							type="email"
 							value={email}
 						/>
@@ -145,21 +154,22 @@ export function LoginForm({
 						<label className="font-medium text-[13.5px]" htmlFor="login-otp">
 							6-digit code
 						</label>
-						<button
-							className="text-muted-foreground text-xs hover:text-foreground"
+						<Button
 							onClick={() => {
 								setStep("email");
 								setOtp("");
 							}}
+							size="xs"
 							type="button"
+							variant="link"
 						>
-							<ArrowLeft className="mr-1 inline size-3" />
+							<ArrowLeft data-icon="inline-start" />
 							Change email
-						</button>
+						</Button>
 					</div>
 					<Input
 						autoComplete="one-time-code"
-						className="h-10 text-center font-mono text-lg tracking-[0.4em]"
+						className="text-center font-mono text-lg tracking-[0.4em]"
 						id="login-otp"
 						inputMode="numeric"
 						maxLength={6}
@@ -167,20 +177,22 @@ export function LoginForm({
 							setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
 						}
 						placeholder="••••••"
+						size="lg"
 						value={otp}
 					/>
 					<Button disabled={pending} size="lg" type="submit">
 						{pending ? <Loader2 className="animate-spin" /> : null}
 						Verify &amp; sign in
 					</Button>
-					<button
-						className="text-center text-muted-foreground text-xs hover:text-foreground"
+					<Button
 						disabled={pending}
 						onClick={() => sendCode()}
+						size="xs"
 						type="button"
+						variant="link"
 					>
 						Didn't get it? Resend code
-					</button>
+					</Button>
 				</form>
 			) : null}
 

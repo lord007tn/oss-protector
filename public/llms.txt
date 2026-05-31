@@ -1,0 +1,29 @@
+# OSS Protector
+
+> OSS Protector is a free, community-run GitHub App and public directory that flags AI-generated spam and abusive pull-request activity before it reaches a maintainer's review queue. It scores accounts with transparent, public signals and lets any maintainer review, confirm, dismiss, or appeal a flag.
+
+OSS Protector is open source (MIT) and built by maintainers, for maintainers. It never comments on or blocks pull requests directly — flagged contributors surface in a maintainer's in-app dashboard and notifications. Every flag is public and every scoring weight is documented.
+
+## How it scores
+
+- Account heuristics: account age, prior commit history, bio and handle patterns
+- Diff signature: LLM-authored patch vocabulary, indentation, and comment style
+- Cross-repo correlation: the same account flagged or dismissed across many repositories
+- Confidence is a transparent weighted sum of independent signals, auditable on the methodology page
+
+## Key pages
+
+- [Home](https://oss-protector.raedbahri90.workers.dev/): what OSS Protector is and how it works
+- [Public feed](https://oss-protector.raedbahri90.workers.dev/feed): the live public review queue of flagged accounts
+- [Accounts directory](https://oss-protector.raedbahri90.workers.dev/accounts): browse scored accounts
+- [Methodology](https://oss-protector.raedbahri90.workers.dev/methodology): how confidence is computed and the signal weights
+- [Appeal a flag](https://oss-protector.raedbahri90.workers.dev/appeal): for accounts that believe they were wrongly flagged
+- [Sponsors](https://oss-protector.raedbahri90.workers.dev/sponsors): how the project stays free
+- [Source code](https://github.com/lord007tn/oss-protector): the GitHub repository
+
+## Facts
+
+- Price: free for everyone, forever — no paid tiers
+- License: MIT, open source
+- Hosting: Cloudflare Workers and D1
+- It does not post bot comments or status checks on pull requests

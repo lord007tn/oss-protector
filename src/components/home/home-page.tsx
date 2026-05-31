@@ -19,6 +19,7 @@ import { Section, SectionHead } from "@/components/oss/section";
 import { SignalBars, type SignalKey } from "@/components/oss/signal-bars";
 import { StatStrip } from "@/components/oss/stat-strip";
 import { TrustGraph } from "@/components/oss/trust-graph";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { REASON_LABELS } from "@/constants/reason-codes";
@@ -271,9 +272,9 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 							</span>
 						</div>
 						<SignalBars signals={account.signals} />
-						<div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-[13.5px] text-muted-foreground">
-							{account.summary}
-						</div>
+						<Alert className="mt-4" variant="destructive-soft">
+							<AlertDescription>{account.summary}</AlertDescription>
+						</Alert>
 					</div>
 					<div>
 						<div className="mb-4 font-mono text-muted-foreground text-sm">
@@ -363,19 +364,26 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 				) : (
 					<div className="flex flex-wrap gap-2">
 						{coverageRepos.map((repo) => (
-							<a
-								className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 font-mono text-[12.5px] text-muted-foreground transition-colors hover:border-input hover:text-foreground"
-								href={`/repo/${repo.fullName}`}
+							<Badge
 								key={repo.fullName}
+								render={
+									// biome-ignore lint/a11y/useAnchorContent: anchor content is injected from the component children at runtime via the Base UI render prop
+									<a
+										aria-label={repo.fullName}
+										href={`/repo/${repo.fullName}`}
+									/>
+								}
+								size="tag"
+								variant="outline"
 							>
-								<Star className="size-2.5" />
+								<Star />
 								{repo.fullName}
-							</a>
+							</Badge>
 						))}
 						{repoCount > coverageRepos.length ? (
-							<span className="inline-flex items-center rounded-full border border-primary/30 bg-card px-3 py-1.5 font-mono text-[12.5px] text-primary">
+							<Badge size="tag" variant="primary">
 								+ {(repoCount - coverageRepos.length).toLocaleString()} more
-							</span>
+							</Badge>
 						) : null}
 					</div>
 				)}
@@ -434,6 +442,13 @@ function HeroSection({
 	stats: DirectoryDashboard["stats"];
 }) {
 	const fmt = (value: number) => value.toLocaleString();
+	// Fresh installs (and the public instance before it has data) would otherwise
+	// show a wall of zeros, which reads as broken. Fall back to honest qualitative
+	// stats until there's real coverage to report.
+	const hasData =
+		stats.trackedUsers > 0 ||
+		stats.activeRepositories > 0 ||
+		stats.trackedPrs > 0;
 	return (
 		<section className="hero-glow hero-grid relative overflow-hidden px-4 pt-20 pb-12 md:px-8">
 			<div className="relative z-10 mx-auto grid w-full max-w-[1240px] items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
@@ -475,38 +490,56 @@ function HeroSection({
 						or browse the public feed
 						<ArrowRight className="size-3.5" />
 					</a>
-					<div className="mt-7 flex flex-wrap gap-6 font-mono text-muted-foreground text-xs">
-						<span>
-							<b className="font-medium text-foreground tabular-nums">
-								{fmt(stats.trackedUsers)}
-							</b>{" "}
-							flagged accounts
-						</span>
-						<span>
-							<b className="font-medium text-foreground tabular-nums">
-								{fmt(stats.activeRepositories)}
-							</b>{" "}
-							repos protected
-						</span>
-						<span>
-							<b className="font-medium text-foreground tabular-nums">
-								{fmt(stats.signals)}
-							</b>{" "}
-							signals tracked
-						</span>
-					</div>
+					{hasData ? (
+						<div className="mt-7 flex flex-wrap gap-6 font-mono text-muted-foreground text-xs">
+							<span>
+								<b className="font-medium text-foreground tabular-nums">
+									{fmt(stats.trackedUsers)}
+								</b>{" "}
+								flagged accounts
+							</span>
+							<span>
+								<b className="font-medium text-foreground tabular-nums">
+									{fmt(stats.activeRepositories)}
+								</b>{" "}
+								repos protected
+							</span>
+							<span>
+								<b className="font-medium text-foreground tabular-nums">
+									{fmt(stats.signals)}
+								</b>{" "}
+								signals tracked
+							</span>
+						</div>
+					) : (
+						<div className="mt-7 font-mono text-muted-foreground text-xs">
+							Just launched — be the first repository we protect.
+						</div>
+					)}
 				</div>
 				<LiveFeed height={460} items={recentFlags} />
 			</div>
 
 			<div className="relative z-10 mx-auto mt-16 w-full max-w-[1240px]">
 				<StatStrip
-					stats={[
-						{ label: "flagged accounts", value: fmt(stats.trackedUsers) },
-						{ label: "pull requests tracked", value: fmt(stats.trackedPrs) },
-						{ label: "open reports", value: fmt(stats.openReports) },
-						{ label: "forever, no tiers", value: "$0" },
-					]}
+					stats={
+						hasData
+							? [
+									{ label: "flagged accounts", value: fmt(stats.trackedUsers) },
+									{
+										label: "pull requests tracked",
+										value: fmt(stats.trackedPrs),
+									},
+									{ label: "open reports", value: fmt(stats.openReports) },
+									{ label: "forever, no tiers", value: "$0" },
+								]
+							: [
+									{ label: "forever, no tiers", value: "$0" },
+									{ label: "open source", value: "MIT" },
+									{ label: "to protect a repo", value: "1 click" },
+									{ label: "scoring", value: "public" },
+								]
+					}
 				/>
 			</div>
 		</section>
@@ -625,12 +658,14 @@ function CompareOverlay() {
 						<Badge variant="warning">14 prior reports</Badge>
 						<Badge variant="outline">184 PRs · 142 repos</Badge>
 					</div>
-					<div className="mt-3.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-[13.5px] text-muted-foreground leading-relaxed">
-						<b className="text-foreground">Why flagged.</b> Account opened 27
-						days ago has filed 184 PRs across 142 unrelated repositories. Diff
-						signature matches the "helpful-assistant" family. Five maintainers
-						confirmed prior reports.
-					</div>
+					<Alert className="mt-3.5" variant="destructive-soft">
+						<AlertDescription>
+							<b className="text-foreground">Why flagged.</b> Account opened 27
+							days ago has filed 184 PRs across 142 unrelated repositories. Diff
+							signature matches the "helpful-assistant" family. Five maintainers
+							confirmed prior reports.
+						</AlertDescription>
+					</Alert>
 					<div className="mt-3 flex flex-wrap gap-2">
 						<Button size="sm" type="button" variant="success">
 							<Check />
@@ -713,11 +748,13 @@ function ConfirmFlow() {
 				<b className="text-foreground">Allow author</b> — marks them as trusted
 				in your repos forever. Whitelist, not blocklist.
 			</p>
-			<div className="mt-5 rounded-xl border border-success/30 bg-success/10 p-4 text-[13.5px] text-muted-foreground leading-relaxed">
-				<b className="text-success">★ Federated decisions.</b> When you confirm
-				a flag, every other repo running OSS Protector benefits. The blocklist
-				is shared. The trust graph grows. Bots get nowhere to go.
-			</div>
+			<Alert className="mt-5" variant="success">
+				<AlertDescription>
+					<b className="text-success">★ Federated decisions.</b> When you
+					confirm a flag, every other repo running OSS Protector benefits. The
+					blocklist is shared. The trust graph grows. Bots get nowhere to go.
+				</AlertDescription>
+			</Alert>
 		</div>
 	);
 }

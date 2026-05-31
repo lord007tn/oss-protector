@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import {
 	BookOpen,
 	FileJson,
@@ -27,7 +27,6 @@ import {
 import { REASON_CODES } from "@/constants/reason-codes";
 import { RISK_STATUSES } from "@/constants/risk-statuses";
 import { buildSharedHead } from "@/lib/head";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/docs")({
 	component: DocsRoute,
@@ -383,7 +382,7 @@ function DocsRoute() {
 					/>
 
 					<Section id="rate-limits" title="Rate limits & errors">
-						<Alert>
+						<Alert variant="info">
 							<Gauge />
 							<AlertTitle>60 req/min per client IP</AlertTitle>
 							<AlertDescription>
@@ -528,24 +527,25 @@ function DocsRoute() {
 						</p>
 					</Section>
 
-					<div className="mt-12 rounded-2xl border border-info/25 bg-info/10 p-4 text-[13px] text-muted-foreground leading-relaxed">
-						<KeyRound className="mb-2 size-4 text-info" />
-						<b className="text-foreground">Found something missing?</b> File an
-						issue on{" "}
-						<a
-							className="text-primary hover:underline"
-							href="https://github.com/lord007tn/oss-protector/issues"
-							rel="noopener noreferrer"
-							target="_blank"
-						>
-							GitHub
-						</a>{" "}
-						or open a PR against{" "}
-						<code className="font-mono text-foreground">
-							src/routes/docs.tsx
-						</code>
-						.
-					</div>
+					<Alert className="mt-12" variant="info">
+						<KeyRound />
+						<AlertTitle>Found something missing?</AlertTitle>
+						<AlertDescription>
+							File an issue on{" "}
+							<a
+								href="https://github.com/lord007tn/oss-protector/issues"
+								rel="noopener noreferrer"
+								target="_blank"
+							>
+								GitHub
+							</a>{" "}
+							or open a PR against{" "}
+							<code className="font-mono text-foreground">
+								src/routes/docs.tsx
+							</code>
+							.
+						</AlertDescription>
+					</Alert>
 				</main>
 			</div>
 		</PageShell>
@@ -645,12 +645,7 @@ function EndpointBlock({
 	return (
 		<section className="mb-8 scroll-mt-20" id={id}>
 			<div className="mb-3 flex flex-wrap items-center gap-2">
-				<Badge
-					className={cn(
-						"rounded-sm font-mono text-[10px] uppercase tracking-wide"
-					)}
-					variant="secondary"
-				>
+				<Badge size="method" variant="secondary">
 					{method}
 				</Badge>
 				<code className="font-mono text-[14px]">{path}</code>

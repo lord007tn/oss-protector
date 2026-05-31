@@ -161,13 +161,17 @@ export async function testOpenRouterKey({
 			},
 		});
 		if (!response.ok) {
-			const body = await response.text().catch(() => "");
-			return {
-				error:
-					body.slice(0, 200) || `OpenRouter responded with ${response.status}.`,
-				ok: false,
-				status: response.status,
-			};
+			// Map the status to a friendly message instead of leaking OpenRouter's
+			// raw JSON error body (e.g. {"error":{"message":"User not found."}})
+			// into the maintainer's toast.
+			let friendly = `OpenRouter couldn't validate the key (HTTP ${response.status}).`;
+			if (response.status === 401 || response.status === 403) {
+				friendly =
+					"That key was rejected by OpenRouter — check it's valid and active.";
+			} else if (response.status === 429) {
+				friendly = "OpenRouter rate-limited the check. Try again shortly.";
+			}
+			return { error: friendly, ok: false, status: response.status };
 		}
 		// We don't parse the body — just confirm 200. OpenRouter's /key endpoint
 		// returns { data: { label, usage, limit, is_free_tier, rate_limit } }.

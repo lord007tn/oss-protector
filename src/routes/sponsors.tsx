@@ -8,35 +8,30 @@ import {
 	PageShell,
 } from "@/components/site/page-shell";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/components/ui/empty";
+import { SPONSOR_TIER_LABELS, SPONSOR_TIERS } from "@/constants/sponsor-tiers";
+import type { SponsorRecord } from "@/data-access/sponsors";
+import { listSponsorsFn } from "@/functions/sponsors";
 import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
-
-type Tier = "platinum" | "gold" | "silver";
-
-const SPONSORS: { tier: Tier; name: string; amount: string }[] = [
-	{ amount: "$2,400/mo", name: "GitHub", tier: "platinum" },
-	{ amount: "$1,800/mo", name: "Cloudflare", tier: "platinum" },
-	{ amount: "$800/mo", name: "Vercel", tier: "gold" },
-	{ amount: "$600/mo", name: "Fly.io", tier: "gold" },
-	{ amount: "$500/mo", name: "Tigris", tier: "gold" },
-	{ amount: "$200/mo", name: "Linear", tier: "silver" },
-	{ amount: "$200/mo", name: "PlanetScale", tier: "silver" },
-	{ amount: "$200/mo", name: "Sentry", tier: "silver" },
-	{ amount: "$200/mo", name: "Anthropic", tier: "silver" },
-	{ amount: "$200/mo", name: "Resend", tier: "silver" },
-];
-
-const TIERS: Tier[] = ["platinum", "gold", "silver"];
 
 export const Route = createFileRoute("/sponsors")({
 	component: SponsorsRoute,
 	head: () =>
 		buildSharedHead({
 			description:
-				"How OSS Protector stays free: a transparent breakdown of money in, money out, and every sponsor.",
+				"How OSS Protector stays free: who funds it, what it costs to run, and how to support the project.",
 			path: "/sponsors",
 			title: "Sponsors | OSS Protector",
 		}),
+	loader: () => listSponsorsFn(),
 });
 
 function MonoLabel({ children }: { children: string }) {
@@ -47,39 +42,27 @@ function MonoLabel({ children }: { children: string }) {
 	);
 }
 
-function FundsBar({
-	segments,
-	total,
-}: {
-	segments: { label: string; value: number; className: string }[];
-	total: number;
-}) {
-	return (
-		<div>
-			<div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
-				{segments.map((segment) => (
-					<div
-						className={segment.className}
-						key={segment.label}
-						style={{ width: `${(segment.value / total) * 100}%` }}
-						title={`${segment.label}: $${segment.value}`}
-					/>
-				))}
-			</div>
-			<div className="mt-2.5 flex flex-wrap gap-3.5 font-mono text-muted-foreground text-xs">
-				{segments.map((segment) => (
-					<span
-						className="inline-flex items-center gap-1.5"
-						key={segment.label}
-					>
-						<span className={cn("size-2 rounded-[2px]", segment.className)} />
-						{segment.label} · ${segment.value.toLocaleString()}
-					</span>
-				))}
-			</div>
-		</div>
-	);
-}
+// What it actually costs to run today — qualitative, because the project is new
+// and runs within free/low tiers. No fabricated dollar figures.
+const COST_ITEMS: { area: string; detail: string }[] = [
+	{
+		area: "Compute & hosting",
+		detail: "Cloudflare Workers — currently within the free tier.",
+	},
+	{
+		area: "Database",
+		detail: "Cloudflare D1 (SQLite) — currently within the free tier.",
+	},
+	{
+		area: "AI review",
+		detail:
+			"OpenRouter, using free models today. Paid models are opt-in (BYOK).",
+	},
+	{
+		area: "Email",
+		detail: "Resend for sign-in codes — within the free tier.",
+	},
+];
 
 function TierCard({
 	tier,
@@ -95,10 +78,10 @@ function TierCard({
 	accent?: boolean;
 }) {
 	return (
-		<div
+		<Card
 			className={cn(
-				"rounded-2xl border p-6",
-				accent ? "border-primary/30 bg-primary/10" : "bg-card"
+				"gap-0 p-6",
+				accent && "border border-primary/30 bg-primary/10"
 			)}
 		>
 			<div className="mb-1.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.07em]">
@@ -120,21 +103,70 @@ function TierCard({
 				<Heart data-icon="inline-start" />
 				{cta}
 			</a>
+		</Card>
+	);
+}
+
+function SponsorCard({ sponsor }: { sponsor: SponsorRecord }) {
+	return (
+		<a
+			className="flex items-center gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-primary/5"
+			href={sponsor.url}
+			rel="noreferrer noopener"
+			target="_blank"
+		>
+			{sponsor.logoUrl ? (
+				<img
+					alt={`${sponsor.name} logo`}
+					className="size-10 shrink-0 rounded-lg object-contain"
+					height={40}
+					src={sponsor.logoUrl}
+					width={40}
+				/>
+			) : (
+				<div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted font-medium text-muted-foreground text-sm">
+					{sponsor.name.slice(0, 2).toUpperCase()}
+				</div>
+			)}
+			<div className="min-w-0">
+				<div className="truncate font-medium text-[15px]">{sponsor.name}</div>
+				{sponsor.description ? (
+					<div className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">
+						{sponsor.description}
+					</div>
+				) : null}
+			</div>
+		</a>
+	);
+}
+
+function SponsorWall({ sponsors }: { sponsors: SponsorRecord[] }) {
+	return (
+		<div className="flex flex-col gap-6">
+			{SPONSOR_TIERS.map((tier) => {
+				const tierSponsors = sponsors.filter(
+					(sponsor) => sponsor.tier === tier
+				);
+				if (tierSponsors.length === 0) {
+					return null;
+				}
+				return (
+					<section key={tier}>
+						<MonoLabel>{SPONSOR_TIER_LABELS[tier]}</MonoLabel>
+						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+							{tierSponsors.map((sponsor) => (
+								<SponsorCard key={sponsor.id} sponsor={sponsor} />
+							))}
+						</div>
+					</section>
+				);
+			})}
 		</div>
 	);
 }
 
-function tierAvatarColor(tier: Tier) {
-	if (tier === "platinum") {
-		return "text-primary";
-	}
-	if (tier === "gold") {
-		return "text-warning";
-	}
-	return "text-muted-foreground";
-}
-
 function SponsorsRoute() {
+	const sponsors = Route.useLoaderData();
 	return (
 		<PageShell>
 			<PageContainer className="py-9" width="narrow">
@@ -150,119 +182,83 @@ function SponsorsRoute() {
 							Sponsor the project
 						</a>
 					}
-					description="Servers cost money. Inference costs money. Time costs money. Here's exactly who pays for OSS Protector — and how much it costs to run."
+					description="OSS Protector is new and self-funded. Here's exactly what it costs to run and how sponsorship works — when there's money to report, this page will show every cent."
 					title="How we stay free."
 				/>
 
 				<div className="mt-6 grid gap-4 md:grid-cols-2">
 					<div className="rounded-2xl border bg-card p-6">
-						<MonoLabel>Money in · May 2026</MonoLabel>
-						<div className="font-medium text-4xl text-success tracking-tight">
-							$7,300
+						<MonoLabel>Money in</MonoLabel>
+						<div className="font-medium text-4xl tracking-tight">
+							$0
 							<span className="ml-1 text-lg text-muted-foreground">/ mo</span>
 						</div>
 						<div className="mt-1.5 font-mono text-[13px] text-muted-foreground">
-							from 47 sponsors · 12 corporate, 35 individual
-						</div>
-						<div className="mt-3.5">
-							<FundsBar
-								segments={[
-									{ className: "bg-primary", label: "Corporate", value: 6300 },
-									{ className: "bg-info", label: "Individuals", value: 1000 },
-								]}
-								total={7300}
-							/>
+							{sponsors.length > 0
+								? `${sponsors.length} sponsor${sponsors.length === 1 ? "" : "s"} backing the project — thank you.`
+								: "No sponsors yet — the project is just getting started."}
 						</div>
 					</div>
 					<div className="rounded-2xl border bg-card p-6">
-						<MonoLabel>Money out · May 2026</MonoLabel>
-						<div className="font-medium text-4xl tracking-tight">
-							$6,180
-							<span className="ml-1 text-lg text-muted-foreground">/ mo</span>
-						</div>
-						<div className="mt-1.5 font-mono text-[13px] text-muted-foreground">
-							$1,120 surplus → reserve fund (4 months runway)
-						</div>
-						<div className="mt-3.5">
-							<FundsBar
-								segments={[
-									{ className: "bg-primary", label: "Compute", value: 2800 },
-									{ className: "bg-warning", label: "Storage", value: 1400 },
-									{ className: "bg-info", label: "ML re-train", value: 980 },
-									{
-										className: "bg-muted-foreground",
-										label: "Domain/SaaS",
-										value: 600,
-									},
-									{ className: "bg-success", label: "Sec/audit", value: 400 },
-								]}
-								total={6180}
-							/>
+						<MonoLabel>What it costs to run</MonoLabel>
+						<div className="flex flex-col gap-2.5">
+							{COST_ITEMS.map((item) => (
+								<div
+									className="grid grid-cols-[130px_1fr] items-start gap-3 text-[13px]"
+									key={item.area}
+								>
+									<div className="font-medium">{item.area}</div>
+									<div className="text-muted-foreground">{item.detail}</div>
+								</div>
+							))}
 						</div>
 					</div>
 				</div>
 
-				<div className="mt-5 rounded-2xl border bg-card p-6">
-					<div className="mb-4 flex items-baseline justify-between">
-						<div className="font-mono text-muted-foreground text-xs uppercase tracking-[0.07em]">
-							Sponsors
-						</div>
-						<span className="font-mono text-muted-foreground text-xs">
-							we publish every sponsor publicly
-						</span>
-					</div>
-					{TIERS.map((tier) => (
-						<div className="mb-4 last:mb-0" key={tier}>
-							<div className="mb-2.5 font-mono text-[11px] text-muted-foreground uppercase tracking-[0.08em]">
-								{tier}
-							</div>
-							<div className="flex flex-wrap gap-2.5">
-								{SPONSORS.filter((sponsor) => sponsor.tier === tier).map(
-									(sponsor) => (
-										<div
-											className="flex items-center gap-2.5 rounded-xl border bg-muted px-4 py-3"
-											key={sponsor.name}
-										>
-											<div
-												className={cn(
-													"flex size-7 items-center justify-center rounded-full border bg-card font-mono font-semibold text-[11px]",
-													tierAvatarColor(tier)
-												)}
-											>
-												{sponsor.name.slice(0, 1)}
-											</div>
-											<div>
-												<div className="font-medium text-[13.5px]">
-													{sponsor.name}
-												</div>
-												<div className="font-mono text-[11px] text-muted-foreground">
-													{sponsor.amount}
-												</div>
-											</div>
-										</div>
-									)
-								)}
-							</div>
-						</div>
-					))}
+				<div className="mt-5">
+					{sponsors.length > 0 ? (
+						<SponsorWall sponsors={sponsors} />
+					) : (
+						<Empty className="rounded-2xl border bg-card p-10">
+							<EmptyHeader>
+								<EmptyMedia variant="icon">
+									<Heart />
+								</EmptyMedia>
+								<EmptyTitle>No sponsors yet</EmptyTitle>
+								<EmptyDescription>
+									Every sponsor will be published on this page, publicly. Be the
+									first to back open-source abuse intelligence.
+								</EmptyDescription>
+							</EmptyHeader>
+							<a
+								className={cn(buttonVariants())}
+								href={githubRepoUrl}
+								rel="noreferrer noopener"
+								target="_blank"
+							>
+								<Heart data-icon="inline-start" />
+								Become the first sponsor
+							</a>
+						</Empty>
+					)}
 				</div>
 
 				<div className="mt-5 grid gap-4 md:grid-cols-3">
 					<TierCard
-						body="A small ongoing contribution. Your handle on the contributors page."
+						body="A small ongoing contribution. Your handle on the sponsors page."
 						cta="Sponsor on GitHub"
 						price="$5+/mo"
 						tier="Individual"
 					/>
 					<TierCard
 						accent
-						body="Logo on this page and in the trust graph footer. Helps cover compute."
+						body="Your logo on this page. Helps cover compute and AI review as usage grows."
 						cta="Become a sponsor"
-						price="$200+/mo"
+						price="$50+/mo"
 						tier="Company"
 					/>
 					<TierCard
-						body="Multi-year commitment for foundations sponsoring critical OSS infra."
+						body="For foundations backing critical OSS infrastructure. Let's talk."
 						cta="Get in touch"
 						price="custom"
 						tier="Foundation"
@@ -272,30 +268,15 @@ function SponsorsRoute() {
 				<div className="mt-5 rounded-2xl border bg-card p-6">
 					<MonoLabel>Governance</MonoLabel>
 					<p className="text-[15px] text-muted-foreground leading-relaxed">
-						OSS Protector is governed by a steering committee of{" "}
-						<b className="text-foreground">5 maintainers</b> elected from the
-						top of the trust graph each year. The committee approves methodology
-						changes, sponsor admissions, and budget.{" "}
-						<em>
-							Sponsors do not influence what we flag — the code that decides is
-							open and the weights are public on the methodology page.
-						</em>
+						OSS Protector is maintained in the open. The scoring code and signal
+						weights are public — you can read exactly how a flag is computed on
+						the{" "}
+						<a className="text-primary hover:underline" href="/methodology">
+							methodology page
+						</a>
+						. <em>Sponsors do not influence what we flag.</em> Funding pays for
+						infrastructure, never for placement on the blocklist.
 					</p>
-					<div className="mt-4 flex flex-wrap gap-2.5">
-						{["evanw", "kentcdodds", "thockin", "yyx990803", "sebmarkbage"].map(
-							(member, index) => (
-								<span
-									className="inline-flex items-center rounded-full border bg-muted px-3 py-1 font-mono text-[12.5px] text-muted-foreground"
-									key={member}
-								>
-									@{member}
-									{index === 0 ? (
-										<span className="ml-1 text-primary">· chair</span>
-									) : null}
-								</span>
-							)
-						)}
-					</div>
 				</div>
 			</PageContainer>
 		</PageShell>
