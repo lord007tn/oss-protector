@@ -14,6 +14,7 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { RISK_STATUS_LABELS } from "@/constants/risk-statuses";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ export function ProcessStep({
 	title: string;
 }) {
 	return (
-		<Card className="rounded-md border-muted/60">
+		<Card variant="subtle">
 			<CardHeader className="space-y-2 pb-3">
 				<div className="flex items-center justify-between gap-3">
 					<span className="font-mono text-muted-foreground text-xs tabular-nums">
@@ -100,15 +101,15 @@ export function EmptyState({
 }
 
 const STATUS_DOT_CLASSES: Record<string, string> = {
-	allow: "bg-emerald-500",
+	allow: "bg-success",
 	block: "bg-destructive",
 	dismissed: "bg-muted-foreground/40",
-	high_risk: "bg-orange-500",
-	needs_review: "bg-amber-500",
+	high_risk: "bg-warning",
+	needs_review: "bg-warning",
 	pending: "bg-muted-foreground/60",
-	review: "bg-amber-500",
-	validated: "bg-emerald-500",
-	watch: "bg-sky-500",
+	review: "bg-warning",
+	validated: "bg-success",
+	watch: "bg-info",
 };
 
 const statusVariant = (
@@ -128,11 +129,11 @@ const statusVariant = (
 };
 
 const SCORE_TONE_CLASSES: Record<string, string> = {
-	allow: "bg-emerald-500",
+	allow: "bg-success",
 	block: "bg-destructive",
-	high_risk: "bg-orange-500",
-	review: "bg-amber-500",
-	watch: "bg-sky-500",
+	high_risk: "bg-warning",
+	review: "bg-warning",
+	watch: "bg-info",
 };
 
 const scoreTone = (status: RiskStatus | string) =>
@@ -156,13 +157,11 @@ export function ScoreMeter({
 					/100
 				</span>
 			</div>
-			<div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-				<div
-					aria-hidden
-					className={cn("h-full rounded-full", scoreTone(status))}
-					style={{ width: `${width}%` }}
-				/>
-			</div>
+			<Progress
+				indicatorClassName={scoreTone(status)}
+				trackClassName="h-1 w-full"
+				value={width}
+			/>
 		</div>
 	);
 }
@@ -176,10 +175,7 @@ export function StatusBadge({ status }: { status: RiskStatus | string }) {
 	const dotClass = STATUS_DOT_CLASSES[status] ?? "bg-muted-foreground/60";
 
 	return (
-		<Badge
-			className="gap-1.5 font-medium text-[11px] uppercase tracking-wide"
-			variant={variant}
-		>
+		<Badge size="status" variant={variant}>
 			<span aria-hidden className={cn("size-1.5 rounded-full", dotClass)} />
 			{label}
 		</Badge>

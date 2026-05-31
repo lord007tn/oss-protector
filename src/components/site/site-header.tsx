@@ -22,7 +22,7 @@ import {
 import { InitialsAvatar } from "@/components/oss/initials-avatar";
 import { Logo } from "@/components/oss/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -111,7 +111,8 @@ export function SiteHeader() {
 						{PRIMARY_LINKS.map((link) => (
 							<a
 								className={cn(
-									"rounded-lg px-3 py-1.5 text-[13.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+									buttonVariants({ size: "sm", variant: "ghost" }),
+									"text-muted-foreground",
 									isActive(link.href) && "bg-muted text-foreground"
 								)}
 								href={link.href}
@@ -179,10 +180,16 @@ export function SiteHeader() {
 						<>
 							<Popover>
 								<PopoverTrigger
-									aria-label="Notifications"
-									className="relative inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground"
+									render={
+										<Button
+											aria-label="Notifications"
+											className="relative"
+											size="icon"
+											variant="ghost"
+										/>
+									}
 								>
-									<Bell className="size-4" />
+									<Bell />
 									{unread > 0 ? (
 										<span className="absolute top-1.5 right-2 size-1.5 rounded-full bg-primary ring-2 ring-background" />
 									) : null}
@@ -194,14 +201,15 @@ export function SiteHeader() {
 								>
 									<div className="flex items-center justify-between border-b px-3.5 py-3 font-mono text-muted-foreground text-xs">
 										<span>Notifications · {unread} unread</span>
-										<button
-											className="text-primary disabled:opacity-50"
+										<Button
 											disabled={unread === 0}
 											onClick={() => markAllRead()}
+											size="xs"
 											type="button"
+											variant="link"
 										>
 											Mark all read
-										</button>
+										</Button>
 									</div>
 									<div className="max-h-[350px] overflow-y-auto">
 										{notifications.length === 0 ? (
@@ -364,7 +372,8 @@ function MobileNav({ isActive }: { isActive: (href: string) => boolean }) {
 			{links.map((link) => (
 				<a
 					className={cn(
-						"shrink-0 rounded-lg px-2.5 py-1 text-[13px] text-muted-foreground",
+						buttonVariants({ size: "sm", variant: "ghost" }),
+						"shrink-0 text-muted-foreground",
 						isActive(link.href) && "bg-muted text-foreground"
 					)}
 					href={link.href}

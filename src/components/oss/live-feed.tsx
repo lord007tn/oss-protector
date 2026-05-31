@@ -1,4 +1,11 @@
 import { InitialsAvatar } from "@/components/oss/initials-avatar";
+import { buttonVariants } from "@/components/ui/button";
+import {
+	Empty,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyTitle,
+} from "@/components/ui/empty";
 
 export interface LiveFeedItem {
 	avatarUrl: null | string;
@@ -26,15 +33,23 @@ export function LiveFeed({
 					<span className="text-muted-foreground/60">·</span>
 					<span>public review queue</span>
 				</div>
-				<a className="hover:text-foreground" href="/feed">
+				<a
+					className={buttonVariants({ size: "xs", variant: "link" })}
+					href="/feed"
+				>
 					view all
 				</a>
 			</div>
 			<div className="overflow-hidden p-1.5" style={{ maxHeight: height }}>
 				{items.length === 0 ? (
-					<div className="px-3 py-10 text-center text-muted-foreground text-xs">
-						No recent flags yet. Install the app to start protecting your repos.
-					</div>
+					<Empty>
+						<EmptyHeader>
+							<EmptyTitle>No recent flags yet.</EmptyTitle>
+							<EmptyDescription>
+								Install the app to start protecting your repos.
+							</EmptyDescription>
+						</EmptyHeader>
+					</Empty>
 				) : (
 					items.map((item) => (
 						<a

@@ -7,8 +7,10 @@ import {
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	RISK_SCORE_BANDS,
 	RISK_STATUS_DESCRIPTIONS,
@@ -146,33 +148,36 @@ function MethodologyRoute() {
 				<div className="mt-6 grid items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
 					<div className="flex flex-col gap-5">
 						{METHODS.map((method) => (
-							<div className="rounded-2xl border bg-card p-6" key={method.num}>
-								<div className="mb-2 flex items-baseline justify-between">
-									<span className="font-mono text-muted-foreground text-xs tracking-wider">
-										— {method.num}
-									</span>
-									<span className="font-mono text-primary text-xs">
-										{method.contribution}
-									</span>
-								</div>
-								<h2 className="font-medium text-xl tracking-tight">
-									{method.title}
-								</h2>
-								<p className="mt-2 mb-3 text-[14px] text-muted-foreground leading-relaxed">
-									{method.body}
-								</p>
-								<p className="mb-3.5 text-[13px] text-muted-foreground/80 leading-relaxed">
-									{method.detail}
-								</p>
-								<CodeBlock>{method.code}</CodeBlock>
-							</div>
+							<Card key={method.num}>
+								<CardContent>
+									<div className="mb-2 flex items-baseline justify-between">
+										<span className="font-mono text-muted-foreground text-xs tracking-wider">
+											— {method.num}
+										</span>
+										<span className="font-mono text-primary text-xs">
+											{method.contribution}
+										</span>
+									</div>
+									<h2 className="font-medium text-xl tracking-tight">
+										{method.title}
+									</h2>
+									<p className="mt-2 mb-3 text-[14px] text-muted-foreground leading-relaxed">
+										{method.body}
+									</p>
+									<p className="mb-3.5 text-[13px] text-muted-foreground/80 leading-relaxed">
+										{method.detail}
+									</p>
+									<CodeBlock>{method.code}</CodeBlock>
+								</CardContent>
+							</Card>
 						))}
 					</div>
 
 					<div className="flex flex-col gap-5">
-						<div className="rounded-2xl border bg-card p-6">
-							<MonoLabel>Final score</MonoLabel>
-							<CodeBlock>{`score = clamp0_100(
+						<Card>
+							<CardContent>
+								<MonoLabel>Final score</MonoLabel>
+								<CodeBlock>{`score = clamp0_100(
   maintainerReports        // trust-weighted, decayed
   + llmReview              // verdict on top
   + duplicateCampaign
@@ -182,52 +187,57 @@ function MethodologyRoute() {
   + externalBlocklist
   − reputationDampener     // skipped if a report is validated
 )`}</CodeBlock>
-							<p className="mt-3 text-[12.5px] text-muted-foreground leading-relaxed">
-								The score routes a flag to the maintainer's dashboard. We never
-								post a PR comment, status check, or auto-block — a human always
-								decides what happens to a contributor.
-							</p>
-						</div>
+								<p className="mt-3 text-[12.5px] text-muted-foreground leading-relaxed">
+									The score routes a flag to the maintainer's dashboard. We
+									never post a PR comment, status check, or auto-block — a human
+									always decides what happens to a contributor.
+								</p>
+							</CardContent>
+						</Card>
 
-						<div className="rounded-2xl border bg-card p-6">
-							<MonoLabel>Score bands</MonoLabel>
-							<div className="flex flex-col gap-3">
-								{RISK_SCORE_BANDS.map((band) => (
-									<div key={band.status}>
-										<div className="flex items-baseline justify-between">
-											<span className="font-medium text-sm">
-												{RISK_STATUS_LABELS[band.status]}
-											</span>
-											<span className="font-mono text-muted-foreground text-xs tabular-nums">
-												{band.min}–{band.max}
-											</span>
+						<Card>
+							<CardContent>
+								<MonoLabel>Score bands</MonoLabel>
+								<div className="flex flex-col gap-3">
+									{RISK_SCORE_BANDS.map((band) => (
+										<div key={band.status}>
+											<div className="flex items-baseline justify-between">
+												<span className="font-medium text-sm">
+													{RISK_STATUS_LABELS[band.status]}
+												</span>
+												<span className="font-mono text-muted-foreground text-xs tabular-nums">
+													{band.min}–{band.max}
+												</span>
+											</div>
+											<p className="mt-0.5 text-[12.5px] text-muted-foreground leading-relaxed">
+												{RISK_STATUS_DESCRIPTIONS[band.status]}
+											</p>
 										</div>
-										<p className="mt-0.5 text-[12.5px] text-muted-foreground leading-relaxed">
-											{RISK_STATUS_DESCRIPTIONS[band.status]}
-										</p>
-									</div>
-								))}
-							</div>
-						</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
 
-						<div className="rounded-2xl border bg-card p-6">
-							<MonoLabel>What we don't use</MonoLabel>
-							<ul className="ml-4 list-disc space-y-1 text-[13px] text-muted-foreground leading-relaxed">
-								<li>
-									Private repository contents (unless a repo policy opts in)
-								</li>
-								<li>Profile photos (we don't fetch images)</li>
-								<li>Private email addresses or real names</li>
-								<li>Geographic location or IP</li>
-								<li>
-									A single signal — no one input flags an account on its own
-								</li>
-							</ul>
-						</div>
+						<Card>
+							<CardContent>
+								<MonoLabel>What we don't use</MonoLabel>
+								<ul className="ml-4 flex list-disc flex-col gap-1 text-[13px] text-muted-foreground leading-relaxed">
+									<li>
+										Private repository contents (unless a repo policy opts in)
+									</li>
+									<li>Profile photos (we don't fetch images)</li>
+									<li>Private email addresses or real names</li>
+									<li>Geographic location or IP</li>
+									<li>
+										A single signal — no one input flags an account on its own
+									</li>
+								</ul>
+							</CardContent>
+						</Card>
 
-						<div className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 p-3.5 text-[13.5px] text-muted-foreground leading-relaxed">
-							<Shield className="mt-0.5 size-3.5 shrink-0 text-primary" />
-							<div>
+						<Alert variant="primary">
+							<Shield />
+							<AlertDescription>
 								<b className="text-foreground">Listed and think it's wrong?</b>{" "}
 								The score drops to 0 the moment a maintainer dismisses or
 								allowlists you. See{" "}
@@ -235,8 +245,8 @@ function MethodologyRoute() {
 									how to appeal
 								</a>
 								.
-							</div>
-						</div>
+							</AlertDescription>
+						</Alert>
 					</div>
 				</div>
 			</PageContainer>

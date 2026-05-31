@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Separator } from "@/components/ui/separator";
+
 import { SectionHeading } from "./shared";
 
 export function PolicyPage({
@@ -34,7 +36,8 @@ export function PolicySection({
 	title: string;
 }) {
 	return (
-		<section className="grid gap-2 border-muted/40 border-t py-5 first:border-t-0 first:pt-0">
+		<section className="grid gap-2 pt-5 first:pt-0">
+			<Separator className="mb-5 [section:first-child_&]:hidden" />
 			<h2 className="font-medium text-base tracking-tight">{title}</h2>
 			<div className="grid gap-2 text-muted-foreground">{children}</div>
 		</section>

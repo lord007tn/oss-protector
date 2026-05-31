@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Heart } from "lucide-react";
+import type * as React from "react";
 
 import { githubRepoUrl } from "@/components/landing/constants";
 import {
@@ -7,7 +8,11 @@ import {
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ProgressSegments } from "@/components/ui/progress";
 import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
@@ -47,32 +52,48 @@ function MonoLabel({ children }: { children: string }) {
 	);
 }
 
+type FundsSegmentTone = NonNullable<
+	React.ComponentProps<typeof ProgressSegments>["segments"][number]["tone"]
+>;
+
+const FUNDS_SWATCH_COLOR: Record<FundsSegmentTone, string> = {
+	destructive: "bg-destructive",
+	info: "bg-info",
+	muted: "bg-muted-foreground",
+	primary: "bg-primary",
+	success: "bg-success",
+	warning: "bg-warning",
+};
+
 function FundsBar({
 	segments,
 	total,
 }: {
-	segments: { label: string; value: number; className: string }[];
+	segments: { label: string; value: number; tone: FundsSegmentTone }[];
 	total: number;
 }) {
 	return (
 		<div>
-			<div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
-				{segments.map((segment) => (
-					<div
-						className={segment.className}
-						key={segment.label}
-						style={{ width: `${(segment.value / total) * 100}%` }}
-						title={`${segment.label}: $${segment.value}`}
-					/>
-				))}
-			</div>
+			<ProgressSegments
+				className="h-2.5"
+				segments={segments.map((segment) => ({
+					label: segment.label,
+					tone: segment.tone,
+					value: (segment.value / total) * 100,
+				}))}
+			/>
 			<div className="mt-2.5 flex flex-wrap gap-3.5 font-mono text-muted-foreground text-xs">
 				{segments.map((segment) => (
 					<span
 						className="inline-flex items-center gap-1.5"
 						key={segment.label}
 					>
-						<span className={cn("size-2 rounded-[2px]", segment.className)} />
+						<span
+							className={cn(
+								"size-2 rounded-[2px]",
+								FUNDS_SWATCH_COLOR[segment.tone]
+							)}
+						/>
 						{segment.label} · ${segment.value.toLocaleString()}
 					</span>
 				))}
@@ -95,10 +116,10 @@ function TierCard({
 	accent?: boolean;
 }) {
 	return (
-		<div
+		<Card
 			className={cn(
-				"rounded-2xl border p-6",
-				accent ? "border-primary/30 bg-primary/10" : "bg-card"
+				"gap-0 p-6",
+				accent && "border border-primary/30 bg-primary/10"
 			)}
 		>
 			<div className="mb-1.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.07em]">
@@ -120,7 +141,7 @@ function TierCard({
 				<Heart data-icon="inline-start" />
 				{cta}
 			</a>
-		</div>
+		</Card>
 	);
 }
 
@@ -167,8 +188,8 @@ function SponsorsRoute() {
 						<div className="mt-3.5">
 							<FundsBar
 								segments={[
-									{ className: "bg-primary", label: "Corporate", value: 6300 },
-									{ className: "bg-info", label: "Individuals", value: 1000 },
+									{ label: "Corporate", tone: "primary", value: 6300 },
+									{ label: "Individuals", tone: "info", value: 1000 },
 								]}
 								total={7300}
 							/>
@@ -186,15 +207,11 @@ function SponsorsRoute() {
 						<div className="mt-3.5">
 							<FundsBar
 								segments={[
-									{ className: "bg-primary", label: "Compute", value: 2800 },
-									{ className: "bg-warning", label: "Storage", value: 1400 },
-									{ className: "bg-info", label: "ML re-train", value: 980 },
-									{
-										className: "bg-muted-foreground",
-										label: "Domain/SaaS",
-										value: 600,
-									},
-									{ className: "bg-success", label: "Sec/audit", value: 400 },
+									{ label: "Compute", tone: "primary", value: 2800 },
+									{ label: "Storage", tone: "warning", value: 1400 },
+									{ label: "ML re-train", tone: "info", value: 980 },
+									{ label: "Domain/SaaS", tone: "muted", value: 600 },
+									{ label: "Sec/audit", tone: "success", value: 400 },
 								]}
 								total={6180}
 							/>
@@ -223,14 +240,16 @@ function SponsorsRoute() {
 											className="flex items-center gap-2.5 rounded-xl border bg-muted px-4 py-3"
 											key={sponsor.name}
 										>
-											<div
-												className={cn(
-													"flex size-7 items-center justify-center rounded-full border bg-card font-mono font-semibold text-[11px]",
-													tierAvatarColor(tier)
-												)}
-											>
-												{sponsor.name.slice(0, 1)}
-											</div>
+											<Avatar size="sm">
+												<AvatarFallback
+													className={cn(
+														"bg-card font-mono font-semibold",
+														tierAvatarColor(tier)
+													)}
+												>
+													{sponsor.name.slice(0, 1)}
+												</AvatarFallback>
+											</Avatar>
 											<div>
 												<div className="font-medium text-[13.5px]">
 													{sponsor.name}
@@ -284,15 +303,17 @@ function SponsorsRoute() {
 					<div className="mt-4 flex flex-wrap gap-2.5">
 						{["evanw", "kentcdodds", "thockin", "yyx990803", "sebmarkbage"].map(
 							(member, index) => (
-								<span
-									className="inline-flex items-center rounded-full border bg-muted px-3 py-1 font-mono text-[12.5px] text-muted-foreground"
+								<Badge
+									className="font-mono"
 									key={member}
+									size="tag"
+									variant="outline"
 								>
 									@{member}
 									{index === 0 ? (
 										<span className="ml-1 text-primary">· chair</span>
 									) : null}
-								</span>
+								</Badge>
 							)
 						)}
 					</div>

@@ -11,6 +11,7 @@ import {
 	PageShell,
 } from "@/components/site/page-shell";
 import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDashboardFn } from "@/functions/dashboard";
@@ -22,7 +23,6 @@ import {
 	toDisplayAccount,
 } from "@/lib/directory-view";
 import { buildSharedHead } from "@/lib/head";
-import { cn } from "@/lib/utils";
 
 type FeedFilter = "all" | "high" | "review" | "watch";
 interface FeedSearch {
@@ -135,16 +135,13 @@ function FeedRoute() {
 							{tabs.map((tab) => (
 								<TabsTrigger key={tab.value} value={tab.value}>
 									{tab.label}
-									<span
-										className={cn(
-											"ml-1.5 rounded-full border px-1.5 font-mono text-[10.5px] tabular-nums",
-											filter === tab.value
-												? "border-primary/30 bg-primary/10 text-primary"
-												: "border-border bg-card text-muted-foreground"
-										)}
+									<Badge
+										className="ml-1.5"
+										size="tag"
+										variant={filter === tab.value ? "primary" : "outline"}
 									>
 										{tab.count}
-									</span>
+									</Badge>
 								</TabsTrigger>
 							))}
 						</TabsList>
@@ -153,9 +150,10 @@ function FeedRoute() {
 						<div className="relative">
 							<Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								className="h-9 w-64 pl-8"
+								className="w-64 pl-8"
 								onChange={(event) => setQuery(event.target.value)}
 								placeholder="Search account…"
+								size="md"
 								value={query}
 							/>
 						</div>
@@ -179,18 +177,26 @@ function FeedBody({
 }) {
 	if (total === 0) {
 		return (
-			<div className="rounded-2xl border bg-card p-16 text-center text-muted-foreground text-sm">
-				No flags yet. The feed fills as the app observes activity — seed the
-				local database with{" "}
-				<code className="font-mono text-xs">pnpm db:seed</code>.
-			</div>
+			<Empty className="py-16">
+				<EmptyHeader>
+					<EmptyDescription>
+						No flags yet. The feed fills as the app observes activity — seed the
+						local database with{" "}
+						<code className="font-mono text-xs">pnpm db:seed</code>.
+					</EmptyDescription>
+				</EmptyHeader>
+			</Empty>
 		);
 	}
 	if (accounts.length === 0) {
 		return (
-			<div className="rounded-2xl border bg-card p-16 text-center text-muted-foreground text-sm">
-				No flags match your filter. Try widening the criteria.
-			</div>
+			<Empty className="py-16">
+				<EmptyHeader>
+					<EmptyDescription>
+						No flags match your filter. Try widening the criteria.
+					</EmptyDescription>
+				</EmptyHeader>
+			</Empty>
 		);
 	}
 	return (

@@ -26,6 +26,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { buildSharedHead } from "@/lib/head";
 
@@ -126,7 +127,7 @@ function InstallSuccess({
 					</AlertDescription>
 				</Alert>
 
-				<Card className="rounded-md border-muted/60">
+				<Card variant="subtle">
 					<CardHeader className="space-y-1 pb-3">
 						<CardTitle className="font-medium text-base">
 							What should happen next
@@ -163,7 +164,7 @@ function InstallSuccess({
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-md border-muted/60">
+				<Card variant="subtle">
 					<CardHeader className="space-y-1 pb-3">
 						<CardTitle className="font-medium text-base">
 							Maintainer commands
@@ -237,42 +238,44 @@ function NoParamsLanding() {
 					</p>
 				</div>
 
-				<div className="rounded-2xl border bg-card p-7">
-					<div className="mb-4 font-medium text-[15px]">
-						Required GitHub permissions
-					</div>
-					<PermRow
-						body="Read PR metadata and diffs. We never post comments or status checks."
-						ok
-						title="Pull requests · read"
-					/>
-					<PermRow
-						body="Repo names, stars, and contributor counts."
-						ok
-						title="Metadata · read"
-					/>
-					<PermRow
-						body="Public handle, account age, public commit history."
-						ok
-						title="Account profile · read (limited)"
-					/>
-					<PermRow
-						body="We never read your code, never clone, never store diffs."
-						title="Code contents"
-					/>
-					<PermRow
-						body="We don't touch issues, comments outside our own, or wikis."
-						title="Issues & discussions"
-					/>
-					<div className="mt-4 flex items-start gap-2.5 rounded-xl border border-info/25 bg-info/10 p-3.5 text-[13.5px] text-muted-foreground leading-relaxed">
-						<Shield className="mt-0.5 size-3.5 shrink-0 text-info" />
-						<div>
-							<b className="text-foreground">Open audit trail.</b> Every API
-							call we make is logged to the public audit ledger. Your security
-							team can review the call history per-org.
+				<Card>
+					<CardContent>
+						<div className="mb-4 font-medium text-[15px]">
+							Required GitHub permissions
 						</div>
-					</div>
-				</div>
+						<PermRow
+							body="Read PR metadata and diffs. We never post comments or status checks."
+							ok
+							title="Pull requests · read"
+						/>
+						<PermRow
+							body="Repo names, stars, and contributor counts."
+							ok
+							title="Metadata · read"
+						/>
+						<PermRow
+							body="Public handle, account age, public commit history."
+							ok
+							title="Account profile · read (limited)"
+						/>
+						<PermRow
+							body="We never read your code, never clone, never store diffs."
+							title="Code contents"
+						/>
+						<PermRow
+							body="We don't touch issues, comments outside our own, or wikis."
+							title="Issues & discussions"
+						/>
+						<Alert className="mt-4" variant="info">
+							<Shield />
+							<AlertDescription>
+								<b className="text-foreground">Open audit trail.</b> Every API
+								call we make is logged to the public audit ledger. Your security
+								team can review the call history per-org.
+							</AlertDescription>
+						</Alert>
+					</CardContent>
+				</Card>
 
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<a className={buttonVariants({ variant: "ghost" })} href="/feed">
@@ -302,19 +305,24 @@ function PermRow({
 	body: string;
 }) {
 	return (
-		<div className="grid grid-cols-[22px_1fr] gap-3 border-border border-t py-2.5 first:border-0">
-			<div className="flex justify-center">
-				{ok ? (
-					<Check className="size-4 text-success" />
-				) : (
-					<X className="size-4 text-destructive" />
-				)}
+		<>
+			<Separator />
+			<div className="grid grid-cols-[22px_1fr] gap-3 py-2.5">
+				<div className="flex justify-center">
+					{ok ? (
+						<Check className="size-4 text-success" />
+					) : (
+						<X className="size-4 text-destructive" />
+					)}
+				</div>
+				<div>
+					<div className="font-medium text-[13.5px]">{title}</div>
+					<div className="mt-0.5 text-[12.5px] text-muted-foreground">
+						{body}
+					</div>
+				</div>
 			</div>
-			<div>
-				<div className="font-medium text-[13.5px]">{title}</div>
-				<div className="mt-0.5 text-[12.5px] text-muted-foreground">{body}</div>
-			</div>
-		</div>
+		</>
 	);
 }
 
@@ -369,7 +377,7 @@ function ManifestExchange({
 					</h1>
 				</header>
 
-				<Card className="rounded-md border-muted/60">
+				<Card variant="subtle">
 					<CardHeader className="space-y-1 pb-3">
 						<CardTitle className="flex items-center gap-2 font-medium text-base">
 							<KeyRound className="size-4 text-muted-foreground" />
@@ -393,18 +401,14 @@ function ManifestExchange({
 							onClick={exchangeCode}
 							type="button"
 						>
-							{isConverting ? (
-								<Loader2 className="size-4 animate-spin" />
-							) : (
-								<Github className="size-4" />
-							)}
+							{isConverting ? <Loader2 className="animate-spin" /> : <Github />}
 							Exchange manifest code
 						</Button>
 
 						{error ? (
-							<p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
-								{error}
-							</p>
+							<Alert variant="destructive-soft">
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
 						) : null}
 					</CardContent>
 				</Card>
@@ -429,10 +433,10 @@ function ConvertedApp({
 	const installUrl = `https://github.com/apps/${conversion.slug}/installations/new`;
 
 	return (
-		<Card className="rounded-lg">
+		<Card variant="subtle">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<CheckCircle2 className="size-5 text-emerald-600" />
+					<CheckCircle2 className="size-5 text-success" />
 					{conversion.name ?? conversion.slug}
 				</CardTitle>
 				<CardDescription>
@@ -448,7 +452,7 @@ function ConvertedApp({
 						rel="noopener noreferrer"
 						target="_blank"
 					>
-						<Github className="size-4" />
+						<Github />
 						Install on repositories
 					</a>
 					{conversion.html_url ? (
