@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Check, Github, LogOut, Shield } from "lucide-react";
 import type { ReactNode } from "react";
 import { githubAppInstallUrl } from "@/components/landing/constants";
@@ -8,7 +8,6 @@ import {
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
-import { SignInGate } from "@/components/site/sign-in-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -24,20 +23,18 @@ import { useSessionState } from "@/lib/use-session-state";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
+	// Server-side guard (see /dashboard) — redirect before render, no flash.
+	beforeLoad: ({ context, location }) => {
+		if (!context.session) {
+			throw redirect({ search: { redirect: location.href }, to: "/login" });
+		}
+	},
 	component: SettingsRoute,
 	head: () => ({ meta: [{ title: "Settings | OSS Protector" }] }),
 });
 
 function SettingsRoute() {
-	const { signedIn, session } = useSessionState();
-
-	if (!signedIn) {
-		return (
-			<PageShell>
-				<SignInGate />
-			</PageShell>
-		);
-	}
+	const { session } = useSessionState();
 
 	const handle =
 		session?.user?.name?.trim() ||

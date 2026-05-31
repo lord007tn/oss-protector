@@ -18,9 +18,9 @@ import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as FeedRouteImport } from './routes/feed'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AppealRouteImport } from './routes/appeal'
-import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsLoginRouteImport } from './routes/accounts_.$login'
@@ -71,6 +71,11 @@ const FeedRoute = FeedRouteImport.update({
   path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -79,11 +84,6 @@ const DashboardRoute = DashboardRouteImport.update({
 const AppealRoute = AppealRouteImport.update({
   id: '/appeal',
   path: '/appeal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocsRoute = DocsRouteImport.update({
-  id: '/docs',
-  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountsRoute = AccountsRouteImport.update({
@@ -110,9 +110,9 @@ const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
-  '/docs': typeof DocsRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
   '/feed': typeof FeedRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
@@ -128,9 +128,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
-  '/docs': typeof DocsRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
   '/feed': typeof FeedRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
@@ -147,9 +147,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
-  '/docs': typeof DocsRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
   '/feed': typeof FeedRoute
   '/install': typeof InstallRoute
   '/login': typeof LoginRoute
@@ -167,9 +167,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accounts'
-    | '/docs'
     | '/appeal'
     | '/dashboard'
+    | '/docs'
     | '/feed'
     | '/install'
     | '/login'
@@ -185,9 +185,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
-    | '/docs'
     | '/appeal'
     | '/dashboard'
+    | '/docs'
     | '/feed'
     | '/install'
     | '/login'
@@ -203,9 +203,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accounts'
-    | '/docs'
     | '/appeal'
     | '/dashboard'
+    | '/docs'
     | '/feed'
     | '/install'
     | '/login'
@@ -222,9 +222,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
-  DocsRoute: typeof DocsRoute
   AppealRoute: typeof AppealRoute
   DashboardRoute: typeof DashboardRoute
+  DocsRoute: typeof DocsRoute
   FeedRoute: typeof FeedRoute
   InstallRoute: typeof InstallRoute
   LoginRoute: typeof LoginRoute
@@ -303,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -315,13 +322,6 @@ declare module '@tanstack/react-router' {
       path: '/appeal'
       fullPath: '/appeal'
       preLoaderRoute: typeof AppealRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/docs': {
-      id: '/docs'
-      path: '/docs'
-      fullPath: '/docs'
-      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accounts': {
@@ -358,9 +358,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
-  DocsRoute: DocsRoute,
   AppealRoute: AppealRoute,
   DashboardRoute: DashboardRoute,
+  DocsRoute: DocsRoute,
   FeedRoute: FeedRoute,
   InstallRoute: InstallRoute,
   LoginRoute: LoginRoute,

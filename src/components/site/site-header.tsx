@@ -1,6 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
 import {
-	Activity,
 	Bell,
 	Bot,
 	Check,
@@ -48,19 +47,13 @@ import {
 import { useSessionState } from "@/lib/use-session-state";
 import { cn } from "@/lib/utils";
 
-const PRIMARY_LINKS = [
+// Every primary destination shown inline in the header — no "More" dropdown.
+const NAV_LINKS = [
 	{ href: "/feed", label: "Feed" },
 	{ href: "/accounts", label: "Accounts" },
-];
-
-const MORE_LINKS = [
-	{
-		href: "/methodology",
-		sub: "How confidence is computed",
-		title: "Methodology",
-	},
-	{ href: "/sponsors", sub: "How we stay free", title: "Sponsors" },
-	{ href: "/appeal", sub: "For flagged accounts", title: "Appeal a flag" },
+	{ href: "/methodology", label: "Methodology" },
+	{ href: "/sponsors", label: "Sponsors" },
+	{ href: "/appeal", label: "Appeal" },
 ];
 
 function notificationIcon(kind: string) {
@@ -108,7 +101,7 @@ export function SiteHeader() {
 				<div className="flex items-center gap-7">
 					<Logo />
 					<nav className="hidden items-center gap-0.5 md:flex">
-						{PRIMARY_LINKS.map((link) => (
+						{NAV_LINKS.map((link) => (
 							<a
 								className={cn(
 									buttonVariants({ size: "sm", variant: "ghost" }),
@@ -121,35 +114,6 @@ export function SiteHeader() {
 								{link.label}
 							</a>
 						))}
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								className={cn(
-									"flex items-center gap-1 rounded-lg px-3 py-1.5 text-[13.5px] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground",
-									MORE_LINKS.some((l) => isActive(l.href)) &&
-										"bg-muted text-foreground"
-								)}
-							>
-								More
-								<ChevronDown className="size-3 opacity-60" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="start" className="w-60">
-								{MORE_LINKS.map((link) => (
-									<DropdownMenuItem
-										key={link.href}
-										render={
-											<a href={link.href}>
-												<div className="flex flex-col gap-0.5 py-0.5">
-													<span className="font-medium">{link.title}</span>
-													<span className="text-muted-foreground text-xs">
-														{link.sub}
-													</span>
-												</div>
-											</a>
-										}
-									/>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
 					</nav>
 				</div>
 
@@ -288,14 +252,6 @@ export function SiteHeader() {
 									<DropdownMenuSeparator />
 									<DropdownMenuItem
 										render={
-											<a href="/dashboard">
-												<Inbox className="size-3.5" />
-												Dashboard
-											</a>
-										}
-									/>
-									<DropdownMenuItem
-										render={
 											<a href="/settings">
 												<Settings className="size-3.5" />
 												Settings
@@ -307,15 +263,6 @@ export function SiteHeader() {
 											<a href="/install">
 												<Shield className="size-3.5" />
 												Install on another repo
-											</a>
-										}
-									/>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										render={
-											<a href="/methodology">
-												<Activity className="size-3.5" />
-												Methodology
 											</a>
 										}
 									/>
@@ -362,14 +309,9 @@ export function SiteHeader() {
 }
 
 function MobileNav({ isActive }: { isActive: (href: string) => boolean }) {
-	const links = [
-		...PRIMARY_LINKS,
-		{ href: "/methodology", label: "Methodology" },
-		{ href: "/sponsors", label: "Sponsors" },
-	];
 	return (
 		<nav className="-mx-1 flex items-center gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
-			{links.map((link) => (
+			{NAV_LINKS.map((link) => (
 				<a
 					className={cn(
 						buttonVariants({ size: "sm", variant: "ghost" }),

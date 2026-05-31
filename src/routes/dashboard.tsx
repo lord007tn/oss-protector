@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
 	Activity,
 	Check,
@@ -26,7 +26,6 @@ import {
 	PageHeader,
 	PageShell,
 } from "@/components/site/page-shell";
-import { SignInGate } from "@/components/site/sign-in-gate";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -105,6 +104,14 @@ const EMPTY_DASHBOARD: MaintainerDashboard = {
 };
 
 export const Route = createFileRoute("/dashboard")({
+	// Server-side guard: the session is already resolved in the root beforeLoad,
+	// so an unauthenticated visitor is redirected to /login before the console
+	// renders — they never see a flash of the sign-in form.
+	beforeLoad: ({ context, location }) => {
+		if (!context.session) {
+			throw redirect({ search: { redirect: location.href }, to: "/login" });
+		}
+	},
 	component: DashboardRoute,
 	head: () => ({
 		meta: [{ title: "Dashboard | OSS Protector" }],
@@ -125,14 +132,6 @@ function statusVariant(status: string): StatusVariant {
 }
 
 function DashboardRoute() {
-	const { signedIn } = useSessionState();
-	if (!signedIn) {
-		return (
-			<PageShell>
-				<SignInGate />
-			</PageShell>
-		);
-	}
 	return (
 		<PageShell authed consoleLabel="Maintainer console">
 			<DashboardContent />
