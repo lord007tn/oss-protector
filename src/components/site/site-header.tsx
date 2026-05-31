@@ -11,6 +11,7 @@ import {
 	LogOut,
 	Settings,
 	Shield,
+	ShieldCheck,
 	Star,
 } from "lucide-react";
 import {
@@ -74,6 +75,7 @@ export function SiteHeader() {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const { notifications, unread, markRead, markAllRead } =
 		useNotifications(signedIn);
+	const isAdmin = session?.user?.role === "admin";
 	const displayName =
 		session?.user?.name?.trim() ||
 		session?.user?.email?.split("@")[0] ||
@@ -250,6 +252,16 @@ export function SiteHeader() {
 										</DropdownMenuLabel>
 									</DropdownMenuGroup>
 									<DropdownMenuSeparator />
+									{isAdmin ? (
+										<DropdownMenuItem
+											render={
+												<a href="/admin">
+													<ShieldCheck className="size-3.5" />
+													Admin
+												</a>
+											}
+										/>
+									) : null}
 									<DropdownMenuItem
 										render={
 											<a href="/settings">

@@ -23,7 +23,9 @@ export function buildSharedHead({
 	title,
 }: SharedHeadInput) {
 	const canonical = `${publicAppUrl}${path}`;
-	const socialImage = ogImage ?? `${publicAppUrl}/oss-protector-mark.svg`;
+	// Social cards must be raster (PNG/JPG) — most crawlers (Twitter/X, Slack,
+	// LinkedIn, Discord) won't render an SVG og:image, so default to the PNG mark.
+	const socialImage = ogImage ?? `${publicAppUrl}/oss-protector-logo.png`;
 	return {
 		links: [{ href: canonical, rel: "canonical" }],
 		meta: [

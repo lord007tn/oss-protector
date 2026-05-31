@@ -442,6 +442,13 @@ function HeroSection({
 	stats: DirectoryDashboard["stats"];
 }) {
 	const fmt = (value: number) => value.toLocaleString();
+	// Fresh installs (and the public instance before it has data) would otherwise
+	// show a wall of zeros, which reads as broken. Fall back to honest qualitative
+	// stats until there's real coverage to report.
+	const hasData =
+		stats.trackedUsers > 0 ||
+		stats.activeRepositories > 0 ||
+		stats.trackedPrs > 0;
 	return (
 		<section className="hero-glow hero-grid relative overflow-hidden px-4 pt-20 pb-12 md:px-8">
 			<div className="relative z-10 mx-auto grid w-full max-w-[1240px] items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
@@ -483,38 +490,56 @@ function HeroSection({
 						or browse the public feed
 						<ArrowRight className="size-3.5" />
 					</a>
-					<div className="mt-7 flex flex-wrap gap-6 font-mono text-muted-foreground text-xs">
-						<span>
-							<b className="font-medium text-foreground tabular-nums">
-								{fmt(stats.trackedUsers)}
-							</b>{" "}
-							flagged accounts
-						</span>
-						<span>
-							<b className="font-medium text-foreground tabular-nums">
-								{fmt(stats.activeRepositories)}
-							</b>{" "}
-							repos protected
-						</span>
-						<span>
-							<b className="font-medium text-foreground tabular-nums">
-								{fmt(stats.signals)}
-							</b>{" "}
-							signals tracked
-						</span>
-					</div>
+					{hasData ? (
+						<div className="mt-7 flex flex-wrap gap-6 font-mono text-muted-foreground text-xs">
+							<span>
+								<b className="font-medium text-foreground tabular-nums">
+									{fmt(stats.trackedUsers)}
+								</b>{" "}
+								flagged accounts
+							</span>
+							<span>
+								<b className="font-medium text-foreground tabular-nums">
+									{fmt(stats.activeRepositories)}
+								</b>{" "}
+								repos protected
+							</span>
+							<span>
+								<b className="font-medium text-foreground tabular-nums">
+									{fmt(stats.signals)}
+								</b>{" "}
+								signals tracked
+							</span>
+						</div>
+					) : (
+						<div className="mt-7 font-mono text-muted-foreground text-xs">
+							Just launched — be the first repository we protect.
+						</div>
+					)}
 				</div>
 				<LiveFeed height={460} items={recentFlags} />
 			</div>
 
 			<div className="relative z-10 mx-auto mt-16 w-full max-w-[1240px]">
 				<StatStrip
-					stats={[
-						{ label: "flagged accounts", value: fmt(stats.trackedUsers) },
-						{ label: "pull requests tracked", value: fmt(stats.trackedPrs) },
-						{ label: "open reports", value: fmt(stats.openReports) },
-						{ label: "forever, no tiers", value: "$0" },
-					]}
+					stats={
+						hasData
+							? [
+									{ label: "flagged accounts", value: fmt(stats.trackedUsers) },
+									{
+										label: "pull requests tracked",
+										value: fmt(stats.trackedPrs),
+									},
+									{ label: "open reports", value: fmt(stats.openReports) },
+									{ label: "forever, no tiers", value: "$0" },
+								]
+							: [
+									{ label: "forever, no tiers", value: "$0" },
+									{ label: "open source", value: "MIT" },
+									{ label: "to protect a repo", value: "1 click" },
+									{ label: "scoring", value: "public" },
+								]
+					}
 				/>
 			</div>
 		</section>

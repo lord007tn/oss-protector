@@ -1,4 +1,8 @@
-import { appName, publicAppUrl } from "@/components/landing/constants";
+import {
+	appName,
+	githubRepoUrl,
+	publicAppUrl,
+} from "@/components/landing/constants";
 
 export function JsonLd({ data }: { data: unknown }) {
 	const json = JSON.stringify(data).replaceAll("<", "\\u003c");
@@ -13,8 +17,9 @@ export function siteJsonLd() {
 			{
 				"@id": `${publicAppUrl}/#organization`,
 				"@type": "Organization",
-				logo: `${publicAppUrl}/oss-protector-mark.svg`,
+				logo: `${publicAppUrl}/oss-protector-logo.png`,
 				name: appName,
+				sameAs: [githubRepoUrl],
 				url: publicAppUrl,
 			},
 			{

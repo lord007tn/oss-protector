@@ -26,6 +26,10 @@ export const database = drizzle(d1Binding ?? fallbackD1Binding, {
 	schema: appSchema,
 });
 
+// Raw D1 handle for the Better Auth tables (user/session/account), which live
+// outside the Drizzle `appSchema` and so can't be queried through `database`.
+export const d1: D1Database = d1Binding ?? fallbackD1Binding;
+
 export type Database = typeof database;
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type DatabaseOrTransaction = Database | Transaction;

@@ -7,36 +7,29 @@ import { getDashboardFn } from "@/functions/dashboard";
 
 export const Route = createFileRoute("/")({
 	component: LandingRoute,
-	head: () => ({
-		links: [
-			{
-				href: `${publicAppUrl}/`,
-				rel: "canonical",
-			},
-		],
-		meta: [
-			{ title: "OSS Protector | Shared OSS Abuse Intelligence" },
-			{
-				content:
-					"OSS Protector is a community-run GitHub App that flags AI-generated spam pull requests before they hit your review queue. Free, transparent, built by maintainers.",
-				name: "description",
-			},
-			{
-				content: "OSS Protector | Shared OSS Abuse Intelligence",
-				property: "og:title",
-			},
-			{
-				content:
-					"A community-run GitHub App and public directory for suspicious OSS contribution patterns.",
-				property: "og:description",
-			},
-			{
-				content: `${publicAppUrl}/oss-protector-mark.svg`,
-				property: "og:image",
-			},
-			{ content: "summary_large_image", name: "twitter:card" },
-		],
-	}),
+	head: () => {
+		const title = "OSS Protector | Shared OSS Abuse Intelligence";
+		const description =
+			"OSS Protector is a community-run GitHub App that flags AI-generated spam pull requests before they hit your review queue. Free, transparent, built by maintainers.";
+		const image = `${publicAppUrl}/oss-protector-logo.png`;
+		const url = `${publicAppUrl}/`;
+		return {
+			links: [{ href: url, rel: "canonical" }],
+			meta: [
+				{ title },
+				{ content: description, name: "description" },
+				{ content: title, property: "og:title" },
+				{ content: description, property: "og:description" },
+				{ content: url, property: "og:url" },
+				{ content: "website", property: "og:type" },
+				{ content: image, property: "og:image" },
+				{ content: "summary_large_image", name: "twitter:card" },
+				{ content: title, name: "twitter:title" },
+				{ content: description, name: "twitter:description" },
+				{ content: image, name: "twitter:image" },
+			],
+		};
+	},
 	loader: () => getDashboardFn(),
 });
 

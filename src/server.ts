@@ -131,6 +131,8 @@ const sitemap = () =>
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/docs</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/appeal</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/methodology</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/sponsors</loc></url>",
+		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/install</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/privacy</loc></url>",
 		"  <url><loc>https://oss-protector.raedbahri90.workers.dev/terms</loc></url>",
 		"</urlset>",

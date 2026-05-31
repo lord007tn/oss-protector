@@ -21,6 +21,7 @@ import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AppealRouteImport } from './routes/appeal'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsLoginRouteImport } from './routes/accounts_.$login'
@@ -86,6 +87,11 @@ const AppealRoute = AppealRouteImport.update({
   path: '/appeal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountsRoute = AccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
@@ -110,6 +116,7 @@ const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/admin': typeof AdminRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/admin': typeof AdminRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRoute
+  '/admin': typeof AdminRoute
   '/appeal': typeof AppealRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accounts'
+    | '/admin'
     | '/appeal'
     | '/dashboard'
     | '/docs'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accounts'
+    | '/admin'
     | '/appeal'
     | '/dashboard'
     | '/docs'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/accounts'
+    | '/admin'
     | '/appeal'
     | '/dashboard'
     | '/docs'
@@ -222,6 +234,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRoute
+  AdminRoute: typeof AdminRoute
   AppealRoute: typeof AppealRoute
   DashboardRoute: typeof DashboardRoute
   DocsRoute: typeof DocsRoute
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppealRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/accounts': {
       id: '/accounts'
       path: '/accounts'
@@ -358,6 +378,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRoute,
+  AdminRoute: AdminRoute,
   AppealRoute: AppealRoute,
   DashboardRoute: DashboardRoute,
   DocsRoute: DocsRoute,
