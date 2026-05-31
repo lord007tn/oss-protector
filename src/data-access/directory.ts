@@ -1494,6 +1494,12 @@ export const getDirectoryDashboardRecords = async () => {
 	return { imports, profiles, pullRequests, reports, repositories, signals };
 };
 
+export const getDirectoryAccountApiProfiles = async () =>
+	database.query.RiskProfile.findMany({
+		orderBy: { score: "desc" },
+		with: { targetUser: true },
+	});
+
 // Accurate directory tallies via a single aggregate, independent of the capped
 // profile list above. Score bands mirror RISK_SCORE_BANDS / riskStatusForScore
 // so the headline counts match how each account is bucketed in the UI.

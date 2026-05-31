@@ -36,7 +36,15 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/accounts_/$login")({
-	component: AccountRoute,
+	loader: async ({ params }) => {
+		const profile = await getAccountProfileFn({
+			data: { login: params.login },
+		});
+		if (profile.notFound) {
+			throw notFound();
+		}
+		return profile;
+	},
 	head: ({ params, loaderData }) => {
 		// The loader throws notFound() for unknown accounts, leaving loaderData
 		// undefined. Without this guard the document title would echo the
@@ -62,15 +70,7 @@ export const Route = createFileRoute("/accounts_/$login")({
 			],
 		};
 	},
-	loader: async ({ params }) => {
-		const profile = await getAccountProfileFn({
-			data: { login: params.login },
-		});
-		if (profile.notFound) {
-			throw notFound();
-		}
-		return profile;
-	},
+	component: AccountRoute,
 	notFoundComponent: () => <NotFoundView />,
 });
 

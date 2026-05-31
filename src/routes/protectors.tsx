@@ -18,7 +18,13 @@ import { useDashboard } from "@/hooks/api/dashboard/use-dashboard";
 const PAGE_SIZE = 25;
 
 export const Route = createFileRoute("/protectors")({
-	component: ProtectorsRoute,
+	validateSearch: (search) => ({
+		min_reports: reportsSearch(search.min_reports),
+		min_score: numberSearch(search.min_score),
+		page: pageSearch(search.page),
+		q: stringSearch(search.q),
+	}),
+	loader: async () => getDashboardFn(),
 	head: () => ({
 		links: [
 			{
@@ -49,13 +55,7 @@ export const Route = createFileRoute("/protectors")({
 			{ content: "summary_large_image", name: "twitter:card" },
 		],
 	}),
-	loader: async () => getDashboardFn(),
-	validateSearch: (search) => ({
-		min_reports: reportsSearch(search.min_reports),
-		min_score: numberSearch(search.min_score),
-		page: pageSearch(search.page),
-		q: stringSearch(search.q),
-	}),
+	component: ProtectorsRoute,
 });
 
 function ProtectorsRoute() {

@@ -54,7 +54,6 @@ async function sendOtpEmail({
 				"Email delivery is not configured. Ask the maintainer to set RESEND_API_KEY, or sign in with GitHub instead."
 			);
 		}
-		// biome-ignore lint/suspicious/noConsole: dev-only OTP delivery fallback
 		console.log(`[email-otp] ${type} code for ${email}: ${otp}`);
 		return;
 	}
@@ -73,7 +72,6 @@ async function sendOtpEmail({
 		method: "POST",
 	});
 	if (!response.ok) {
-		// biome-ignore lint/suspicious/noConsole: surface delivery failures in logs
 		console.error(
 			"Resend email failed",
 			response.status,

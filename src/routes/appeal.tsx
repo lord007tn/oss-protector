@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Stepper } from "@/components/oss/stepper";
 import { PageShell } from "@/components/site/page-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckboxCard, CheckboxCardIndicator } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -85,7 +84,7 @@ function AppealRoute() {
 	const [step, setStep] = useState(0);
 	const [handle, setHandle] = useState("");
 	const [email, setEmail] = useState("");
-	const [holder, setHolder] = useState<"self" | "rep">("self");
+	const [holder, setHolder] = useState<"rep" | "self" | null>(null);
 	const [story, setStory] = useState("");
 	const [evidence, setEvidence] = useState<Record<EvidenceKey, boolean>>({
 		commits: false,
@@ -96,8 +95,17 @@ function AppealRoute() {
 	const [submitted, setSubmitted] = useState(false);
 	const [tracking, setTracking] = useState("");
 	const [pending, setPending] = useState(false);
+	const identifyValid = Boolean(
+		handle.trim().length >= 2 && EMAIL_PATTERN.test(email.trim()) && holder
+	);
 
 	const submit = async () => {
+		if (!holder) {
+			toast.error(
+				"Choose whether you are the account holder or a representative."
+			);
+			return;
+		}
 		setPending(true);
 		try {
 			const response = await fetch("/api/appeal", {
@@ -203,26 +211,34 @@ function AppealRoute() {
 								hint="Or representing them"
 								label="Are you the account holder?"
 							>
-								<div className="flex gap-2">
-									<Badge
-										render={
-											<button onClick={() => setHolder("self")} type="button" />
-										}
+								<div className="flex flex-wrap gap-2">
+									<Button
+										aria-pressed={holder === "self"}
+										onClick={() => setHolder("self")}
+										size="xs"
+										type="button"
 										variant={holder === "self" ? "default" : "outline"}
 									>
 										I am the account holder
-									</Badge>
-									<Badge
-										render={
-											<button onClick={() => setHolder("rep")} type="button" />
-										}
+									</Button>
+									<Button
+										aria-pressed={holder === "rep"}
+										onClick={() => setHolder("rep")}
+										size="xs"
+										type="button"
 										variant={holder === "rep" ? "default" : "outline"}
 									>
 										I represent them
-									</Badge>
+									</Button>
 								</div>
 							</FieldRow>
 						</div>
+						{identifyValid ? null : (
+							<p className="mt-3 text-muted-foreground text-xs">
+								Enter a GitHub handle, a valid email, and choose whether you are
+								the account holder or a representative.
+							</p>
+						)}
 						<Alert className="mt-4" variant="warning">
 							<Shield />
 							<AlertDescription>
@@ -239,9 +255,7 @@ function AppealRoute() {
 								</Button>
 							</a>
 							<Button
-								disabled={
-									handle.trim().length < 2 || !EMAIL_PATTERN.test(email.trim())
-								}
+								disabled={!identifyValid}
 								onClick={() => setStep(1)}
 								type="button"
 							>

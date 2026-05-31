@@ -6,7 +6,7 @@ import { PageShell } from "@/components/site/page-shell";
 import { getDashboardFn } from "@/functions/dashboard";
 
 export const Route = createFileRoute("/")({
-	component: LandingRoute,
+	loader: () => getDashboardFn(),
 	head: () => {
 		const title = "OSS Protector | Shared OSS Abuse Intelligence";
 		const description =
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
 			],
 		};
 	},
-	loader: () => getDashboardFn(),
+	component: LandingRoute,
 });
 
 function LandingRoute() {

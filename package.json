@@ -133,7 +133,7 @@
     "lint": "biome lint",
     "check": "ultracite check",
     "scan": "react-scan http://localhost:3000",
-    "doctor": "react-doctor --yes --offline --full --fail-on error .",
+    "doctor": "react-doctor --offline --full --fail-on error .",
     "knip": "knip",
     "ultracite": "ultracite check",
     "ultracite:fix": "ultracite fix",

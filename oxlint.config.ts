@@ -7,4 +7,5 @@ import vitest from "ultracite/oxlint/vitest";
 
 export default defineConfig({
 	extends: [core, react, remix, vitest],
+	ignorePatterns: [".claude/**", "dogfood-output/**", ".output/**"],
 });

@@ -46,6 +46,7 @@ const defaultAccountFilters: AccountFilters = {
 
 export type FilterField =
 	| "limit"
+	| "min_reports"
 	| "min_score"
 	| "offset"
 	| "reason"
@@ -150,7 +151,7 @@ export function parseProtectorFilters(
 		}),
 		minReports: requireBoundedNumber({
 			fallback: 0,
-			field: "min_score",
+			field: "min_reports",
 			max: MAX_LIMIT,
 			min: 0,
 			value: searchParams.get("min_reports"),

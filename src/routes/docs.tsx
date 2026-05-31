@@ -202,7 +202,7 @@ function DocsRoute() {
 					</Section>
 
 					<Section id="base-url" title="Base URL">
-						<pre className="rounded-md border bg-foreground p-3 font-mono text-background text-xs">
+						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs">
 							<code>https://oss-protector.raedbahri90.workers.dev</code>
 						</pre>
 					</Section>
@@ -293,7 +293,7 @@ function DocsRoute() {
 					</Section>
 
 					<Section id="pagination-response" title="page_info">
-						<pre className="rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 							<code>{`{
   "accounts": [...],
   "count": 50,
@@ -409,7 +409,7 @@ function DocsRoute() {
 							structured body so you can correct the request without scraping
 							the message:
 						</p>
-						<pre className="rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 							<code>{`{
   "error": "Invalid limit \\"1000\\". Allowed: 1–500.",
   "field": "limit",
@@ -433,7 +433,7 @@ function DocsRoute() {
 							needs-review reports are tracked but only validated or
 							corroborated reports affect shared scores.
 						</p>
-						<pre className="rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 							<code>
 								{[
 									"@oss-protector review this user",
@@ -453,7 +453,7 @@ function DocsRoute() {
 							comment. Each correction is applied silently and recorded as an
 							in-app notification — no reply is posted to the PR.
 						</p>
-						<pre className="rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 							<code>
 								{[
 									"@oss-protector dismiss     # false positive: dismiss all open reports",
@@ -475,7 +475,7 @@ function DocsRoute() {
 							</code>
 							:
 						</p>
-						<pre className="rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 							<code>{`{
   "enabled": true,
   "analyzePrivateRepositories": false,
@@ -620,7 +620,7 @@ function Section({
 					{title}
 				</a>
 			</h2>
-			<div className="prose prose-sm max-w-none space-y-3 text-[14px] text-muted-foreground leading-relaxed [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12.5px]">
+			<div className="prose prose-sm max-w-none space-y-3 text-[14px] text-muted-foreground leading-relaxed [&_code]:break-words [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[12.5px]">
 				{children}
 			</div>
 		</section>
@@ -654,7 +654,7 @@ function EndpointBlock({
 				{description}
 			</div>
 			{example ? (
-				<pre className="mb-3 overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
+				<pre className="mb-3 max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 					<code>{example}</code>
 				</pre>
 			) : null}

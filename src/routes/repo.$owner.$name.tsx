@@ -29,7 +29,8 @@ const avatarColor = (login: string) => ((login.charCodeAt(0) || 0) % 6) + 1;
 const initials = (login: string) => login.slice(0, 2).toUpperCase();
 
 export const Route = createFileRoute("/repo/$owner/$name")({
-	component: RepoRoute,
+	loader: ({ params }) =>
+		getRepoProfileFn({ data: { name: params.name, owner: params.owner } }),
 	head: ({ params }) => ({
 		links: [
 			{
@@ -45,8 +46,7 @@ export const Route = createFileRoute("/repo/$owner/$name")({
 			},
 		],
 	}),
-	loader: ({ params }) =>
-		getRepoProfileFn({ data: { name: params.name, owner: params.owner } }),
+	component: RepoRoute,
 });
 
 function RepoStat({

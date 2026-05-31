@@ -13,6 +13,7 @@ import {
 } from "@/constants/risk-statuses";
 import {
 	type DirectoryCounts,
+	getDirectoryAccountApiProfiles,
 	getDirectoryCounts,
 	getDirectoryDashboardRecords,
 	recentWebhookEventsQuery,
@@ -305,9 +306,39 @@ export type DirectoryDashboard = Awaited<
 	ReturnType<typeof listDirectoryDashboard>
 >;
 
+const listAccountApiProfiles = async () => {
+	const profiles = await getDirectoryAccountApiProfiles();
+	return profiles
+		.filter((profile) => profile.status !== "allow")
+		.map((profile) => {
+			const status = riskStatusForScore({
+				isAllowed: profile.status === "allow",
+				score: profile.score,
+			});
+			return {
+				avatarUrl: profile.targetUser.avatarUrl,
+				confidence: profile.confidence,
+				commitCount: profile.commitCount,
+				githubUserId: profile.targetUser.githubUserId,
+				htmlUrl: profile.targetUser.htmlUrl,
+				importedSource: profile.importedSource,
+				lastSeenAt: profile.lastSeenAt,
+				login: profile.targetUser.login,
+				prCount: 0,
+				reasonCodes: parseJsonArray<ReasonCode>(profile.reasonCodesJson),
+				reportCount: 0,
+				repositoryCount: profile.repositoryCount,
+				score: profile.score,
+				status,
+				summary: profile.summary,
+				validatedReportCount: 0,
+			};
+		});
+};
+
 export const listAccountsApi = async (filters: AccountFilters) => {
-	const dashboard = await listDirectoryDashboard();
-	const { page, pageInfo } = filterAccounts(dashboard.riskProfiles, filters);
+	const profiles = await listAccountApiProfiles();
+	const { page, pageInfo } = filterAccounts(profiles, filters);
 
 	return {
 		accounts: page.map((profile) => ({
@@ -323,9 +354,7 @@ export const listAccountsApi = async (filters: AccountFilters) => {
 		page_info: pageInfo,
 		schema_version: "2026-05-30",
 		source: "oss-protector",
-		total_available: dashboard.riskProfiles.filter(
-			(profile) => profile.status !== "allow"
-		).length,
+		total_available: pageInfo.total,
 	};
 };
 

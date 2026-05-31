@@ -34,14 +34,14 @@ export const Route = createFileRoute("/admin")({
 			throw redirect({ to: "/" });
 		}
 	},
-	component: AdminRoute,
+	loader: () => getAdminOverviewFn(),
 	head: () => ({
 		meta: [
 			{ title: "Admin | OSS Protector" },
 			{ content: "noindex", name: "robots" },
 		],
 	}),
-	loader: () => getAdminOverviewFn(),
+	component: AdminRoute,
 });
 
 type AdminTab = "overview" | "sponsors" | "users";

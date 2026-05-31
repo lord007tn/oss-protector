@@ -31,7 +31,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { buildSharedHead } from "@/lib/head";
 
 export const Route = createFileRoute("/install")({
-	component: InstallRoute,
 	validateSearch: (search: Record<string, unknown>) => ({
 		code: typeof search.code === "string" ? search.code : undefined,
 		installation_id:
@@ -58,6 +57,7 @@ export const Route = createFileRoute("/install")({
 		}
 		return buildSharedHead({ description, path: "/install", title });
 	},
+	component: InstallRoute,
 });
 
 function InstallRoute() {

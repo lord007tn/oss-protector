@@ -5,6 +5,17 @@ import { PageShell } from "@/components/site/page-shell";
 import { buildSharedHead } from "@/lib/head";
 
 export const Route = createFileRoute("/login")({
+	// Explicit param + return types: when a route has both validateSearch and
+	// beforeLoad, leaving the search schema to inference can collapse it to `{}`
+	// (and break Route.useSearch). Pinning the return type keeps it stable.
+	validateSearch: (
+		search: Record<string, unknown>
+	): { redirect: string | undefined } => ({
+		redirect:
+			typeof search.redirect === "string" && search.redirect.startsWith("/")
+				? search.redirect
+				: undefined,
+	}),
 	// An already-authenticated maintainer has no reason to see the sign-in form;
 	// the session is resolved in the root beforeLoad, so we can bounce them to
 	// their destination server-side without rendering the form at all. The
@@ -18,7 +29,6 @@ export const Route = createFileRoute("/login")({
 			});
 		}
 	},
-	component: LoginRoute,
 	head: () => {
 		const shared = buildSharedHead({
 			description:
@@ -31,17 +41,7 @@ export const Route = createFileRoute("/login")({
 			meta: [...shared.meta, { content: "noindex", name: "robots" }],
 		};
 	},
-	// Explicit param + return types: when a route has both validateSearch and
-	// beforeLoad, leaving the search schema to inference can collapse it to `{}`
-	// (and break Route.useSearch). Pinning the return type keeps it stable.
-	validateSearch: (
-		search: Record<string, unknown>
-	): { redirect: string | undefined } => ({
-		redirect:
-			typeof search.redirect === "string" && search.redirect.startsWith("/")
-				? search.redirect
-				: undefined,
-	}),
+	component: LoginRoute,
 });
 
 function LoginRoute() {

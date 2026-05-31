@@ -23,7 +23,7 @@ import { buildSharedHead } from "@/lib/head";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/sponsors")({
-	component: SponsorsRoute,
+	loader: () => listSponsorsFn(),
 	head: () =>
 		buildSharedHead({
 			description:
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/sponsors")({
 			path: "/sponsors",
 			title: "Sponsors | OSS Protector",
 		}),
-	loader: () => listSponsorsFn(),
+	component: SponsorsRoute,
 });
 
 function MonoLabel({ children }: { children: string }) {

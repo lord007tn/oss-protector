@@ -41,7 +41,7 @@ const NEXT_SORT: Record<SortKey, SortKey> = {
 };
 
 export const Route = createFileRoute("/accounts")({
-	component: AccountsRoute,
+	loader: () => getDashboardFn(),
 	head: () =>
 		buildSharedHead({
 			description:
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/accounts")({
 			path: "/accounts",
 			title: "Account directory | OSS Protector",
 		}),
-	loader: () => getDashboardFn(),
+	component: AccountsRoute,
 });
 
 function matchesFilter(account: DisplayAccount, filter: DirectoryFilter) {
@@ -130,12 +130,13 @@ function AccountsRoute() {
 					title="Account directory"
 				/>
 
-				<div className="mt-6 flex flex-wrap items-center gap-3">
+				<div className="mt-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
 					<Tabs
+						className="min-w-0 max-w-full"
 						onValueChange={(value) => setFilter(value as DirectoryFilter)}
 						value={filter}
 					>
-						<TabsList>
+						<TabsList className="max-w-full overflow-x-auto">
 							{tabs.map((tab) => (
 								<TabsTrigger key={tab.value} value={tab.value}>
 									{tab.label}
@@ -150,11 +151,11 @@ function AccountsRoute() {
 							))}
 						</TabsList>
 					</Tabs>
-					<div className="ml-auto flex items-center gap-2">
-						<div className="relative">
+					<div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+						<div className="relative min-w-0 flex-1 sm:flex-none">
 							<Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								className="w-52 pl-8"
+								className="w-full pl-8 sm:w-52"
 								onChange={(event) => setQuery(event.target.value)}
 								placeholder="Search handle…"
 								size="md"
@@ -162,13 +163,14 @@ function AccountsRoute() {
 							/>
 						</div>
 						<Button
+							className="min-w-0 flex-1 justify-center sm:flex-none"
 							onClick={() => setSort(NEXT_SORT[sort])}
 							type="button"
 							variant="ghost"
 						>
-							Sort: {SORT_LABELS[sort]} ↓
+							<span className="truncate">Sort: {SORT_LABELS[sort]} ↓</span>
 						</Button>
-						<div className="inline-flex gap-0.5 rounded-lg border bg-muted p-0.5">
+						<div className="inline-flex shrink-0 gap-0.5 rounded-lg border bg-muted p-0.5">
 							<Button
 								aria-label="List view"
 								onClick={() => setView("list")}

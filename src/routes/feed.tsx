@@ -34,7 +34,13 @@ const FEED_FILTERS: readonly FeedFilter[] = ["all", "high", "review", "watch"];
 const DEFAULT_FEED_SEARCH: FeedSearch = { q: "", status: "all" };
 
 export const Route = createFileRoute("/feed")({
-	component: FeedRoute,
+	validateSearch: (search: Record<string, unknown>): FeedSearch => ({
+		q: typeof search.q === "string" ? search.q : "",
+		status: FEED_FILTERS.includes(search.status as FeedFilter)
+			? (search.status as FeedFilter)
+			: "all",
+	}),
+	loader: () => getDashboardFn(),
 	head: () =>
 		buildSharedHead({
 			description:
@@ -42,18 +48,12 @@ export const Route = createFileRoute("/feed")({
 			path: "/feed",
 			title: "Public review feed | OSS Protector",
 		}),
-	loader: () => getDashboardFn(),
 	// Keep the active filter + search in the URL so a filtered feed is shareable
 	// and survives a refresh; defaults are stripped to keep /feed clean.
 	search: {
 		middlewares: [stripSearchParams(DEFAULT_FEED_SEARCH)],
 	},
-	validateSearch: (search: Record<string, unknown>): FeedSearch => ({
-		q: typeof search.q === "string" ? search.q : "",
-		status: FEED_FILTERS.includes(search.status as FeedFilter)
-			? (search.status as FeedFilter)
-			: "all",
-	}),
+	component: FeedRoute,
 });
 
 function matchesFilter(account: DisplayAccount, filter: FeedFilter) {

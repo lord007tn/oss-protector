@@ -12,6 +12,8 @@
       "**/.vscode/**/*",
       "**/index.html",
       "**/vite.config.ts",
+      "!!**/.claude",
+      "!!**/dogfood-output",
       "!!**/.output",
       "!!**/.wrangler",
       "!!**/drizzle",

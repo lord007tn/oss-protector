@@ -287,7 +287,11 @@ export function SiteHeader() {
 							</DropdownMenu>
 						</>
 					) : (
-						<a className={cn(buttonVariants({ size: "sm" }))} href="/login">
+						<a
+							aria-label="Sign in with GitHub"
+							className={cn(buttonVariants({ size: "sm" }))}
+							href="/login"
+						>
 							<Github data-icon="inline-start" />
 							<span className="hidden sm:inline">Sign in</span>
 						</a>
@@ -322,12 +326,12 @@ export function SiteHeader() {
 
 function MobileNav({ isActive }: { isActive: (href: string) => boolean }) {
 	return (
-		<nav className="-mx-1 flex items-center gap-1 overflow-x-auto border-t px-3 py-2 md:hidden">
+		<nav className="flex w-full min-w-0 items-center gap-1 overflow-x-auto border-t px-2 py-2 md:hidden">
 			{NAV_LINKS.map((link) => (
 				<a
 					className={cn(
 						buttonVariants({ size: "sm", variant: "ghost" }),
-						"shrink-0 text-muted-foreground",
+						"min-w-fit shrink-0 text-muted-foreground",
 						isActive(link.href) && "bg-muted text-foreground"
 					)}
 					href={link.href}
