@@ -26,6 +26,7 @@ import { buttonVariants } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -266,14 +267,16 @@ export function SiteHeader() {
 									<ChevronDown className="size-3 opacity-60" />
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end" className="w-60">
-									<DropdownMenuLabel className="py-1.5">
-										<div className="truncate font-medium text-foreground text-sm">
-											{session?.user?.email ?? displayName}
-										</div>
-										<div className="mt-0.5 text-muted-foreground text-xs">
-											Signed in
-										</div>
-									</DropdownMenuLabel>
+									<DropdownMenuGroup>
+										<DropdownMenuLabel className="py-1.5">
+											<div className="truncate font-medium text-foreground text-sm">
+												{session?.user?.email ?? displayName}
+											</div>
+											<div className="mt-0.5 text-muted-foreground text-xs">
+												Signed in
+											</div>
+										</DropdownMenuLabel>
+									</DropdownMenuGroup>
 									<DropdownMenuSeparator />
 									<DropdownMenuItem
 										render={

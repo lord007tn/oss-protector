@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { Check, RotateCcw, ShieldCheck, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,38 @@ export function MaintainerControls({ login }: { login: string }) {
 	const { signedIn } = useSessionState();
 	const router = useRouter();
 	const [pending, setPending] = useState<Decision | null>(null);
+	const [canModerate, setCanModerate] = useState(false);
 
-	if (!signedIn) {
+	// Moderation is repo-scoped server-side; only render the controls to a caller
+	// the server would actually authorize, so we don't show buttons that 403.
+	useEffect(() => {
+		if (!signedIn) {
+			setCanModerate(false);
+			return;
+		}
+		let active = true;
+		fetch(`/api/maintainer/can-moderate?login=${encodeURIComponent(login)}`)
+			.then((response) =>
+				response.ok
+					? (response.json() as Promise<{ canModerate?: boolean }>)
+					: { canModerate: false }
+			)
+			.then((data) => {
+				if (active) {
+					setCanModerate(Boolean(data.canModerate));
+				}
+			})
+			.catch(() => {
+				if (active) {
+					setCanModerate(false);
+				}
+			});
+		return () => {
+			active = false;
+		};
+	}, [signedIn, login]);
+
+	if (!(signedIn && canModerate)) {
 		return null;
 	}
 

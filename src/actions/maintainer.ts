@@ -7,9 +7,11 @@ import {
 	resetRiskProfile,
 	validateLatestReportForUser,
 } from "@/data-access/directory";
+import { maintainerSharesRepoWithAccount } from "@/data-access/repo-decisions";
 import { database, hasDatabaseBinding } from "@/db";
 import { GithubUser } from "@/db/schema";
 import type { RuntimeBindings } from "@/env";
+import { isPlatformAdmin } from "@/lib/moderation-authz";
 
 export const MAINTAINER_DECISIONS = [
 	"allow",
@@ -74,6 +76,25 @@ export async function applyMaintainerDecision({
 		return { error: "Account not found.", ok: false, status: 404 };
 	}
 
+	// Repo-scoped authorization: a maintainer may only decide on accounts active
+	// in a repository they maintain. Platform admins (ADMIN_EMAILS) bypass this.
+	if (
+		!(
+			isPlatformAdmin(env, session.user) ||
+			(await maintainerSharesRepoWithAccount({
+				targetUserId: user.id,
+				userId: session.user.id,
+			}))
+		)
+	) {
+		return {
+			error:
+				"You can only moderate accounts active in a repository you maintain.",
+			ok: false,
+			status: 403,
+		};
+	}
+
 	const correctedByLogin =
 		session.user.name?.trim() || session.user.email || "web-maintainer";
 	const input = {
@@ -108,4 +129,46 @@ export async function applyMaintainerDecision({
 		score: profile?.score ?? 0,
 		status: profile?.status ?? null,
 	};
+}
+
+// Read-only counterpart used by the public profile UI so it only renders the
+// maintainer controls to a caller who is actually allowed to use them. Mirrors
+// the authorization in applyMaintainerDecision; never mutates.
+export async function canModerateAccount({
+	env,
+	request,
+	login,
+}: {
+	env?: RuntimeBindings;
+	request: Request;
+	login: string;
+}): Promise<boolean> {
+	if (!(hasDatabaseBinding && getAuthConfigStatus(env).isConfigured)) {
+		return false;
+	}
+	const session = await createAuth({ env, request }).api.getSession({
+		headers: request.headers,
+	});
+	if (!session?.user) {
+		return false;
+	}
+	if (isPlatformAdmin(env, session.user)) {
+		return true;
+	}
+	const trimmed = login.trim();
+	if (!trimmed) {
+		return false;
+	}
+	const [user] = await database
+		.select({ id: GithubUser.id })
+		.from(GithubUser)
+		.where(eq(GithubUser.login, trimmed))
+		.limit(1);
+	if (!user) {
+		return false;
+	}
+	return maintainerSharesRepoWithAccount({
+		targetUserId: user.id,
+		userId: session.user.id,
+	});
 }

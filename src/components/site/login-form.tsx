@@ -62,17 +62,24 @@ export function LoginForm({
 
 	const signInGithub = async () => {
 		setPending(true);
-		const { error } = await authClient.signIn.social({
-			callbackURL,
-			provider: "github",
-		});
-		if (error) {
+		try {
+			const { error } = await authClient.signIn.social({
+				callbackURL,
+				provider: "github",
+			});
+			if (error) {
+				setPending(false);
+				toast.error(error.message ?? "GitHub sign-in failed.");
+			}
+			// On success Better Auth returns a github.com authorize URL and triggers
+			// a full-page navigation. Leave `pending` true so the button stays in its
+			// loading state until the browser actually unloads the page.
+		} catch {
+			// A network-layer rejection (offline, DNS/TLS failure) would otherwise
+			// leave the whole form stuck on the spinner with no way to recover.
 			setPending(false);
-			toast.error(error.message ?? "GitHub sign-in failed.");
+			toast.error("Couldn't reach GitHub sign-in. Check your connection.");
 		}
-		// On success Better Auth returns a github.com authorize URL and triggers a
-		// full-page navigation. Leave `pending` true so the button stays in its
-		// loading state until the browser actually unloads the page.
 	};
 
 	return (

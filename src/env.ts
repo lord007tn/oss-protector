@@ -6,6 +6,7 @@ export interface RateLimitBinding {
 }
 
 export interface RuntimeBindings {
+	ADMIN_EMAILS?: string;
 	ALLOW_UNSIGNED_GITHUB_WEBHOOKS?: string;
 	APP_NAME?: string;
 	accounts_db?: D1Database;
@@ -55,6 +56,7 @@ export const env = createEnv({
 	},
 	runtimeEnv: runtimeEnv(),
 	server: {
+		ADMIN_EMAILS: z.string().optional(),
 		APP_NAME: z.string().default("OSS Protector"),
 		ALLOW_UNSIGNED_GITHUB_WEBHOOKS: z.string().optional(),
 		BETTER_AUTH_SECRET: z.string().optional(),

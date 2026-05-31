@@ -4,7 +4,7 @@ import type { ReasonCode } from "@/constants/reason-codes";
 import type { ReportStatus } from "@/constants/report-statuses";
 import type { RiskStatus } from "@/constants/risk-statuses";
 import { database, hasDatabaseBinding } from "@/db";
-import { isMissingBindingError } from "@/db/errors";
+import { isDatabaseReadError } from "@/db/errors";
 import {
 	BotReport,
 	GithubUser,
@@ -176,7 +176,10 @@ export const getRepoProfile = async (
 			})),
 		};
 	} catch (caught) {
-		if (isMissingBindingError(caught)) {
+		if (isDatabaseReadError(caught)) {
+			// Public read-only page: degrade to an empty profile on any DB read
+			// failure instead of 500-ing during SSR.
+			console.error("getRepoProfile read failed", caught);
 			return emptyRepoProfile(owner, name);
 		}
 		throw caught;
