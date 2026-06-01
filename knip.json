@@ -41,6 +41,7 @@
   },
   "ignoreBinaries": ["changelogithub"],
   "ignoreDependencies": [
+    "@biomejs/biome",
     "@fontsource-variable/geist",
     "@fontsource-variable/geist-mono",
     "@octokit/webhooks",

@@ -1,0 +1,20 @@
+# Normalize all text files to LF in the repository. Without this, Windows
+# checkouts (core.autocrlf=true) leave every file showing as CRLF-modified in
+# git status even when nothing changed, and tooling churns line endings on
+# each `ultracite fix`. Biome formats with `lineEnding: lf`, so LF is the
+# single source of truth here.
+* text=auto eol=lf
+
+# Explicitly binary so they're never line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary

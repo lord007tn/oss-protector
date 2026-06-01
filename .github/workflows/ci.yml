@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Lint, typecheck, test, build
+    name: Lint, typecheck, test, knip, doctor, build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,14 +33,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint (ultracite)
-        run: pnpm check
+      - name: Lint & format (ultracite / biome)
+        run: pnpm run check
 
       - name: Typecheck
         run: pnpm run typecheck
 
       - name: Test
         run: pnpm test
+
+      - name: Dead-code & dependency check (knip)
+        run: pnpm run knip
+
+      - name: React best-practices (react-doctor)
+        run: pnpm run doctor
 
       - name: Build
         run: pnpm build

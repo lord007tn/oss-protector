@@ -9,17 +9,23 @@
     "ignoreUnknown": false,
     "includes": [
       "**/src/**/*",
+      "**/scripts/**/*.ts",
       "**/.vscode/**/*",
       "**/index.html",
-      "**/vite.config.ts",
+      "**/*.config.ts",
+      "**/package.json",
+      "**/knip.json",
+      "**/wrangler.json",
       "!!**/.claude",
       "!!**/dogfood-output",
       "!!**/.output",
       "!!**/.wrangler",
+      "!!**/.kbx",
       "!!**/drizzle",
       "!!**/node_modules",
       "!**/src/components/ui/chart.tsx",
       "!**/src/routeTree.gen.ts",
+      "!**/src/generated",
       "!**/src/styles.css"
     ]
   },
@@ -53,5 +59,9 @@
       "quoteStyle": "double"
     }
   },
-  "extends": ["ultracite/biome/core", "ultracite/biome/react"]
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/vitest"
+  ]
 }
