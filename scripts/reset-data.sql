@@ -27,6 +27,7 @@ DELETE FROM Appeal;
 DELETE FROM AppEvent;
 DELETE FROM BackfillJob;
 DELETE FROM SourceImport;
+DELETE FROM Sponsor;
 
 -- Better Auth tables (sessions/accounts reference user).
 DELETE FROM session;
