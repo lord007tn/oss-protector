@@ -1,0 +1,70 @@
+name: Deploy
+
+# Applies database migrations, then builds and deploys the Worker on every push
+# to master. Migrations run FIRST so the database schema is always ahead of the
+# code that depends on it.
+#
+# This workflow is the GitHub-Actions path. If you instead deploy through
+# Cloudflare's own Git integration (Workers Builds), set the build command there
+# to `pnpm run cf:build`, which runs `db:migrate` before `build:prod` for the
+# same migrate-then-build ordering.
+#
+# Required repository secrets:
+#   CLOUDFLARE_API_TOKEN     - token with D1 edit + Workers Scripts edit
+#   CLOUDFLARE_ACCOUNT_ID    - the Cloudflare account id
+#   CLOUDFLARE_D1_DATABASE_ID - the production D1 database UUID
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate, build, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      OSS_PROTECTOR_DEPLOY_TARGET: hosted
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+      CLOUDFLARE_D1_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Apply pending Drizzle migrations to the production D1 BEFORE deploying,
+      # so the new Worker never runs against an older schema. Idempotent: drizzle
+      # tracks applied migrations and skips ones already recorded.
+      - name: Apply database migrations
+        run: pnpm run db:migrate
+
+      - name: Build
+        run: pnpm run build:hosted
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

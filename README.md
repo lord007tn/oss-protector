@@ -119,13 +119,41 @@ Authenticated maintainer endpoints (require a Better Auth session cookie, not ra
 
 ## Database
 
+Schema lives in `src/db/schema.ts` and is the single source of truth. Migrations
+are generated from it with Drizzle Kit and applied with `drizzle-kit migrate`.
+
 ```bash
-pnpm run db:generate          # generate migrations after schema edits
-pnpm run db:migrate:local     # apply locally
-pnpm run db:seed              # seed locally
-pnpm run db:migrate           # apply remotely
-pnpm run db:seed:remote       # seed remotely
+pnpm run db:generate          # generate a migration after editing schema.ts
+pnpm run db:migrate:local     # apply pending migrations to the local D1
+pnpm run db:migrate           # apply pending migrations to the remote (prod) D1
+pnpm run db:seed              # seed locally   (db:seed:remote for prod)
 ```
+
+Local maintenance (these never touch prod unless you add `--remote --yes`):
+
+```bash
+pnpm run db:reset             # wipe all rows, keep the schema
+pnpm run db:clean             # drop every table (then db:migrate:local to rebuild)
+```
+
+**Deploys apply migrations first.** On a push to `master`, migrations run before
+the Worker is built and deployed, so the schema is always ahead of the code:
+
+- GitHub Actions: `.github/workflows/deploy.yml` runs `db:migrate` → build → deploy.
+- Cloudflare Workers Builds (Git integration): set the build command to
+  `pnpm run cf:build`, which runs `db:migrate` before `build:prod`.
+
+**One-time production baseline.** The prod database was created before this
+Drizzle-tracked flow, so its tables already exist. Run the baseline **once** to
+record the current migration as applied without re-running it — otherwise the
+first deploy would try to re-create existing tables:
+
+```bash
+pnpm run db:baseline:remote   # mark current migrations applied on prod, runs no SQL
+```
+
+After baselining, every future change is just: edit `schema.ts` →
+`pnpm db:generate` → push. The deploy applies it automatically.
 
 The seed imports [`Bounty-Hunters/clankers.json`](https://raw.githubusercontent.com/UnsafeLabs/Bounty-Hunters/main/clankers.json). The initial dataset and the original concept are credited to the [Clankers Leaderboard](https://clankers-leaderboard.pages.dev/) by [@heyandras](https://x.com/heyandras).
 

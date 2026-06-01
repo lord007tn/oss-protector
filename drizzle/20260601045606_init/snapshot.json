@@ -1,13 +1,21 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "9967148f-3bfe-47ed-b873-43992901629b",
+  "id": "d17c9260-0ec7-401f-a627-4eef9cc9bf6a",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
       "name": "AppEvent",
+      "entityType": "tables"
+    },
+    {
+      "name": "Appeal",
+      "entityType": "tables"
+    },
+    {
+      "name": "BackfillJob",
       "entityType": "tables"
     },
     {
@@ -27,7 +35,23 @@
       "entityType": "tables"
     },
     {
+      "name": "InstallationMaintainer",
+      "entityType": "tables"
+    },
+    {
+      "name": "Notification",
+      "entityType": "tables"
+    },
+    {
       "name": "PullRequest",
+      "entityType": "tables"
+    },
+    {
+      "name": "RepoAccountDecision",
+      "entityType": "tables"
+    },
+    {
+      "name": "RepoPolicy",
       "entityType": "tables"
     },
     {
@@ -40,6 +64,14 @@
     },
     {
       "name": "SourceImport",
+      "entityType": "tables"
+    },
+    {
+      "name": "Sponsor",
+      "entityType": "tables"
+    },
+    {
+      "name": "UserPreferences",
       "entityType": "tables"
     },
     {
@@ -151,6 +183,176 @@
       "name": "processedAt",
       "entityType": "columns",
       "table": "AppEvent"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "login",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'self'",
+      "generated": null,
+      "name": "relationship",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "story",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[]'",
+      "generated": null,
+      "name": "evidenceJson",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'pending'",
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "submittedByUserId",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "Appeal"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "BackfillJob"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "login",
+      "entityType": "columns",
+      "table": "BackfillJob"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'pending'",
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "BackfillJob"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "attempts",
+      "entityType": "columns",
+      "table": "BackfillJob"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "lastError",
+      "entityType": "columns",
+      "table": "BackfillJob"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "BackfillJob"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "BackfillJob"
     },
     {
       "type": "text",
@@ -544,6 +746,96 @@
     },
     {
       "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "githubCreatedAt",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "followers",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "following",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "publicRepos",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "totalStars",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "totalContributions",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "bio",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[]'",
+      "generated": null,
+      "name": "achievementsJson",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "lastEnrichedAt",
+      "entityType": "columns",
+      "table": "GithubUser"
+    },
+    {
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": "false",
@@ -644,6 +936,16 @@
     },
     {
       "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "installerGithubId",
+      "entityType": "columns",
+      "table": "Installation"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": "'all'",
@@ -681,6 +983,136 @@
       "name": "updatedAt",
       "entityType": "columns",
       "table": "Installation"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "installationId",
+      "entityType": "columns",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'maintainer'",
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'info'",
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "body",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "link",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "read",
+      "entityType": "columns",
+      "table": "Notification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "Notification"
     },
     {
       "type": "text",
@@ -891,6 +1323,186 @@
       "name": "updatedAt",
       "entityType": "columns",
       "table": "PullRequest"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "repositoryId",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "targetUserId",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "decision",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "note",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "correctedByLogin",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "correctedByUserId",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "repositoryId",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "enabled",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "analyzePrivateRepositories",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "minimumLikelyAbuseConfidence",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "trustedAuthorsJson",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ignoredPathsJson",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedByUserId",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updatedByLogin",
+      "entityType": "columns",
+      "table": "RepoPolicy"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "RepoPolicy"
     },
     {
       "type": "text",
@@ -1243,6 +1855,156 @@
       "table": "SourceImport"
     },
     {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "url",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "logoUrl",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "description",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'supporter'",
+      "generated": null,
+      "name": "tier",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'active'",
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "sortOrder",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "Sponsor"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "UserPreferences"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
+      "table": "UserPreferences"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "openrouterApiKeyEncrypted",
+      "entityType": "columns",
+      "table": "UserPreferences"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[\"report\",\"dispute\",\"flag\",\"correction\",\"ok\",\"info\"]'",
+      "generated": null,
+      "name": "notificationKindsJson",
+      "entityType": "columns",
+      "table": "UserPreferences"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(unixepoch())",
+      "generated": null,
+      "name": "updatedAt",
+      "entityType": "columns",
+      "table": "UserPreferences"
+    },
+    {
       "columns": [
         "targetUserId"
       ],
@@ -1349,6 +2111,21 @@
     },
     {
       "columns": [
+        "installationId"
+      ],
+      "tableTo": "Installation",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_InstallationMaintainer_installationId_Installation_id_fk",
+      "entityType": "fks",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "columns": [
         "repositoryId"
       ],
       "tableTo": "Repository",
@@ -1376,6 +2153,51 @@
       "name": "fk_PullRequest_authorUserId_GithubUser_id_fk",
       "entityType": "fks",
       "table": "PullRequest"
+    },
+    {
+      "columns": [
+        "repositoryId"
+      ],
+      "tableTo": "Repository",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_RepoAccountDecision_repositoryId_Repository_id_fk",
+      "entityType": "fks",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "columns": [
+        "targetUserId"
+      ],
+      "tableTo": "GithubUser",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_RepoAccountDecision_targetUserId_GithubUser_id_fk",
+      "entityType": "fks",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "columns": [
+        "repositoryId"
+      ],
+      "tableTo": "Repository",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_RepoPolicy_repositoryId_Repository_id_fk",
+      "entityType": "fks",
+      "table": "RepoPolicy"
     },
     {
       "columns": [
@@ -1421,6 +2243,24 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "Appeal_pk",
+      "table": "Appeal",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "BackfillJob_pk",
+      "table": "BackfillJob",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "BotReport_pk",
       "table": "BotReport",
       "entityType": "pks"
@@ -1457,8 +2297,44 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "InstallationMaintainer_pk",
+      "table": "InstallationMaintainer",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "Notification_pk",
+      "table": "Notification",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "PullRequest_pk",
       "table": "PullRequest",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "RepoAccountDecision_pk",
+      "table": "RepoAccountDecision",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "repositoryId"
+      ],
+      "nameExplicit": false,
+      "name": "RepoPolicy_pk",
+      "table": "RepoPolicy",
       "entityType": "pks"
     },
     {
@@ -1490,6 +2366,24 @@
     },
     {
       "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "Sponsor_pk",
+      "table": "Sponsor",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "UserPreferences_pk",
+      "table": "UserPreferences",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
         {
           "value": "eventName",
           "isExpression": false
@@ -1515,6 +2409,48 @@
       "name": "app_events_processed_idx",
       "entityType": "indexes",
       "table": "AppEvent"
+    },
+    {
+      "columns": [
+        {
+          "value": "login",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "appeals_login_idx",
+      "entityType": "indexes",
+      "table": "Appeal"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "appeals_status_idx",
+      "entityType": "indexes",
+      "table": "Appeal"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "backfill_jobs_status_idx",
+      "entityType": "indexes",
+      "table": "BackfillJob"
     },
     {
       "columns": [
@@ -1645,6 +2581,84 @@
     {
       "columns": [
         {
+          "value": "installerGithubId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "installations_installer_idx",
+      "entityType": "indexes",
+      "table": "Installation"
+    },
+    {
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false
+        },
+        {
+          "value": "installationId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "installation_maintainers_user_install_idx",
+      "entityType": "indexes",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "installation_maintainers_user_idx",
+      "entityType": "indexes",
+      "table": "InstallationMaintainer"
+    },
+    {
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "notifications_user_idx",
+      "entityType": "indexes",
+      "table": "Notification"
+    },
+    {
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false
+        },
+        {
+          "value": "read",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "notifications_user_read_idx",
+      "entityType": "indexes",
+      "table": "Notification"
+    },
+    {
+      "columns": [
+        {
           "value": "repositoryId",
           "isExpression": false
         },
@@ -1687,6 +2701,52 @@
       "name": "pull_requests_last_seen_idx",
       "entityType": "indexes",
       "table": "PullRequest"
+    },
+    {
+      "columns": [
+        {
+          "value": "repositoryId",
+          "isExpression": false
+        },
+        {
+          "value": "targetUserId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "repo_account_decisions_repo_target_idx",
+      "entityType": "indexes",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "columns": [
+        {
+          "value": "repositoryId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "repo_account_decisions_repo_idx",
+      "entityType": "indexes",
+      "table": "RepoAccountDecision"
+    },
+    {
+      "columns": [
+        {
+          "value": "targetUserId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "repo_account_decisions_target_idx",
+      "entityType": "indexes",
+      "table": "RepoAccountDecision"
     },
     {
       "columns": [
@@ -1746,12 +2806,63 @@
     },
     {
       "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "sponsors_status_idx",
+      "entityType": "indexes",
+      "table": "Sponsor"
+    },
+    {
+      "columns": [
+        {
+          "value": "tier",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "sponsors_tier_idx",
+      "entityType": "indexes",
+      "table": "Sponsor"
+    },
+    {
+      "columns": [
+        {
+          "value": "userId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "user_preferences_user_idx",
+      "entityType": "indexes",
+      "table": "UserPreferences"
+    },
+    {
+      "columns": [
         "deliveryId"
       ],
       "nameExplicit": false,
       "name": "AppEvent_deliveryId_unique",
       "entityType": "uniques",
       "table": "AppEvent"
+    },
+    {
+      "columns": [
+        "login"
+      ],
+      "nameExplicit": false,
+      "name": "BackfillJob_login_unique",
+      "entityType": "uniques",
+      "table": "BackfillJob"
     },
     {
       "columns": [

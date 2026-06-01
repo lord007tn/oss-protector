@@ -12,6 +12,29 @@ CREATE TABLE `AppEvent` (
 	`processedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `Appeal` (
+	`id` text PRIMARY KEY,
+	`login` text NOT NULL,
+	`email` text,
+	`relationship` text DEFAULT 'self' NOT NULL,
+	`story` text NOT NULL,
+	`evidenceJson` text DEFAULT '[]' NOT NULL,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`submittedByUserId` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `BackfillJob` (
+	`id` text PRIMARY KEY,
+	`login` text NOT NULL UNIQUE,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`attempts` integer DEFAULT 0 NOT NULL,
+	`lastError` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `BotReport` (
 	`id` text PRIMARY KEY,
 	`targetUserId` text NOT NULL,
@@ -65,6 +88,15 @@ CREATE TABLE `GithubUser` (
 	`avatarUrl` text,
 	`htmlUrl` text,
 	`accountType` text DEFAULT 'User' NOT NULL,
+	`githubCreatedAt` integer,
+	`followers` integer DEFAULT 0 NOT NULL,
+	`following` integer DEFAULT 0 NOT NULL,
+	`publicRepos` integer DEFAULT 0 NOT NULL,
+	`totalStars` integer DEFAULT 0 NOT NULL,
+	`totalContributions` integer DEFAULT 0 NOT NULL,
+	`bio` text,
+	`achievementsJson` text DEFAULT '[]' NOT NULL,
+	`lastEnrichedAt` integer,
 	`isKnownGithubBot` integer DEFAULT false NOT NULL,
 	`firstSeenAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`lastSeenAt` integer DEFAULT (unixepoch()) NOT NULL,
@@ -78,10 +110,31 @@ CREATE TABLE `Installation` (
 	`accountGithubId` text,
 	`accountLogin` text NOT NULL,
 	`accountType` text DEFAULT 'Organization' NOT NULL,
+	`installerGithubId` text,
 	`repositorySelection` text DEFAULT 'all' NOT NULL,
 	`suspendedAt` integer,
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `InstallationMaintainer` (
+	`id` text PRIMARY KEY,
+	`userId` text NOT NULL,
+	`installationId` text NOT NULL,
+	`role` text DEFAULT 'maintainer' NOT NULL,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	CONSTRAINT `fk_InstallationMaintainer_installationId_Installation_id_fk` FOREIGN KEY (`installationId`) REFERENCES `Installation`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `Notification` (
+	`id` text PRIMARY KEY,
+	`userId` text NOT NULL,
+	`kind` text DEFAULT 'info' NOT NULL,
+	`title` text NOT NULL,
+	`body` text,
+	`link` text,
+	`read` integer DEFAULT false NOT NULL,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `PullRequest` (
@@ -108,6 +161,33 @@ CREATE TABLE `PullRequest` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL,
 	CONSTRAINT `fk_PullRequest_repositoryId_Repository_id_fk` FOREIGN KEY (`repositoryId`) REFERENCES `Repository`(`id`) ON DELETE CASCADE,
 	CONSTRAINT `fk_PullRequest_authorUserId_GithubUser_id_fk` FOREIGN KEY (`authorUserId`) REFERENCES `GithubUser`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `RepoAccountDecision` (
+	`id` text PRIMARY KEY,
+	`repositoryId` text NOT NULL,
+	`targetUserId` text NOT NULL,
+	`decision` text NOT NULL,
+	`note` text,
+	`correctedByLogin` text NOT NULL,
+	`correctedByUserId` text,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL,
+	CONSTRAINT `fk_RepoAccountDecision_repositoryId_Repository_id_fk` FOREIGN KEY (`repositoryId`) REFERENCES `Repository`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_RepoAccountDecision_targetUserId_GithubUser_id_fk` FOREIGN KEY (`targetUserId`) REFERENCES `GithubUser`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `RepoPolicy` (
+	`repositoryId` text PRIMARY KEY,
+	`enabled` integer,
+	`analyzePrivateRepositories` integer,
+	`minimumLikelyAbuseConfidence` integer,
+	`trustedAuthorsJson` text,
+	`ignoredPathsJson` text,
+	`updatedByUserId` text,
+	`updatedByLogin` text,
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL,
+	CONSTRAINT `fk_RepoPolicy_repositoryId_Repository_id_fk` FOREIGN KEY (`repositoryId`) REFERENCES `Repository`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `Repository` (
@@ -156,8 +236,32 @@ CREATE TABLE `SourceImport` (
 	`importedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `Sponsor` (
+	`id` text PRIMARY KEY,
+	`name` text NOT NULL,
+	`url` text NOT NULL,
+	`logoUrl` text,
+	`description` text,
+	`tier` text DEFAULT 'supporter' NOT NULL,
+	`status` text DEFAULT 'active' NOT NULL,
+	`sortOrder` integer DEFAULT 0 NOT NULL,
+	`createdAt` integer DEFAULT (unixepoch()) NOT NULL,
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `UserPreferences` (
+	`id` text PRIMARY KEY,
+	`userId` text NOT NULL,
+	`openrouterApiKeyEncrypted` text,
+	`notificationKindsJson` text DEFAULT '["report","dispute","flag","correction","ok","info"]' NOT NULL,
+	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
+);
+--> statement-breakpoint
 CREATE INDEX `app_events_event_idx` ON `AppEvent` (`eventName`);--> statement-breakpoint
 CREATE INDEX `app_events_processed_idx` ON `AppEvent` (`processedAt`);--> statement-breakpoint
+CREATE INDEX `appeals_login_idx` ON `Appeal` (`login`);--> statement-breakpoint
+CREATE INDEX `appeals_status_idx` ON `Appeal` (`status`);--> statement-breakpoint
+CREATE INDEX `backfill_jobs_status_idx` ON `BackfillJob` (`status`);--> statement-breakpoint
 CREATE UNIQUE INDEX `bot_reports_comment_idx` ON `BotReport` (`commentId`);--> statement-breakpoint
 CREATE INDEX `bot_reports_target_idx` ON `BotReport` (`targetUserId`);--> statement-breakpoint
 CREATE INDEX `bot_reports_reporter_idx` ON `BotReport` (`reporterLogin`);--> statement-breakpoint
@@ -167,10 +271,21 @@ CREATE INDEX `bot_signals_observed_idx` ON `BotSignal` (`observedAt`);--> statem
 CREATE INDEX `github_users_login_idx` ON `GithubUser` (`login`);--> statement-breakpoint
 CREATE INDEX `github_users_last_seen_idx` ON `GithubUser` (`lastSeenAt`);--> statement-breakpoint
 CREATE INDEX `installations_account_login_idx` ON `Installation` (`accountLogin`);--> statement-breakpoint
+CREATE INDEX `installations_installer_idx` ON `Installation` (`installerGithubId`);--> statement-breakpoint
+CREATE UNIQUE INDEX `installation_maintainers_user_install_idx` ON `InstallationMaintainer` (`userId`,`installationId`);--> statement-breakpoint
+CREATE INDEX `installation_maintainers_user_idx` ON `InstallationMaintainer` (`userId`);--> statement-breakpoint
+CREATE INDEX `notifications_user_idx` ON `Notification` (`userId`);--> statement-breakpoint
+CREATE INDEX `notifications_user_read_idx` ON `Notification` (`userId`,`read`);--> statement-breakpoint
 CREATE UNIQUE INDEX `pull_requests_repo_number_idx` ON `PullRequest` (`repositoryId`,`number`);--> statement-breakpoint
 CREATE INDEX `pull_requests_author_idx` ON `PullRequest` (`authorUserId`);--> statement-breakpoint
 CREATE INDEX `pull_requests_last_seen_idx` ON `PullRequest` (`lastSeenAt`);--> statement-breakpoint
+CREATE UNIQUE INDEX `repo_account_decisions_repo_target_idx` ON `RepoAccountDecision` (`repositoryId`,`targetUserId`);--> statement-breakpoint
+CREATE INDEX `repo_account_decisions_repo_idx` ON `RepoAccountDecision` (`repositoryId`);--> statement-breakpoint
+CREATE INDEX `repo_account_decisions_target_idx` ON `RepoAccountDecision` (`targetUserId`);--> statement-breakpoint
 CREATE INDEX `repositories_installation_idx` ON `Repository` (`installationId`);--> statement-breakpoint
 CREATE INDEX `repositories_owner_idx` ON `Repository` (`ownerLogin`);--> statement-breakpoint
 CREATE INDEX `risk_profiles_status_idx` ON `RiskProfile` (`status`);--> statement-breakpoint
-CREATE INDEX `risk_profiles_score_idx` ON `RiskProfile` (`score`);
+CREATE INDEX `risk_profiles_score_idx` ON `RiskProfile` (`score`);--> statement-breakpoint
+CREATE INDEX `sponsors_status_idx` ON `Sponsor` (`status`);--> statement-breakpoint
+CREATE INDEX `sponsors_tier_idx` ON `Sponsor` (`tier`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_preferences_user_idx` ON `UserPreferences` (`userId`);
