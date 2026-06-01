@@ -15,7 +15,7 @@ import {
 	User,
 	X,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useReducer, useState } from "react";
 import { toast } from "sonner";
 
 import { RepoPolicyView } from "@/components/dashboard/repo-policy-view";
@@ -472,7 +472,7 @@ function InboxView({
 	pendingLogin: null | string;
 }) {
 	const [sortMode, setSortMode] = useState<"conf" | "time">("conf");
-	const sorted = [...data.queue].sort((a, b) =>
+	const sorted = data.queue.toSorted((a, b) =>
 		sortMode === "conf"
 			? b.confidence - a.confidence
 			: b.createdAt - a.createdAt
@@ -503,7 +503,7 @@ function InboxView({
 						<CardTitle className="text-[16px]">Review queue</CardTitle>
 						<CardDescription className="mt-0.5 text-[13px]">
 							{data.queue.length} report{data.queue.length === 1 ? "" : "s"}{" "}
-							waiting. Decide once — applies across all your repos.
+							waiting. Decide once, applies across all your repos.
 						</CardDescription>
 					</div>
 					<Button
@@ -1009,6 +1009,25 @@ function AppealsView({
 	);
 }
 
+interface OverrideForm {
+	decision: RepoDecisionKind;
+	login: string;
+	note: string;
+	repositoryId: string;
+}
+
+const initialOverrideForm = (repos: DashboardRepo[]): OverrideForm => ({
+	decision: "block",
+	login: "",
+	note: "",
+	repositoryId: repos[0]?.id ?? "",
+});
+
+const overrideFormReducer = (
+	state: OverrideForm,
+	patch: Partial<OverrideForm>
+): OverrideForm => ({ ...state, ...patch });
+
 function OverridesView({
 	onChange,
 	overrides,
@@ -1018,19 +1037,20 @@ function OverridesView({
 	overrides: RepoDecisionRow[];
 	repos: DashboardRepo[];
 }) {
-	const [login, setLogin] = useState("");
-	const [note, setNote] = useState("");
-	const [repositoryId, setRepositoryId] = useState(repos[0]?.id ?? "");
-	const [decision, setDecision] = useState<RepoDecisionKind>("block");
+	const [form, updateForm] = useReducer(
+		overrideFormReducer,
+		repos,
+		initialOverrideForm
+	);
 	const [pending, setPending] = useState(false);
 	const [pendingRow, setPendingRow] = useState<null | string>(null);
 
 	const submit = async () => {
-		if (!repositoryId) {
+		if (!form.repositoryId) {
 			toast.error("Pick a repository.");
 			return;
 		}
-		if (login.trim().length < 1) {
+		if (form.login.trim().length < 1) {
 			toast.error("Provide an account handle.");
 			return;
 		}
@@ -1038,10 +1058,10 @@ function OverridesView({
 		try {
 			const response = await fetch("/api/maintainer/repo-decision", {
 				body: JSON.stringify({
-					decision,
-					note: note.trim() || null,
-					repositoryId,
-					targetLogin: login.trim(),
+					decision: form.decision,
+					note: form.note.trim() || null,
+					repositoryId: form.repositoryId,
+					targetLogin: form.login.trim(),
 				}),
 				headers: { "Content-Type": "application/json" },
 				method: "POST",
@@ -1051,9 +1071,8 @@ function OverridesView({
 				toast.error(data.error ?? "Couldn't save the override.");
 				return;
 			}
-			toast.success(`Saved ${decision} for @${login.trim()}.`);
-			setLogin("");
-			setNote("");
+			toast.success(`Saved ${form.decision} for @${form.login.trim()}.`);
+			updateForm({ login: "", note: "" });
 			onChange();
 		} finally {
 			setPending(false);
@@ -1119,9 +1138,9 @@ function OverridesView({
 						<Input
 							autoComplete="off"
 							id="override-login"
-							onChange={(event) => setLogin(event.target.value)}
+							onChange={(event) => updateForm({ login: event.target.value })}
 							placeholder="@autopr-helper-99"
-							value={login}
+							value={form.login}
 						/>
 					</div>
 					<div className="grid gap-1.5">
@@ -1129,8 +1148,10 @@ function OverridesView({
 							Repository
 						</Label>
 						<Select
-							onValueChange={(value) => setRepositoryId(value ?? "")}
-							value={repositoryId}
+							onValueChange={(value) =>
+								updateForm({ repositoryId: value ?? "" })
+							}
+							value={form.repositoryId}
 						>
 							<SelectTrigger className="h-9 w-full" id="override-repo">
 								<SelectValue />
@@ -1147,8 +1168,10 @@ function OverridesView({
 					<div className="grid gap-1.5">
 						<Label className="text-[12.5px]">Decision</Label>
 						<Tabs
-							onValueChange={(value) => setDecision(value as RepoDecisionKind)}
-							value={decision}
+							onValueChange={(value) =>
+								updateForm({ decision: value as RepoDecisionKind })
+							}
+							value={form.decision}
 						>
 							<TabsList>
 								{(["block", "allow"] as RepoDecisionKind[]).map((kind) => (
@@ -1167,9 +1190,9 @@ function OverridesView({
 					<Input
 						id="override-note"
 						maxLength={280}
-						onChange={(event) => setNote(event.target.value)}
+						onChange={(event) => updateForm({ note: event.target.value })}
 						placeholder="Why this override applies — surfaced in the audit log."
-						value={note}
+						value={form.note}
 					/>
 				</div>
 				<div className="mt-4">

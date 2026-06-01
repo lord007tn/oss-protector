@@ -209,7 +209,7 @@ function AccountRoute() {
 						{disputeSent ? (
 							<Alert variant="success">
 								<Check />
-								<AlertTitle>Thanks — your dispute is in.</AlertTitle>
+								<AlertTitle>Thanks. Your dispute is in.</AlertTitle>
 								<AlertDescription>
 									We'll review with three trust-graph maintainers within 48
 									hours.

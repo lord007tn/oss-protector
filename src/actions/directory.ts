@@ -137,7 +137,7 @@ const buildProtectors = (reports: DashboardRecords["reports"]) => {
 		protectorMap.set(report.reporterLogin, current);
 	}
 
-	return [...protectorMap.values()].sort(
+	return Array.from(protectorMap.values()).toSorted(
 		(a, b) =>
 			b.score - a.score ||
 			b.validatedReports - a.validatedReports ||
@@ -229,13 +229,17 @@ const buildDirectoryDashboard = (
 			id: report.id,
 			status: report.status,
 		})),
-		repositories: repositories
-			.filter((repo) => repo.isActive && !repo.isPrivate)
-			.map((repo) => ({
-				fullName: repo.fullName,
-				name: repo.name,
-				ownerLogin: repo.ownerLogin,
-			})),
+		repositories: repositories.flatMap((repo) =>
+			repo.isActive && !repo.isPrivate
+				? [
+						{
+							fullName: repo.fullName,
+							name: repo.name,
+							ownerLogin: repo.ownerLogin,
+						},
+					]
+				: []
+		),
 		riskProfiles,
 		stats: {
 			activeRepositories: repositories.filter(
@@ -308,14 +312,16 @@ export type DirectoryDashboard = Awaited<
 
 const listAccountApiProfiles = async () => {
 	const profiles = await getDirectoryAccountApiProfiles();
-	return profiles
-		.filter((profile) => profile.status !== "allow")
-		.map((profile) => {
-			const status = riskStatusForScore({
-				isAllowed: profile.status === "allow",
-				score: profile.score,
-			});
-			return {
+	return profiles.flatMap((profile) => {
+		if (profile.status === "allow") {
+			return [];
+		}
+		const status = riskStatusForScore({
+			isAllowed: false,
+			score: profile.score,
+		});
+		return [
+			{
 				avatarUrl: profile.targetUser.avatarUrl,
 				confidence: profile.confidence,
 				commitCount: profile.commitCount,
@@ -332,8 +338,9 @@ const listAccountApiProfiles = async () => {
 				status,
 				summary: profile.summary,
 				validatedReportCount: 0,
-			};
-		});
+			},
+		];
+	});
 };
 
 export const listAccountsApi = async (filters: AccountFilters) => {

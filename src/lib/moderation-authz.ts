@@ -10,10 +10,10 @@ export const getAdminEmails = (env?: RuntimeBindings): string[] => {
 	if (!configured) {
 		return [];
 	}
-	return configured
-		.split(",")
-		.map((entry) => entry.trim().toLowerCase())
-		.filter(Boolean);
+	return configured.split(",").flatMap((entry) => {
+		const email = entry.trim().toLowerCase();
+		return email ? [email] : [];
+	});
 };
 
 // Platform admins bypass the per-repo moderation scope. Primary signal is the

@@ -132,7 +132,7 @@ function OverviewTab({ overview }: { overview: AdminOverview | null }) {
 		return (
 			<Alert variant="destructive">
 				<AlertDescription>
-					The admin overview is unavailable — the database isn't configured.
+					The admin overview is unavailable. The database isn't configured.
 				</AlertDescription>
 			</Alert>
 		);

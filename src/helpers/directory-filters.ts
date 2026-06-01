@@ -189,23 +189,19 @@ export function filterAccounts(
 	filters: AccountFilters
 ): FilteredPage<AccountProfile> {
 	const query = filters.q.toLowerCase();
-	const matched = profiles
-		.filter((profile) => profile.status !== "allow")
-		.filter((profile) =>
-			query
+	const matched = profiles.filter(
+		(profile) =>
+			profile.status !== "allow" &&
+			(query
 				? profile.login.toLowerCase().includes(query) ||
 					(profile.summary ?? "").toLowerCase().includes(query)
-				: true
-		)
-		.filter((profile) =>
-			filters.status === "all" ? true : profile.status === filters.status
-		)
-		.filter((profile) =>
-			filters.reason === "all"
+				: true) &&
+			(filters.status === "all" ? true : profile.status === filters.status) &&
+			(filters.reason === "all"
 				? true
-				: profile.reasonCodes.includes(filters.reason)
-		)
-		.filter((profile) => profile.score >= filters.minScore);
+				: profile.reasonCodes.includes(filters.reason)) &&
+			profile.score >= filters.minScore
+	);
 
 	const total = matched.length;
 	const page = matched.slice(filters.offset, filters.offset + filters.limit);
@@ -225,12 +221,12 @@ export function filterProtectors(
 	filters: ProtectorFilters
 ): FilteredPage<ProtectorProfile> {
 	const query = filters.q.toLowerCase();
-	const matched = protectors
-		.filter((protector) =>
-			query ? protector.login.toLowerCase().includes(query) : true
-		)
-		.filter((protector) => protector.score >= filters.minScore)
-		.filter((protector) => protector.reports >= filters.minReports);
+	const matched = protectors.filter(
+		(protector) =>
+			(query ? protector.login.toLowerCase().includes(query) : true) &&
+			protector.score >= filters.minScore &&
+			protector.reports >= filters.minReports
+	);
 
 	const total = matched.length;
 	const page = matched.slice(filters.offset, filters.offset + filters.limit);

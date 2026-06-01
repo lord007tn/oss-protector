@@ -33,9 +33,11 @@ export async function getRepoPolicy(
 		dbPolicy.minimumLikelyAbuseConfidence = row.minimumLikelyAbuseConfidence;
 	}
 	if (row.trustedAuthorsJson) {
-		dbPolicy.trustedAuthors = parseJsonArray<string>(row.trustedAuthorsJson)
-			.filter((value): value is string => typeof value === "string")
-			.map((login) => login.toLowerCase());
+		dbPolicy.trustedAuthors = parseJsonArray<string>(
+			row.trustedAuthorsJson
+		).flatMap((value) =>
+			typeof value === "string" ? [value.toLowerCase()] : []
+		);
 	}
 	if (row.ignoredPathsJson) {
 		dbPolicy.ignoredPaths = parseJsonArray<string>(row.ignoredPathsJson).filter(

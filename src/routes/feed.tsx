@@ -180,7 +180,7 @@ function FeedBody({
 			<Empty className="py-16">
 				<EmptyHeader>
 					<EmptyDescription>
-						No flags yet. The feed fills as the app observes activity — seed the
+						No flags yet. The feed fills as the app observes activity. Seed the
 						local database with{" "}
 						<code className="font-mono text-xs">pnpm db:seed</code>.
 					</EmptyDescription>

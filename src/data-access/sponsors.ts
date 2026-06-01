@@ -37,13 +37,13 @@ export async function listActiveSponsors(): Promise<SponsorRecord[]> {
 		.select()
 		.from(Sponsor)
 		.where(eq(Sponsor.status, "active"));
-	return [...rows].sort(byTierThenOrder);
+	return rows.toSorted(byTierThenOrder);
 }
 
 // Every sponsor (any status) for the admin console.
 export async function listAllSponsors(): Promise<SponsorRecord[]> {
 	const rows = await database.select().from(Sponsor);
-	return [...rows].sort(byTierThenOrder);
+	return rows.toSorted(byTierThenOrder);
 }
 
 export async function createSponsor(

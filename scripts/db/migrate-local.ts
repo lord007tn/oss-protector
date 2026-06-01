@@ -31,8 +31,7 @@ async function main(): Promise<void> {
 
 	const entries = await readdir(MIGRATIONS_DIR, { withFileTypes: true });
 	const folders = entries
-		.filter((entry) => entry.isDirectory())
-		.map((entry) => entry.name)
+		.flatMap((entry) => (entry.isDirectory() ? [entry.name] : []))
 		.sort();
 
 	const pending = folders.filter((name) => !applied.has(name));

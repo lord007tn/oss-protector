@@ -92,8 +92,8 @@ export function LoginForm({
 				Sign in to OSS Protector
 			</h1>
 			<p className="mt-2 mb-6 text-muted-foreground text-sm leading-relaxed">
-				Maintainer controls require an account. Public surfaces — feed,
-				accounts, disputes — stay open to everyone.
+				Maintainer controls require an account. Public surfaces (feed, accounts,
+				disputes) stay open to everyone.
 			</p>
 
 			{githubAuthEnabled ? (

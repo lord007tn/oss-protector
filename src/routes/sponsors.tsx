@@ -269,7 +269,7 @@ function SponsorsRoute() {
 					<MonoLabel>Governance</MonoLabel>
 					<p className="text-[15px] text-muted-foreground leading-relaxed">
 						OSS Protector is maintained in the open. The scoring code and signal
-						weights are public — you can read exactly how a flag is computed on
+						weights are public; you can read exactly how a flag is computed on
 						the{" "}
 						<a className="text-primary hover:underline" href="/methodology">
 							methodology page

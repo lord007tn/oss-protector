@@ -73,9 +73,10 @@ const parseKinds = (value: unknown): NotificationKind[] | undefined => {
 	if (value === undefined || value === null || !Array.isArray(value)) {
 		return;
 	}
-	return value
-		.filter((entry): entry is string => typeof entry === "string")
-		.filter(isNotificationKind);
+	return value.filter(
+		(entry): entry is NotificationKind =>
+			typeof entry === "string" && isNotificationKind(entry)
+	);
 };
 
 const parseApiKey = (value: unknown): string | null | undefined => {

@@ -111,9 +111,9 @@ function AppealRoute() {
 			const response = await fetch("/api/appeal", {
 				body: JSON.stringify({
 					email,
-					evidence: Object.entries(evidence)
-						.filter(([, on]) => on)
-						.map(([key]) => key),
+					evidence: Object.entries(evidence).flatMap(([key, on]) =>
+						on ? [key] : []
+					),
 					login: handle,
 					relationship: holder,
 					story,
@@ -271,7 +271,7 @@ function AppealRoute() {
 							What did we get wrong?
 						</h1>
 						<p className="mt-2 mb-8 text-[16px] text-muted-foreground leading-relaxed">
-							In your own words. Be specific — vague appeals don't move
+							In your own words. Be specific. Vague appeals don't move
 							maintainers. Tell us who you are, why you opened those PRs, and
 							what context our heuristics missed.
 						</p>
@@ -369,8 +369,7 @@ function AppealRoute() {
 								label="Verification methods"
 								value={
 									Object.entries(evidence)
-										.filter(([, value]) => value)
-										.map(([key]) => key)
+										.flatMap(([key, value]) => (value ? [key] : []))
 										.join(", ") || "none chosen"
 								}
 							/>

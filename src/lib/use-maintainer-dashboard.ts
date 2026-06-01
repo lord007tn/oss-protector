@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { MaintainerDashboard } from "@/data-access/maintainer-dashboard";
 
 interface DashboardResponse {
@@ -10,35 +10,24 @@ interface DashboardResponse {
 // the queue actions call after a Confirm/Dismiss/Allow so the view reflects the
 // new server state.
 export function useMaintainerDashboard(enabled: boolean) {
-	const [dashboard, setDashboard] = useState<MaintainerDashboard | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<null | string>(null);
-
-	const refresh = useCallback(async () => {
-		if (!enabled) {
-			return;
-		}
-		try {
+	const query = useQuery({
+		enabled,
+		queryFn: async (): Promise<MaintainerDashboard | null> => {
 			const response = await fetch("/api/dashboard");
 			const data = (await response.json()) as DashboardResponse;
 			if (!response.ok) {
-				setError(data.error ?? "Failed to load dashboard.");
-				return;
+				throw new Error(data.error ?? "Failed to load dashboard.");
 			}
-			setDashboard(data.dashboard ?? null);
-			setError(null);
-		} catch {
-			setError("Network error — try again.");
-		} finally {
-			setLoading(false);
-		}
-	}, [enabled]);
+			return data.dashboard ?? null;
+		},
+		queryKey: ["maintainer-dashboard"],
+		staleTime: 30_000,
+	});
 
-	useEffect(() => {
-		if (enabled) {
-			refresh();
-		}
-	}, [enabled, refresh]);
-
-	return { dashboard, error, loading, refresh };
+	return {
+		dashboard: query.data ?? null,
+		error: query.error ? query.error.message : null,
+		loading: query.isPending,
+		refresh: query.refetch,
+	};
 }

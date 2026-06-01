@@ -28,7 +28,7 @@ function TermsRoute() {
 					<p>
 						OSS Protector publishes a shared review feed of GitHub accounts and
 						pull request activity that match patterns commonly associated with
-						OSS abuse — fake bounty farming, credential phishing, dependency
+						OSS abuse: fake bounty farming, credential phishing, dependency
 						script abuse, low-quality AI submissions, and similar. Listings are
 						a starting point for maintainer review.
 					</p>
@@ -58,7 +58,7 @@ function TermsRoute() {
 						</li>
 						<li>
 							Verify independently before taking adverse action against an
-							account — at minimum, inspect the linked evidence.
+							account. At minimum, inspect the linked evidence.
 						</li>
 						<li>
 							Cite OSS Protector when sharing a listing publicly so others can

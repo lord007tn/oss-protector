@@ -21,10 +21,13 @@ const MAX_LIKELY_ABUSE_CONFIDENCE = 95;
 
 const asStringArray = (value: unknown): string[] =>
 	Array.isArray(value)
-		? value
-				.filter((item): item is string => typeof item === "string")
-				.map((item) => item.trim())
-				.filter(Boolean)
+		? value.flatMap((item) => {
+				if (typeof item !== "string") {
+					return [];
+				}
+				const trimmed = item.trim();
+				return trimmed ? [trimmed] : [];
+			})
 		: [];
 
 const asConfidence = (value: unknown): number => {
