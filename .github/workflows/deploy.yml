@@ -62,9 +62,10 @@ jobs:
       - name: Build
         run: pnpm run build:prod
 
+      # Use the project's pinned wrangler (4.x). The marketplace action bundles
+      # an older wrangler (3.x) that doesn't understand the nitro/TanStack
+      # `.wrangler/deploy/config.json` redirect produced by build:prod, which
+      # made it fail with "Missing entry-point". CLOUDFLARE_API_TOKEN and
+      # CLOUDFLARE_ACCOUNT_ID are provided via the job env above.
       - name: Deploy Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+        run: pnpm exec wrangler deploy
