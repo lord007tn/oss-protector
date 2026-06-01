@@ -60,7 +60,7 @@ jobs:
         run: pnpm run db:migrate
 
       - name: Build
-        run: pnpm run build:hosted
+        run: pnpm run build:prod
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
