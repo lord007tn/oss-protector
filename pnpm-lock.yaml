@@ -150,9 +150,6 @@ importers:
       commitizen:
         specifier: ^4.3.1
         version: 4.3.1(@types/node@22.19.19)(typescript@6.0.3)
-      cross-env:
-        specifier: ^10.1.0
-        version: 10.1.0
       cz-git:
         specifier: ^1.13.1
         version: 1.13.1
@@ -183,15 +180,6 @@ importers:
       nitro:
         specifier: 3.0.260429-beta
         version: 3.0.260429-beta(dotenv@17.4.2)(drizzle-orm@1.0.0-beta.24(@cloudflare/workers-types@4.20260511.1)(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.3.6)(miniflare@4.20260508.0)(vite@8.0.12(@types/node@22.19.19)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
-      oxfmt:
-        specifier: ^0.49.0
-        version: 0.49.0
-      oxlint:
-        specifier: ^1.64.0
-        version: 1.64.0(oxlint-tsgolint@0.22.1)
-      oxlint-tsgolint:
-        specifier: ^0.22.1
-        version: 0.22.1
       react-doctor:
         specifier: ^0.1.6
         version: 0.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(eslint-plugin-react-hooks@7.1.1(eslint@10.3.0(jiti@2.7.0)))(eslint-plugin-react-you-might-not-need-an-effect@0.10.1(eslint@10.3.0(jiti@2.7.0)))(oxlint-tsgolint@0.22.1)
@@ -678,9 +666,6 @@ packages:
 
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
-
-  '@epic-web/invariant@1.0.0':
-    resolution: {integrity: sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -2290,8 +2275,8 @@ packages:
     peerDependencies:
       preact: 10.x
 
-  '@react-grab/cli@0.1.39':
-    resolution: {integrity: sha512-+2Q9W0OE0MwPb4mBmwZPSs9QgHN0fhf2SVqNuib7tr5JmzEtDo1SWSsFjQ50QiwRTJzIY8I5IZTg6vVb1jOFLw==}
+  '@react-grab/cli@0.1.44':
+    resolution: {integrity: sha512-gMDYY2rw6OWajCcDlXSIgs2LC432YJXSb3Lm5yM187uhRgBYddoEVULi36h+IolX3r7jSb3ew7vn9FfI8NSo0A==}
     hasBin: true
 
   '@reduxjs/toolkit@2.11.2':
@@ -3416,11 +3401,6 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
-
-  cross-env@10.1.0:
-    resolution: {integrity: sha512-GsYosgnACZTADcmEyJctkJIoqAhHjttw7RsFrVoJNXbsWWqaq6Ym+7kZjq6mS45O0jij6vtiReppKQEtqWy6Dw==}
-    engines: {node: '>=20'}
-    hasBin: true
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -5248,8 +5228,8 @@ packages:
     peerDependencies:
       react: ^19.2.6
 
-  react-grab@0.1.39:
-    resolution: {integrity: sha512-5ZzlW7YDLVeR/244ZHB7eukEjE3X0g4wT1uVYHq39HwoNcWeQWKpwYfptIBeydDhcgPBggMaXxQaqZJkyqM4xA==}
+  react-grab@0.1.44:
+    resolution: {integrity: sha512-bDEwBdI90ljq2lhUtPqmWis/HwYB/CvfT0m5i+P9F83Pt0Ot8o9XL8v00s9jcWzdQUlsFDzmq2FO2CHUe8JY8A==}
     hasBin: true
     peerDependencies:
       react: '>=17.0.0'
@@ -6639,8 +6619,6 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@epic-web/invariant@1.0.0': {}
-
   '@esbuild/aix-ppc64@0.25.12':
     optional: true
 
@@ -7673,17 +7651,15 @@ snapshots:
       '@preact/signals-core': 1.14.2
       preact: 10.29.1
 
-  '@react-grab/cli@0.1.39':
+  '@react-grab/cli@0.1.44':
     dependencies:
       agent-install: 0.0.5
       commander: 14.0.3
       ignore: 7.0.5
-      jsonc-parser: 3.3.1
       ora: 9.4.0
       package-manager-detector: 1.6.0
       picocolors: 1.1.1
       prompts: 2.4.2
-      smol-toml: 1.6.1
       tinyexec: 1.1.2
 
   '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.14)(react@19.2.6)(redux@5.0.1))(react@19.2.6)':
@@ -8811,11 +8787,6 @@ snapshots:
       parse-json: 5.2.0
     optionalDependencies:
       typescript: 6.0.3
-
-  cross-env@10.1.0:
-    dependencies:
-      '@epic-web/invariant': 1.0.0
-      cross-spawn: 7.0.6
 
   cross-spawn@7.0.6:
     dependencies:
@@ -10396,6 +10367,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.49.0
       '@oxfmt/binding-win32-ia32-msvc': 0.49.0
       '@oxfmt/binding-win32-x64-msvc': 0.49.0
+    optional: true
 
   oxlint-tsgolint@0.22.1:
     optionalDependencies:
@@ -10405,6 +10377,7 @@ snapshots:
       '@oxlint-tsgolint/linux-x64': 0.22.1
       '@oxlint-tsgolint/win32-arm64': 0.22.1
       '@oxlint-tsgolint/win32-x64': 0.22.1
+    optional: true
 
   oxlint@1.64.0(oxlint-tsgolint@0.22.1):
     optionalDependencies:
@@ -10586,9 +10559,9 @@ snapshots:
       react: 19.2.6
       scheduler: 0.27.0
 
-  react-grab@0.1.39(react@19.2.6):
+  react-grab@0.1.44(react@19.2.6):
     dependencies:
-      '@react-grab/cli': 0.1.39
+      '@react-grab/cli': 0.1.44
       bippy: 0.5.41(react@19.2.6)
     optionalDependencies:
       react: 19.2.6
@@ -10617,7 +10590,7 @@ snapshots:
       prompts: 2.4.2
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      react-grab: 0.1.39(react@19.2.6)
+      react-grab: 0.1.44(react@19.2.6)
     optionalDependencies:
       esbuild: 0.27.7
       unplugin: 2.1.0
@@ -11044,7 +11017,8 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
 
-  tinypool@2.1.0: {}
+  tinypool@2.1.0:
+    optional: true
 
   tinyrainbow@3.1.0: {}
 
