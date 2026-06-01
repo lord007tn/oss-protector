@@ -169,9 +169,7 @@ export const getAuthConfigStatus = (env?: RuntimeBindings) => {
 	const missing = [
 		["BETTER_AUTH_SECRET", bindings.BETTER_AUTH_SECRET],
 		["accounts_db", bindings.accounts_db],
-	]
-		.filter(([, value]) => !value)
-		.map(([key]) => key);
+	].flatMap(([key, value]) => (value ? [] : [key]));
 
 	return {
 		isConfigured: missing.length === 0,

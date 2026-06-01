@@ -29,9 +29,10 @@ const sanitizeKinds = (raw: unknown): NotificationKind[] => {
 	if (!Array.isArray(raw)) {
 		return DEFAULT_KINDS;
 	}
-	const filtered = raw
-		.filter((value): value is string => typeof value === "string")
-		.filter(isNotificationKind);
+	const filtered = raw.filter(
+		(value): value is NotificationKind =>
+			typeof value === "string" && isNotificationKind(value)
+	);
 	return [...new Set(filtered)];
 };
 

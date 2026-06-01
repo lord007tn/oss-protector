@@ -99,8 +99,10 @@ export async function backfillMaintainerLinks(userId: string): Promise<number> {
 		.select({ id: Installation.id })
 		.from(Installation)
 		.where(eq(Installation.installerGithubId, account.accountId));
-	for (const installation of installations) {
-		await linkMaintainer({ installationId: installation.id, userId });
-	}
+	await Promise.all(
+		installations.map((installation) =>
+			linkMaintainer({ installationId: installation.id, userId })
+		)
+	);
 	return installations.length;
 }

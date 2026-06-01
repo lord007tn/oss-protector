@@ -221,7 +221,7 @@ function DocsRoute() {
 
 					<Section id="public-api" title="Public API">
 						<p>
-							Three public read endpoints. All are throttled per client IP — see{" "}
+							Three public read endpoints. All are throttled per client IP. See{" "}
 							<a className="text-primary hover:underline" href="#rate-limits">
 								Rate limits
 							</a>
@@ -321,7 +321,7 @@ function DocsRoute() {
 					<Section id="maintainer-api" title="Maintainer API">
 						<p>
 							Authenticated endpoints used by the dashboard. They require an
-							active Better Auth session cookie — sign in at{" "}
+							active Better Auth session cookie. Sign in at{" "}
 							<a className="text-primary hover:underline" href="/login">
 								/login
 							</a>
@@ -421,7 +421,7 @@ function DocsRoute() {
 
 					<Section id="commands" title="Bot commands">
 						<p>
-							Bot-driven endpoints — invoked by mentioning{" "}
+							Bot-driven endpoints, invoked by mentioning{" "}
 							<code className="text-foreground">@oss-protector</code> in a PR or
 							issue comment.
 						</p>
@@ -451,7 +451,7 @@ function DocsRoute() {
 							<code>OWNER</code>, <code>MEMBER</code>, or{" "}
 							<code>COLLABORATOR</code>) can correct the system from any PR
 							comment. Each correction is applied silently and recorded as an
-							in-app notification — no reply is posted to the PR.
+							in-app notification. No reply is posted to the PR.
 						</p>
 						<pre className="max-w-full overflow-x-auto rounded-md border bg-foreground p-3 font-mono text-background text-xs leading-6">
 							<code>
@@ -506,8 +506,8 @@ function DocsRoute() {
 
 					<Section id="auth-github" title="GitHub OAuth">
 						<p>
-							The default sign-in path. Better Auth handles the OAuth round trip
-							— clicking <strong>Continue with GitHub</strong> on{" "}
+							The default sign-in path. Better Auth handles the OAuth round
+							trip. Clicking <strong>Continue with GitHub</strong> on{" "}
 							<code>/login</code> POSTs to{" "}
 							<code className="text-foreground">/api/auth/sign-in/social</code>,
 							which returns a github.com authorize URL the browser follows.

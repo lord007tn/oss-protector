@@ -32,7 +32,7 @@ function PrivacyRoute() {
 							avatar URL, account type. We do not store private email addresses.
 						</li>
 						<li>
-							<strong>Maintainer report text</strong> — the body of any
+							<strong>Maintainer report text</strong>: the body of any
 							<code className="font-mono text-[12px]"> @oss-protector</code>{" "}
 							command captured from PR or issue comments, plus its{" "}
 							<code className="font-mono text-[12px]">author_association</code>{" "}

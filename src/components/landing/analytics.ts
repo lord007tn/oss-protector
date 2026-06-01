@@ -7,10 +7,9 @@ import type { LandingAnalytics, RiskProfile } from "./types";
 
 export function buildAnalytics(riskyAccounts: RiskProfile[]): LandingAnalytics {
 	const statusMap = new Map<RiskStatus, number>(
-		RISK_STATUSES.filter((status) => status !== "allow").map((status) => [
-			status,
-			0,
-		])
+		RISK_STATUSES.flatMap((status) =>
+			status === "allow" ? [] : [[status, 0] as [RiskStatus, number]]
+		)
 	);
 	const reasonMap = new Map<string, number>();
 

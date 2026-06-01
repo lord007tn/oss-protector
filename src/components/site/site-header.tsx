@@ -184,17 +184,16 @@ export function SiteHeader() {
 											</div>
 										) : (
 											notifications.map((n) => (
-												<a
+												<button
 													className={cn(
-														"grid grid-cols-[24px_1fr_auto] gap-2.5 border-b px-3.5 py-3 text-[13.5px] transition-colors last:border-0 hover:bg-muted",
+														"grid w-full grid-cols-[24px_1fr_auto] gap-2.5 border-b px-3.5 py-3 text-left text-[13.5px] transition-colors last:border-0 hover:bg-muted",
 														!n.read && "bg-primary/[0.06]"
 													)}
-													href={n.link ?? "/dashboard"}
 													key={n.id}
-													onClick={(event) => {
-														event.preventDefault();
+													onClick={() => {
 														openNotification(n);
 													}}
+													type="button"
 												>
 													<span className="mt-0.5">
 														{notificationIcon(n.kind)}
@@ -216,7 +215,7 @@ export function SiteHeader() {
 													<span className="font-mono text-muted-foreground text-xs">
 														{relativeTime(n.createdAt)}
 													</span>
-												</a>
+												</button>
 											))
 										)}
 									</div>
@@ -326,7 +325,7 @@ export function SiteHeader() {
 
 function MobileNav({ isActive }: { isActive: (href: string) => boolean }) {
 	return (
-		<nav className="flex w-full min-w-0 items-center gap-1 overflow-x-auto border-t px-2 py-2 md:hidden">
+		<nav className="flex w-full min-w-0 items-center gap-1 overflow-x-auto border-t p-2 md:hidden">
 			{NAV_LINKS.map((link) => (
 				<a
 					className={cn(

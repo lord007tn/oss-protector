@@ -234,7 +234,7 @@ function NoParamsLanding() {
 					<p className="text-[15px] text-muted-foreground leading-relaxed">
 						We'll only ask for what we need: read-only access to pull request
 						metadata and diffs so we can review them. We never write to your
-						repos — no comments, no status checks — and never clone code.
+						repos (no comments, no status checks) and never clone code.
 					</p>
 				</div>
 

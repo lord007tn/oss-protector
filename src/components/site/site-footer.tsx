@@ -38,7 +38,7 @@ export function SiteFooter() {
 					<Logo />
 					<p className="mt-3.5 max-w-80 text-muted-foreground text-sm leading-relaxed">
 						A community shield for open-source maintainers. Shared abuse
-						intelligence for suspicious GitHub pull-request activity — one app,
+						intelligence for suspicious GitHub pull-request activity: one app,
 						one public directory, one open scoring engine.
 					</p>
 					<a

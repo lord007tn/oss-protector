@@ -180,26 +180,32 @@ export const getAccountProfile = async (
 		// Hide source URLs that point at private repos. Public commenters
 		// browsing the directory don't need to know a report was filed inside
 		// a private repo — that's privileged context for the maintainer.
-		const sanitizedReports: AccountReport[] = reports
-			.filter((row) => row.reporterIsMaintainer && !row.repositoryIsPrivate)
-			.map((row) => ({
-				aiVerdict: row.aiVerdict,
-				confidence: row.confidence,
-				createdAt: row.createdAt,
-				reasonCode: row.reasonCode,
-				reporterLogin: row.reporterLogin,
-				sourceUrl: row.sourceUrl,
-				status: row.status,
-			}));
+		const sanitizedReports: AccountReport[] = reports.flatMap((row) =>
+			row.reporterIsMaintainer && !row.repositoryIsPrivate
+				? [
+						{
+							aiVerdict: row.aiVerdict,
+							confidence: row.confidence,
+							createdAt: row.createdAt,
+							reasonCode: row.reasonCode,
+							reporterLogin: row.reporterLogin,
+							sourceUrl: row.sourceUrl,
+							status: row.status,
+						},
+					]
+				: []
+		);
 
 		const reasonCodes = parseJsonArray<ReasonCode>(profile?.reasonCodesJson);
-		const sanitizedSignals: AccountSignal[] = signals
-			.filter((row) => !row.isPrivate)
-			.map((row) => {
-				const metadata = parseJsonObject<{ reasonCode: ReasonCode }>(
-					row.metadataJson
-				);
-				return {
+		const sanitizedSignals: AccountSignal[] = signals.flatMap((row) => {
+			if (row.isPrivate) {
+				return [];
+			}
+			const metadata = parseJsonObject<{ reasonCode: ReasonCode }>(
+				row.metadataJson
+			);
+			return [
+				{
 					observedAt: row.observedAt,
 					reasonCode:
 						metadata.reasonCode && reasonCodes.includes(metadata.reasonCode)
@@ -210,8 +216,9 @@ export const getAccountProfile = async (
 					source: row.source,
 					sourceUrl: row.sourceUrl,
 					weight: row.weight,
-				};
-			});
+				},
+			];
+		});
 		const publishedPrCount = profile?.importedSource
 			? Math.max(profile.prCount, publicPrs.length)
 			: publicPrs.length;

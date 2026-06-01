@@ -152,7 +152,7 @@ function MethodologyRoute() {
 								<CardContent>
 									<div className="mb-2 flex items-baseline justify-between">
 										<span className="font-mono text-muted-foreground text-xs tracking-wider">
-											— {method.num}
+											/ {method.num}
 										</span>
 										<span className="font-mono text-primary text-xs">
 											{method.contribution}
@@ -189,7 +189,7 @@ function MethodologyRoute() {
 )`}</CodeBlock>
 								<p className="mt-3 text-[12.5px] text-muted-foreground leading-relaxed">
 									The score routes a flag to the maintainer's dashboard. We
-									never post a PR comment, status check, or auto-block — a human
+									never post a PR comment, status check, or auto-block. A human
 									always decides what happens to a contributor.
 								</p>
 							</CardContent>
@@ -229,7 +229,7 @@ function MethodologyRoute() {
 									<li>Private email addresses or real names</li>
 									<li>Geographic location or IP</li>
 									<li>
-										A single signal — no one input flags an account on its own
+										A single signal: no one input flags an account on its own
 									</li>
 								</ul>
 							</CardContent>

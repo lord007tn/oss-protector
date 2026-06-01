@@ -160,8 +160,8 @@ const HOW_CARDS = [
 
 export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 	const { stats } = dashboard;
-	const recentFlags: LiveFeedItem[] = [...dashboard.riskProfiles]
-		.sort((first, second) => second.lastSeenAt - first.lastSeenAt)
+	const recentFlags: LiveFeedItem[] = dashboard.riskProfiles
+		.toSorted((first, second) => second.lastSeenAt - first.lastSeenAt)
 		.slice(0, 7)
 		.map((profile) => ({
 			avatarUrl: profile.avatarUrl,
@@ -198,7 +198,7 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 							closed the laptop and didn't open it again that week."
 						</blockquote>
 						<div className="mt-3.5 text-muted-foreground text-sm">
-							— Maintainer, mid-tier TypeScript library, 2025
+							Maintainer, mid-tier TypeScript library, 2025
 						</div>
 						<div className="mt-7 rounded-xl border bg-card p-5">
 							<div className="mb-2.5 font-mono text-muted-foreground text-xs">
@@ -226,7 +226,7 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 					{HOW_CARDS.map((card) => (
 						<div className="rounded-2xl border bg-card p-7" key={card.num}>
 							<div className="mb-4 font-mono text-muted-foreground text-xs tracking-wider">
-								— {card.num}
+								/ {card.num}
 							</div>
 							<div className="mb-2 font-medium text-lg tracking-tight">
 								{card.title}
@@ -268,7 +268,7 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 						<div className="mb-4 flex items-center gap-2.5">
 							<ConfidenceBadge value={account.confidence} />
 							<span className="text-muted-foreground text-sm">
-								confidence — flag
+								confidence · flag
 							</span>
 						</div>
 						<SignalBars signals={account.signals} />
@@ -358,7 +358,7 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 				{coverageRepos.length === 0 ? (
 					<p className="text-[15px] text-muted-foreground leading-relaxed">
 						No repositories are protected yet. Install the GitHub App to add
-						yours — public flag data shows up here as soon as the first PR is
+						yours. Public flag data shows up here as soon as the first PR is
 						reviewed.
 					</p>
 				) : (
@@ -406,7 +406,7 @@ export function HomePage({ dashboard }: { dashboard: DirectoryDashboard }) {
 					<p className="relative mx-auto mt-4 mb-7 max-w-xl text-[15.5px] text-muted-foreground">
 						OSS Protector is run by maintainers, for maintainers. No paid tiers,
 						no enterprise plan, no upsell. If you want to support the project,
-						sponsor us on GitHub — but the tool stays free for everyone.
+						sponsor us on GitHub, but the tool stays free for everyone.
 					</p>
 					<div className="relative flex flex-wrap justify-center gap-2.5">
 						<a className={cn(buttonVariants({ size: "lg" }))} href="/login">
@@ -468,7 +468,7 @@ function HeroSection({
 					<p className="mb-7 max-w-xl text-[17.5px] text-muted-foreground leading-relaxed">
 						OSS Protector is a community-run GitHub App that flags AI-generated
 						spam pull requests before they hit your review queue. Free,
-						transparent, and built by maintainers — for maintainers.
+						transparent, and built by maintainers, for maintainers.
 					</p>
 					<div className="flex flex-wrap items-center gap-2.5">
 						<a className={cn(buttonVariants({ size: "lg" }))} href="/login">
@@ -513,7 +513,7 @@ function HeroSection({
 						</div>
 					) : (
 						<div className="mt-7 font-mono text-muted-foreground text-xs">
-							Just launched — be the first repository we protect.
+							Just launched. Be the first repository we protect.
 						</div>
 					)}
 				</div>
@@ -739,13 +739,13 @@ function ConfirmFlow() {
 				Three buttons. <span className="text-primary">Three seconds.</span>
 			</h3>
 			<p className="text-[15px] text-muted-foreground leading-relaxed">
-				<b className="text-foreground">Confirm</b> — adds the account to the
+				<b className="text-foreground">Confirm</b>: adds the account to the
 				shared blocklist for your repos.
 				<br />
-				<b className="text-foreground">Dismiss</b> — clears it from your queue.
+				<b className="text-foreground">Dismiss</b>: clears it from your queue.
 				We learn from it.
 				<br />
-				<b className="text-foreground">Allow author</b> — marks them as trusted
+				<b className="text-foreground">Allow author</b>: marks them as trusted
 				in your repos forever. Whitelist, not blocklist.
 			</p>
 			<Alert className="mt-5" variant="success">

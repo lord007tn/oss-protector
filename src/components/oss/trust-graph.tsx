@@ -176,7 +176,7 @@ export function TrustGraph({
 				x="140"
 				y="32"
 			>
-				REPORTERS — {reporterCount ?? reporters.length}
+				REPORTERS: {reporterCount ?? reporters.length}
 			</text>
 			<text
 				fill="var(--muted-foreground)"
@@ -198,7 +198,7 @@ export function TrustGraph({
 				x="660"
 				y="32"
 			>
-				AFFECTED REPOS — {affectedCount ?? repoNames.length}
+				AFFECTED REPOS: {affectedCount ?? repoNames.length}
 			</text>
 		</svg>
 	);

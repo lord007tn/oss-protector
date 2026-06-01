@@ -220,22 +220,24 @@ const normalizePullRequestComments = (
 	kind: PullRequestCommentSummary["kind"],
 	prAuthorLogin: string
 ): PullRequestCommentSummary[] =>
-	items
-		.filter(
-			(item) =>
-				Boolean(item.body) &&
-				!isOwnBotUser({ id: item.user?.id ?? 0, login: item.user?.login ?? "" })
-		)
-		.map((item) => {
-			const author = item.user?.login ?? "unknown";
-			return {
+	items.flatMap((item) => {
+		if (
+			!item.body ||
+			isOwnBotUser({ id: item.user?.id ?? 0, login: item.user?.login ?? "" })
+		) {
+			return [];
+		}
+		const author = item.user?.login ?? "unknown";
+		return [
+			{
 				author,
 				authorAssociation: item.author_association ?? "NONE",
-				body: (item.body ?? "").slice(0, MAX_COMMENT_LENGTH),
+				body: item.body.slice(0, MAX_COMMENT_LENGTH),
 				isPrAuthor: author.toLowerCase() === prAuthorLogin.toLowerCase(),
 				kind,
-			};
-		});
+			},
+		];
+	});
 
 const listPullRequestComments = async ({
 	octokit,
@@ -305,12 +307,13 @@ const listPullRequestCommits = async ({
 			pull_number: pullNumber,
 			repo: repository.repo,
 		});
-		return commits.data
-			.slice(0, MAX_COMMITS)
-			.map((entry) =>
-				(entry.commit.message ?? "").slice(0, MAX_COMMIT_MESSAGE_LENGTH)
-			)
-			.filter(Boolean);
+		return commits.data.slice(0, MAX_COMMITS).flatMap((entry) => {
+			const message = (entry.commit.message ?? "").slice(
+				0,
+				MAX_COMMIT_MESSAGE_LENGTH
+			);
+			return message ? [message] : [];
+		});
 	} catch (caught) {
 		console.warn("Failed to fetch PR commits", caught);
 		return [];
@@ -588,17 +591,19 @@ const handlePullRequest = async (payload: GithubWebhookPayload) => {
 		return;
 	}
 	await upsertInstallationFromPayload(payload.installation);
-	const repository = await upsertRepoFromPayload(
-		payload.repository,
-		payload.installation?.id
-	);
-	const author = await upsertGithubUser({
-		avatarUrl: payload.pull_request.user.avatar_url,
-		githubUserId: payload.pull_request.user.id,
-		htmlUrl: payload.pull_request.user.html_url,
-		login: payload.pull_request.user.login,
-		type: payload.pull_request.user.type,
-	});
+	// The repo upsert may reference the installation (FK), so it stays after the
+	// installation write. The PR author is an independent entity, so upsert it in
+	// parallel with the repo to save a round trip on the webhook hot path.
+	const [repository, author] = await Promise.all([
+		upsertRepoFromPayload(payload.repository, payload.installation?.id),
+		upsertGithubUser({
+			avatarUrl: payload.pull_request.user.avatar_url,
+			githubUserId: payload.pull_request.user.id,
+			htmlUrl: payload.pull_request.user.html_url,
+			login: payload.pull_request.user.login,
+			type: payload.pull_request.user.type,
+		}),
+	]);
 	const pullRequestRecord = await upsertPullRequest({
 		author,
 		pullRequest: {

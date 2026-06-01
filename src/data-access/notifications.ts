@@ -54,25 +54,28 @@ export async function notifyInstallationMaintainers({
 		.where(eq(Installation.githubInstallationId, String(installationGithubId)));
 
 	const effectiveKind = kind ?? "info";
-	let delivered = 0;
-	for (const member of members) {
-		const allowed = await userAllowsNotificationKind(
-			member.userId,
-			effectiveKind
-		);
-		if (!allowed) {
-			continue;
-		}
-		await createNotification({
-			body,
-			kind,
-			link,
-			title,
-			userId: member.userId,
-		});
-		delivered += 1;
-	}
-	return delivered;
+	// Each maintainer's preference check + delivery is independent, so fan out in
+	// parallel (member count is bounded by an installation's maintainers).
+	const results = await Promise.all(
+		members.map(async (member) => {
+			const allowed = await userAllowsNotificationKind(
+				member.userId,
+				effectiveKind
+			);
+			if (!allowed) {
+				return false;
+			}
+			await createNotification({
+				body,
+				kind,
+				link,
+				title,
+				userId: member.userId,
+			});
+			return true;
+		})
+	);
+	return results.filter(Boolean).length;
 }
 
 export async function listNotifications(userId: string, limit = 30) {
