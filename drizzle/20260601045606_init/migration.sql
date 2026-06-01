@@ -1,4 +1,4 @@
-CREATE TABLE `AppEvent` (
+CREATE TABLE IF NOT EXISTS `AppEvent` (
 	`id` text PRIMARY KEY,
 	`deliveryId` text UNIQUE,
 	`eventName` text NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE `AppEvent` (
 	`processedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `Appeal` (
+CREATE TABLE IF NOT EXISTS `Appeal` (
 	`id` text PRIMARY KEY,
 	`login` text NOT NULL,
 	`email` text,
@@ -25,7 +25,7 @@ CREATE TABLE `Appeal` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `BackfillJob` (
+CREATE TABLE IF NOT EXISTS `BackfillJob` (
 	`id` text PRIMARY KEY,
 	`login` text NOT NULL UNIQUE,
 	`status` text DEFAULT 'pending' NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE `BackfillJob` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `BotReport` (
+CREATE TABLE IF NOT EXISTS `BotReport` (
 	`id` text PRIMARY KEY,
 	`targetUserId` text NOT NULL,
 	`reporterGithubId` text,
@@ -63,7 +63,7 @@ CREATE TABLE `BotReport` (
 	CONSTRAINT `fk_BotReport_pullRequestId_PullRequest_id_fk` FOREIGN KEY (`pullRequestId`) REFERENCES `PullRequest`(`id`) ON DELETE SET NULL
 );
 --> statement-breakpoint
-CREATE TABLE `BotSignal` (
+CREATE TABLE IF NOT EXISTS `BotSignal` (
 	`id` text PRIMARY KEY,
 	`targetUserId` text NOT NULL,
 	`repositoryId` text,
@@ -81,7 +81,7 @@ CREATE TABLE `BotSignal` (
 	CONSTRAINT `fk_BotSignal_reportId_BotReport_id_fk` FOREIGN KEY (`reportId`) REFERENCES `BotReport`(`id`) ON DELETE SET NULL
 );
 --> statement-breakpoint
-CREATE TABLE `GithubUser` (
+CREATE TABLE IF NOT EXISTS `GithubUser` (
 	`id` text PRIMARY KEY,
 	`githubUserId` text NOT NULL UNIQUE,
 	`login` text NOT NULL,
@@ -104,7 +104,7 @@ CREATE TABLE `GithubUser` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `Installation` (
+CREATE TABLE IF NOT EXISTS `Installation` (
 	`id` text PRIMARY KEY,
 	`githubInstallationId` text NOT NULL UNIQUE,
 	`accountGithubId` text,
@@ -117,7 +117,7 @@ CREATE TABLE `Installation` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `InstallationMaintainer` (
+CREATE TABLE IF NOT EXISTS `InstallationMaintainer` (
 	`id` text PRIMARY KEY,
 	`userId` text NOT NULL,
 	`installationId` text NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE `InstallationMaintainer` (
 	CONSTRAINT `fk_InstallationMaintainer_installationId_Installation_id_fk` FOREIGN KEY (`installationId`) REFERENCES `Installation`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE `Notification` (
+CREATE TABLE IF NOT EXISTS `Notification` (
 	`id` text PRIMARY KEY,
 	`userId` text NOT NULL,
 	`kind` text DEFAULT 'info' NOT NULL,
@@ -137,7 +137,7 @@ CREATE TABLE `Notification` (
 	`createdAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `PullRequest` (
+CREATE TABLE IF NOT EXISTS `PullRequest` (
 	`id` text PRIMARY KEY,
 	`repositoryId` text NOT NULL,
 	`authorUserId` text NOT NULL,
@@ -163,7 +163,7 @@ CREATE TABLE `PullRequest` (
 	CONSTRAINT `fk_PullRequest_authorUserId_GithubUser_id_fk` FOREIGN KEY (`authorUserId`) REFERENCES `GithubUser`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE `RepoAccountDecision` (
+CREATE TABLE IF NOT EXISTS `RepoAccountDecision` (
 	`id` text PRIMARY KEY,
 	`repositoryId` text NOT NULL,
 	`targetUserId` text NOT NULL,
@@ -177,7 +177,7 @@ CREATE TABLE `RepoAccountDecision` (
 	CONSTRAINT `fk_RepoAccountDecision_targetUserId_GithubUser_id_fk` FOREIGN KEY (`targetUserId`) REFERENCES `GithubUser`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE `RepoPolicy` (
+CREATE TABLE IF NOT EXISTS `RepoPolicy` (
 	`repositoryId` text PRIMARY KEY,
 	`enabled` integer,
 	`analyzePrivateRepositories` integer,
@@ -190,7 +190,7 @@ CREATE TABLE `RepoPolicy` (
 	CONSTRAINT `fk_RepoPolicy_repositoryId_Repository_id_fk` FOREIGN KEY (`repositoryId`) REFERENCES `Repository`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE `Repository` (
+CREATE TABLE IF NOT EXISTS `Repository` (
 	`id` text PRIMARY KEY,
 	`installationId` text,
 	`githubRepositoryId` text NOT NULL UNIQUE,
@@ -206,7 +206,7 @@ CREATE TABLE `Repository` (
 	CONSTRAINT `fk_Repository_installationId_Installation_id_fk` FOREIGN KEY (`installationId`) REFERENCES `Installation`(`id`) ON DELETE SET NULL
 );
 --> statement-breakpoint
-CREATE TABLE `RiskProfile` (
+CREATE TABLE IF NOT EXISTS `RiskProfile` (
 	`id` text PRIMARY KEY,
 	`targetUserId` text NOT NULL UNIQUE,
 	`status` text DEFAULT 'watch' NOT NULL,
@@ -227,7 +227,7 @@ CREATE TABLE `RiskProfile` (
 	CONSTRAINT `fk_RiskProfile_targetUserId_GithubUser_id_fk` FOREIGN KEY (`targetUserId`) REFERENCES `GithubUser`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-CREATE TABLE `SourceImport` (
+CREATE TABLE IF NOT EXISTS `SourceImport` (
 	`id` text PRIMARY KEY,
 	`sourceName` text NOT NULL,
 	`sourceUrl` text NOT NULL,
@@ -236,7 +236,7 @@ CREATE TABLE `SourceImport` (
 	`importedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `Sponsor` (
+CREATE TABLE IF NOT EXISTS `Sponsor` (
 	`id` text PRIMARY KEY,
 	`name` text NOT NULL,
 	`url` text NOT NULL,
@@ -249,7 +249,7 @@ CREATE TABLE `Sponsor` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `UserPreferences` (
+CREATE TABLE IF NOT EXISTS `UserPreferences` (
 	`id` text PRIMARY KEY,
 	`userId` text NOT NULL,
 	`openrouterApiKeyEncrypted` text,
@@ -257,35 +257,35 @@ CREATE TABLE `UserPreferences` (
 	`updatedAt` integer DEFAULT (unixepoch()) NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `app_events_event_idx` ON `AppEvent` (`eventName`);--> statement-breakpoint
-CREATE INDEX `app_events_processed_idx` ON `AppEvent` (`processedAt`);--> statement-breakpoint
-CREATE INDEX `appeals_login_idx` ON `Appeal` (`login`);--> statement-breakpoint
-CREATE INDEX `appeals_status_idx` ON `Appeal` (`status`);--> statement-breakpoint
-CREATE INDEX `backfill_jobs_status_idx` ON `BackfillJob` (`status`);--> statement-breakpoint
-CREATE UNIQUE INDEX `bot_reports_comment_idx` ON `BotReport` (`commentId`);--> statement-breakpoint
-CREATE INDEX `bot_reports_target_idx` ON `BotReport` (`targetUserId`);--> statement-breakpoint
-CREATE INDEX `bot_reports_reporter_idx` ON `BotReport` (`reporterLogin`);--> statement-breakpoint
-CREATE INDEX `bot_reports_status_idx` ON `BotReport` (`status`);--> statement-breakpoint
-CREATE INDEX `bot_signals_target_idx` ON `BotSignal` (`targetUserId`);--> statement-breakpoint
-CREATE INDEX `bot_signals_observed_idx` ON `BotSignal` (`observedAt`);--> statement-breakpoint
-CREATE INDEX `github_users_login_idx` ON `GithubUser` (`login`);--> statement-breakpoint
-CREATE INDEX `github_users_last_seen_idx` ON `GithubUser` (`lastSeenAt`);--> statement-breakpoint
-CREATE INDEX `installations_account_login_idx` ON `Installation` (`accountLogin`);--> statement-breakpoint
-CREATE INDEX `installations_installer_idx` ON `Installation` (`installerGithubId`);--> statement-breakpoint
-CREATE UNIQUE INDEX `installation_maintainers_user_install_idx` ON `InstallationMaintainer` (`userId`,`installationId`);--> statement-breakpoint
-CREATE INDEX `installation_maintainers_user_idx` ON `InstallationMaintainer` (`userId`);--> statement-breakpoint
-CREATE INDEX `notifications_user_idx` ON `Notification` (`userId`);--> statement-breakpoint
-CREATE INDEX `notifications_user_read_idx` ON `Notification` (`userId`,`read`);--> statement-breakpoint
-CREATE UNIQUE INDEX `pull_requests_repo_number_idx` ON `PullRequest` (`repositoryId`,`number`);--> statement-breakpoint
-CREATE INDEX `pull_requests_author_idx` ON `PullRequest` (`authorUserId`);--> statement-breakpoint
-CREATE INDEX `pull_requests_last_seen_idx` ON `PullRequest` (`lastSeenAt`);--> statement-breakpoint
-CREATE UNIQUE INDEX `repo_account_decisions_repo_target_idx` ON `RepoAccountDecision` (`repositoryId`,`targetUserId`);--> statement-breakpoint
-CREATE INDEX `repo_account_decisions_repo_idx` ON `RepoAccountDecision` (`repositoryId`);--> statement-breakpoint
-CREATE INDEX `repo_account_decisions_target_idx` ON `RepoAccountDecision` (`targetUserId`);--> statement-breakpoint
-CREATE INDEX `repositories_installation_idx` ON `Repository` (`installationId`);--> statement-breakpoint
-CREATE INDEX `repositories_owner_idx` ON `Repository` (`ownerLogin`);--> statement-breakpoint
-CREATE INDEX `risk_profiles_status_idx` ON `RiskProfile` (`status`);--> statement-breakpoint
-CREATE INDEX `risk_profiles_score_idx` ON `RiskProfile` (`score`);--> statement-breakpoint
-CREATE INDEX `sponsors_status_idx` ON `Sponsor` (`status`);--> statement-breakpoint
-CREATE INDEX `sponsors_tier_idx` ON `Sponsor` (`tier`);--> statement-breakpoint
-CREATE UNIQUE INDEX `user_preferences_user_idx` ON `UserPreferences` (`userId`);
+CREATE INDEX IF NOT EXISTS `app_events_event_idx` ON `AppEvent` (`eventName`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `app_events_processed_idx` ON `AppEvent` (`processedAt`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `appeals_login_idx` ON `Appeal` (`login`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `appeals_status_idx` ON `Appeal` (`status`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `backfill_jobs_status_idx` ON `BackfillJob` (`status`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `bot_reports_comment_idx` ON `BotReport` (`commentId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `bot_reports_target_idx` ON `BotReport` (`targetUserId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `bot_reports_reporter_idx` ON `BotReport` (`reporterLogin`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `bot_reports_status_idx` ON `BotReport` (`status`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `bot_signals_target_idx` ON `BotSignal` (`targetUserId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `bot_signals_observed_idx` ON `BotSignal` (`observedAt`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `github_users_login_idx` ON `GithubUser` (`login`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `github_users_last_seen_idx` ON `GithubUser` (`lastSeenAt`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `installations_account_login_idx` ON `Installation` (`accountLogin`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `installations_installer_idx` ON `Installation` (`installerGithubId`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `installation_maintainers_user_install_idx` ON `InstallationMaintainer` (`userId`,`installationId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `installation_maintainers_user_idx` ON `InstallationMaintainer` (`userId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `notifications_user_idx` ON `Notification` (`userId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `notifications_user_read_idx` ON `Notification` (`userId`,`read`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `pull_requests_repo_number_idx` ON `PullRequest` (`repositoryId`,`number`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `pull_requests_author_idx` ON `PullRequest` (`authorUserId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `pull_requests_last_seen_idx` ON `PullRequest` (`lastSeenAt`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `repo_account_decisions_repo_target_idx` ON `RepoAccountDecision` (`repositoryId`,`targetUserId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `repo_account_decisions_repo_idx` ON `RepoAccountDecision` (`repositoryId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `repo_account_decisions_target_idx` ON `RepoAccountDecision` (`targetUserId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `repositories_installation_idx` ON `Repository` (`installationId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `repositories_owner_idx` ON `Repository` (`ownerLogin`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `risk_profiles_status_idx` ON `RiskProfile` (`status`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `risk_profiles_score_idx` ON `RiskProfile` (`score`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `sponsors_status_idx` ON `Sponsor` (`status`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `sponsors_tier_idx` ON `Sponsor` (`tier`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `user_preferences_user_idx` ON `UserPreferences` (`userId`);
