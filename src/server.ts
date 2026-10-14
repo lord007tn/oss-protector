@@ -1,4 +1,4 @@
-import handler from "@tanstack/react-start/server-entry";
+import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 import { resolveAppeal, submitAppeal } from "./actions/appeal";
 import { drainBackfillJobs } from "./actions/backfill";
 import {
@@ -1013,7 +1013,8 @@ const matchesRoute = (entry: RouteEntry, path: string, method: string) => {
 const routeFetch = (
 	request: Request,
 	env: RuntimeBindings | undefined,
-	context: ExecutionContext | undefined
+	context: ExecutionContext | undefined,
+	options?: Parameters<typeof handler.fetch>[1]
 ): Promise<Response> => {
 	const url = new URL(request.url);
 	const path = url.pathname;
@@ -1028,7 +1029,7 @@ const routeFetch = (
 	if (sessionRoute) {
 		return sessionRoute;
 	}
-	return Promise.resolve(withSecurityHeaders(handler.fetch(request)));
+	return Promise.resolve(withSecurityHeaders(handler.fetch(request, options)));
 };
 
 export default {
@@ -1045,7 +1046,14 @@ export default {
 		if (env) {
 			(globalThis as GlobalWithRuntime).__env__ = env;
 		}
-		return routeFetch(request, env, context);
+		// Keep custom API routes inside Start's request context and error boundary,
+		// including malformed paths that must be rejected before any route runs.
+		const entry = createServerEntry({
+			fetch(startRequest, options) {
+				return routeFetch(startRequest, env, context, options);
+			},
+		});
+		return withSecurityHeaders(entry.fetch(request));
 	},
 	// Cron-triggered drain of the D1-backed backfill queue (replaces Cloudflare
 	// Queues so backfill runs on the free Workers tier). Schedule is declared in

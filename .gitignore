@@ -36,6 +36,8 @@ __unconfig*
 # Agent / tool runtime logs
 .codex-*.log
 .playwright-mcp
+.playwright-cli/
+output/playwright/
 dogfood-output/
 
 # Logs
