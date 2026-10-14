@@ -40,7 +40,7 @@ It's one GitHub App, one database, one feed — maintainers don't each have to r
 
 ## Stack
 
-- **Frontend** — TanStack Start (file-based routing, SSR), React 19, shadcn/ui on Base UI primitives, Tailwind 4.
+- **Frontend** — TanStack Start 1.169.1 (file-based routing, SSR), Vite 8, React 19, shadcn/ui on Base UI primitives, Tailwind 4.
 - **API + Worker** — TanStack Start server functions on Cloudflare Workers.
 - **Data** — Drizzle ORM `1.0.0-beta.24` on Cloudflare D1.
 - **Auth** — Better Auth (GitHub user sign-in) + `@octokit/auth-app` (App installation tokens).
@@ -69,7 +69,7 @@ pnpm run db:migrate:local
 pnpm run db:seed
 ```
 
-> Requires Node 20+, [pnpm 10](https://pnpm.io/installation), and a Cloudflare account for the Worker preview.
+> Requires Node 22.12+, [pnpm 10](https://pnpm.io/installation), and a Cloudflare account for the Worker preview.
 
 ## Configuration
 

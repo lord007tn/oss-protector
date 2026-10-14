@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade to stable TanStack Start 1.169.1 with reproducible Router and Vite 8 dependencies. Development and CI now require Node 22.12 or newer.
+- Preserve custom API error payloads and security headers inside Start's request context, including generic error handling and malformed-path rejection. Better Auth sessions keep their existing cookie format.
+- Update the Nitro 3 Cloudflare adapter and pin H3 to 2.0.2 so malformed request paths return 400 before routing, rather than escaping as uncaught URI errors.
+
 ## [1.1.0] - 2026-05-30
 
 OAuth UI, pagination, tighter security headers, and a real docs site at `/docs`.

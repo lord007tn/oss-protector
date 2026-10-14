@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getRepoProfile } from "@/actions/repo-profile";
 
 export const getRepoProfileFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
+	.validator((data: unknown) =>
 		z
 			.object({
 				name: z.string().min(1).max(100),

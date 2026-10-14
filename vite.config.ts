@@ -25,8 +25,8 @@ const config = defineConfig(({ mode }) => ({
 			},
 		}),
 		tanstackStart({
-			start: {
-				entry: "./src/server.ts",
+			server: {
+				entry: "./server.ts",
 			},
 		}),
 		viteReact(),

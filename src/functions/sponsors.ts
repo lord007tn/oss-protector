@@ -100,14 +100,14 @@ export const adminListSponsorsFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const adminCreateSponsorFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => sponsorFields.parse(data))
+	.validator((data: unknown) => sponsorFields.parse(data))
 	.handler(async ({ data }) => {
 		await requireAdmin(getRequest());
 		return await createSponsor(toInput(data));
 	});
 
 export const adminUpdateSponsorFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => sponsorUpdateFields.parse(data))
+	.validator((data: unknown) => sponsorUpdateFields.parse(data))
 	.handler(async ({ data }) => {
 		await requireAdmin(getRequest());
 		const { id, ...rest } = data;
@@ -115,9 +115,7 @@ export const adminUpdateSponsorFn = createServerFn({ method: "POST" })
 	});
 
 export const adminDeleteSponsorFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) =>
-		z.object({ id: z.string().min(1) }).parse(data)
-	)
+	.validator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
 	.handler(async ({ data }) => {
 		await requireAdmin(getRequest());
 		await deleteSponsor(data.id);

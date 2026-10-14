@@ -20,7 +20,7 @@ Good first contributions, in rough order of impact:
 
 ## Development setup
 
-Prereqs: Node 20+, [pnpm 10](https://pnpm.io/installation), and a [Cloudflare account](https://dash.cloudflare.com/sign-up) if you want to test against real D1.
+Prereqs: Node 22.12+, [pnpm 10](https://pnpm.io/installation), and a [Cloudflare account](https://dash.cloudflare.com/sign-up) if you want to test against real D1. CI uses Node 22. TanStack Start 1.169.1 requires Vite 8; keep the pinned Start, Router, and build-plugin versions together when updating the lockfile.
 
 ```bash
 git clone https://github.com/lord007tn/oss-protector.git
